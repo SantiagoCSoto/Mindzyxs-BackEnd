@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Mindzyxs_API.Repositories;
 using Mindzyxs_API.Repositories.Models;
@@ -6,7 +7,16 @@ using Mindzyxs_API.Utilities;
 
 var builder = WebApplication.CreateBuilder(args);
 
-builder.Services.AddControllers();
+builder.Services.AddControllers()
+    .ConfigureApiBehaviorOptions(o =>
+    {
+        o.InvalidModelStateResponseFactory = ctx =>
+        {
+            var first = ctx.ModelState.Values.SelectMany(v => v.Errors).FirstOrDefault()?.ErrorMessage
+                ?? "Solicitud inválida.";
+            return new BadRequestObjectResult(new { error = first });
+        };
+    });
 builder.Services.AddOpenApi();
 builder.Services.AddProblemDetails();
 
@@ -17,15 +27,19 @@ builder.Services.AddDbContext<MindzyxsDbContext>(o =>
 builder.Services.Configure<SmtpOptions>(builder.Configuration.GetSection("Smtp"));
 builder.Services.Configure<StorageOptions>(builder.Configuration.GetSection("Storage"));
 builder.Services.Configure<RegistroOptions>(builder.Configuration.GetSection("Registro"));
+builder.Services.Configure<SesionOptions>(builder.Configuration.GetSection("Sesion"));
 
 builder.Services.AddScoped<IUserRepository, EfUserRepository>();
 builder.Services.AddScoped<ICatalogRepository, EfCatalogRepository>();
 builder.Services.AddScoped<ICodigoRepository, EfCodigoRepository>();
+builder.Services.AddScoped<ISesionRepository, EfSesionRepository>();
+builder.Services.AddScoped<IAuthLogRepository, EfAuthLogRepository>();
 builder.Services.AddScoped<ITarjetaStorage, FileSystemTarjetaStorage>();
 builder.Services.AddScoped<IEmailSender, SmtpEmailSender>();
 builder.Services.AddScoped<CatalogService>();
 builder.Services.AddScoped<AuthService>();
 builder.Services.AddScoped<VerificationService>();
+builder.Services.AddScoped<LoginService>();
 
 var app = builder.Build();
 

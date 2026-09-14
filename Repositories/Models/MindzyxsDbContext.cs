@@ -10,6 +10,8 @@ public class MindzyxsDbContext(DbContextOptions<MindzyxsDbContext> options) : Db
     public DbSet<EstadoRow> Estados => Set<EstadoRow>();
     public DbSet<UsuarioRow> Usuarios => Set<UsuarioRow>();
     public DbSet<CodigoRow> Codigos => Set<CodigoRow>();
+    public DbSet<SesionRow> Sesiones => Set<SesionRow>();
+    public DbSet<AuthRow> AuthLogs => Set<AuthRow>();
 
     protected override void OnModelCreating(ModelBuilder b)
     {
@@ -46,6 +48,7 @@ public class MindzyxsDbContext(DbContextOptions<MindzyxsDbContext> options) : Db
             e.Property(x => x.IdGenero).HasColumnName("id_genero");
             e.Property(x => x.FilePath).HasColumnName("file_path").HasMaxLength(500).IsUnicode(false);
             e.Property(x => x.FechaRegistro).HasColumnName("fecha_registro");
+            e.Property(x => x.UltimoAcceso).HasColumnName("ultimo_acceso");
             e.HasIndex(x => x.Correo).IsUnique();
         });
         b.Entity<CodigoRow>(e =>
@@ -57,6 +60,26 @@ public class MindzyxsDbContext(DbContextOptions<MindzyxsDbContext> options) : Db
             e.Property(x => x.Tipo).HasColumnName("tipo").HasMaxLength(20).IsUnicode(false);
             e.Property(x => x.ExpiraEn).HasColumnName("expira_en");
             e.Property(x => x.CreadoEn).HasColumnName("creado_en");
+        });
+        b.Entity<SesionRow>(e =>
+        {
+            e.ToTable("sesiones", "dbo").HasKey(x => x.IdSesion);
+            e.Property(x => x.IdSesion).HasColumnName("id_sesion");
+            e.Property(x => x.IdUsuario).HasColumnName("id_usuario");
+            e.Property(x => x.TokenHash).HasColumnName("token_hash").HasMaxLength(500).IsUnicode(false);
+            e.Property(x => x.ExpiraEn).HasColumnName("expira_en");
+            e.Property(x => x.CreadaEn).HasColumnName("creada_en");
+        });
+        b.Entity<AuthRow>(e =>
+        {
+            e.ToTable("auth", "dbo").HasKey(x => x.IdAuth);
+            e.Property(x => x.IdAuth).HasColumnName("id_auth");
+            e.Property(x => x.ActorIdUsuario).HasColumnName("actor_id_usuario");
+            e.Property(x => x.TargetIdUsuario).HasColumnName("target_id_usuario");
+            e.Property(x => x.Accion).HasColumnName("accion").HasMaxLength(100).IsUnicode(false);
+            e.Property(x => x.Detalle).HasColumnName("detalle").IsUnicode(false);
+            e.Property(x => x.Fecha).HasColumnName("fecha");
+            e.Property(x => x.IpAddress).HasColumnName("ip_address").HasMaxLength(45).IsUnicode(false);
         });
     }
 }
