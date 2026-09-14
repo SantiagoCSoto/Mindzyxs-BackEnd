@@ -102,7 +102,10 @@ public class AccountController(
     [HttpGet("me")]
     public async Task<IActionResult> Me(CancellationToken ct)
     {
-        var authHeader = Request.Headers.Authorization.ToString();
+        Request.Headers.TryGetValue("Authorization", out var authValues);
+        var authHeader = authValues.ToString();
+        if (string.IsNullOrWhiteSpace(authHeader))
+            authHeader = Request.Headers["Authorization"].ToString();
         var token = authHeader.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase)
             ? authHeader["Bearer ".Length..].Trim()
             : authHeader.Trim();
