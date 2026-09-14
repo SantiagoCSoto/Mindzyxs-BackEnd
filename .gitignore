@@ -48,3 +48,5 @@ Thumbs.db
 # Coverage
 coverage/
 coverage.xml
+/HU.csv
+/Plantilla Product.csv
