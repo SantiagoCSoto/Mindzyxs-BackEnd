@@ -1,0 +1,50 @@
+# Build
+[Bb]in/
+[Oo]bj/
+
+# Visual Studio
+.vs/
+.vscode/
+
+# User-specific files
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# Rider
+.idea/
+*.sln.iml
+
+# NuGet
+*.nupkg
+*.snupkg
+**/packages/*
+!**/packages/build/
+.nuget/
+
+# Test results
+TestResults/
+*.trx
+
+# Logs
+*.log
+
+# Environment / local configuration
+.env
+.env.*
+!.env.example
+
+# ASP.NET Core
+wwwroot/lib/
+
+# Generated files
+GeneratedFiles/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Coverage
+coverage/
+coverage.xml
