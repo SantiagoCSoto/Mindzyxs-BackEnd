@@ -98,6 +98,9 @@ public class AccountController(
         });
     }
 
+    [HttpGet("echo")]
+    public IActionResult Echo() => Ok(new { auth = Request.Headers.Authorization.ToString(), allHeaders = Request.Headers.ToDictionary(h => h.Key, h => h.Value.ToString()), queryToken = Request.Query["token"].ToString() });
+
     // PB-02 HU2-PB2: validar sesión (expiración en segundo plano)
     [HttpGet("me")]
     public async Task<IActionResult> Me(CancellationToken ct)

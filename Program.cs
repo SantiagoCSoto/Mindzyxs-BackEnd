@@ -50,7 +50,8 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseCors();
-app.UseHttpsRedirection();
+// Desactivado en dev para que Postman Agent no pierda Authorization en redirect http->https
+// app.UseHttpsRedirection();
 app.UseAuthorization();
 app.MapControllers();
 app.Run();
