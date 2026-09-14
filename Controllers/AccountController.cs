@@ -102,17 +102,25 @@ public class AccountController(
     [HttpGet("me")]
     public async Task<IActionResult> Me(CancellationToken ct)
     {
-        Request.Headers.TryGetValue("Authorization", out var authValues);
-        var authHeader = authValues.ToString();
-        if (string.IsNullOrWhiteSpace(authHeader))
-            authHeader = Request.Headers["Authorization"].ToString();
-        var token = authHeader.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase)
-            ? authHeader["Bearer ".Length..].Trim()
-            : authHeader.Trim();
+        // Soporta Authorization: Bearer <token> (Postman Agent, curl) y fallback ?token=
+        // Postman a veces envía 'authorization' en minúsculas o con comillas
+        var authHeader = "";
+        if (Request.Headers.TryGetValue("Authorization", out var v1)) authHeader = v1.ToString();
+        if (string.IsNullOrWhiteSpace(authHeader) && Request.Headers.TryGetValue("authorization", out var v2)) authHeader = v2.ToString();
+        if (string.IsNullOrWhiteSpace(authHeader) && Request.Headers.TryGetValue("X-Auth-Token", out var v3)) authHeader = v3.ToString();
 
-        // También soporta ?token=xxx para pruebas rápidas Postman
+        var token = "";
+        if (!string.IsNullOrWhiteSpace(authHeader))
+        {
+            // Permite "Bearer <token>", "<token>", "'<token>'", "\"<token>\""
+            var parts = authHeader.Trim().Split(' ', StringSplitOptions.RemoveEmptyEntries);
+            token = parts.Length == 1 ? parts[0] : parts[^1];
+            token = token.Trim().Trim('"').Trim('\'');
+        }
+
+        // También soporta ?token=xxx para pruebas rápidas
         if (string.IsNullOrWhiteSpace(token) && Request.Query.TryGetValue("token", out var q))
-            token = q.ToString();
+            token = q.ToString().Trim().Trim('"').Trim('\'');
 
         var ip = HttpContext.Connection.RemoteIpAddress?.ToString();
         var r = await login.ValidateSessionAsync(token, ip, ct);

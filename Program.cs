@@ -19,6 +19,7 @@ builder.Services.AddControllers()
     });
 builder.Services.AddOpenApi();
 builder.Services.AddProblemDetails();
+builder.Services.AddCors(o => o.AddDefaultPolicy(p => p.AllowAnyOrigin().AllowAnyHeader().AllowAnyMethod()));
 
 // BD (todo el acceso vive en Repositories/Models + Ef*).
 builder.Services.AddDbContext<MindzyxsDbContext>(o =>
@@ -48,6 +49,7 @@ if (app.Environment.IsDevelopment())
     app.MapOpenApi();
 }
 
+app.UseCors();
 app.UseHttpsRedirection();
 app.UseAuthorization();
 app.MapControllers();
