@@ -4,12 +4,15 @@ public static class AppRoles
 {
     public const string Paciente = "Paciente";
     public const string Psicologo = "Psicologo";
+    public const string Administrador = "Administrador";
 }
 
 // Nombres exactos de dbo.estados (02_seed_catalogos.sql).
 public static class AccountStates
 {
     public const string Activa = "Activa";
+    public const string Suspendida = "Suspendida";
+    public const string Inactiva = "Inactiva";
     public const string PendienteVerificacion = "PendienteVerificacion";
     public const string PendienteAprobacion = "PendienteAprobacion";
     public const string Aprobado = "Aprobado";
@@ -18,4 +21,14 @@ public static class AccountStates
 public static class VerificationTypes
 {
     public const string Registro = "Registro";
+}
+
+public static class LogAcciones
+{
+    public const string LoginAttempt = "LOGIN_ATTEMPT";
+    public const string LoginSuccess = "LOGIN_SUCCESS";
+    public const string LoginFailed = "LOGIN_FAILED";
+    public const string LoginBloqueadoSuspendida = "LOGIN_BLOQUEADO_SUSPENDIDA";
+    public const string LoginBloqueadoPendienteAprobacion = "LOGIN_BLOQUEADO_PENDIENTE_APROBACION";
+    public const string SesionExpirada = "SESION_EXPIRADA";
 }
