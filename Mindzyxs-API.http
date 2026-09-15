@@ -1,6 +1,56 @@
-@Mindzyxs_API_HostAddress = http://localhost:5015
+@Host = http://localhost:5183
 
-GET {{Mindzyxs_API_HostAddress}}/weatherforecast/
+### PB-01 catálogos (HU1 tipos + HU2 géneros)
+GET {{Host}}/api/account/catalogos
 Accept: application/json
 
-###
+### PB-01 registro paciente (HU1+HU2). multipart (HU3 sin tarjeta)
+POST {{Host}}/api/account/register
+Content-Type: multipart/form-data; boundary=pb01
+
+--pb01
+Content-Disposition: form-data; name="TipoUsuario"
+
+Paciente
+--pb01
+Content-Disposition: form-data; name="Nombre"
+
+Camila
+--pb01
+Content-Disposition: form-data; name="Apellido"
+
+Rojas
+--pb01
+Content-Disposition: form-data; name="Edad"
+
+22
+--pb01
+Content-Disposition: form-data; name="IdGenero"
+
+2
+--pb01
+Content-Disposition: form-data; name="Correo"
+
+paciente.nuevo@test.com
+--pb01
+Content-Disposition: form-data; name="Password"
+
+Abc12345
+--pb01--
+
+### PB-01 verificar (HU4)
+POST {{Host}}/api/account/verify
+Content-Type: application/json
+
+{
+  "correo": "paciente.nuevo@test.com",
+  "codigo": "123456"
+}
+
+### PB-01 reenviar código (HU4)
+POST {{Host}}/api/account/resend
+Content-Type: application/json
+
+{
+  "correo": "paciente.nuevo@test.com"
+}

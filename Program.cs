@@ -1,23 +1,40 @@
+using Microsoft.EntityFrameworkCore;
+using Mindzyxs_API.Repositories;
+using Mindzyxs_API.Repositories.Models;
+using Mindzyxs_API.Services;
+using Mindzyxs_API.Utilities;
+
 var builder = WebApplication.CreateBuilder(args);
 
-// Add services to the container.
-
 builder.Services.AddControllers();
-// Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
 builder.Services.AddOpenApi();
+builder.Services.AddProblemDetails();
+
+// BD (todo el acceso vive en Repositories/Models + Ef*).
+builder.Services.AddDbContext<MindzyxsDbContext>(o =>
+    o.UseSqlServer(builder.Configuration.GetConnectionString("Mindzyxs")));
+
+builder.Services.Configure<SmtpOptions>(builder.Configuration.GetSection("Smtp"));
+builder.Services.Configure<StorageOptions>(builder.Configuration.GetSection("Storage"));
+builder.Services.Configure<RegistroOptions>(builder.Configuration.GetSection("Registro"));
+
+builder.Services.AddScoped<IUserRepository, EfUserRepository>();
+builder.Services.AddScoped<ICatalogRepository, EfCatalogRepository>();
+builder.Services.AddScoped<ICodigoRepository, EfCodigoRepository>();
+builder.Services.AddScoped<ITarjetaStorage, FileSystemTarjetaStorage>();
+builder.Services.AddScoped<IEmailSender, SmtpEmailSender>();
+builder.Services.AddScoped<CatalogService>();
+builder.Services.AddScoped<AuthService>();
+builder.Services.AddScoped<VerificationService>();
 
 var app = builder.Build();
 
-// Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();
 }
 
 app.UseHttpsRedirection();
-
 app.UseAuthorization();
-
 app.MapControllers();
-
 app.Run();
