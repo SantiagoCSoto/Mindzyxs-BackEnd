@@ -30,7 +30,7 @@ public class AdminService(
             var root = options.Value.BackupsPath;
             Directory.CreateDirectory(root);
             var now = DateTime.UtcNow;
-            var name = $"mindzyx_backup_{now:yyyy-MM-dd_HH-mm-ss}.json";
+            var name = $"mindzyx_backup_{now:yyyy-MM-dd_HH-mm-ss}.backup";
             var full = Path.Combine(root, name);
 
             var snapshot = await admin.ExportSnapshotJsonAsync(ct);
@@ -39,12 +39,13 @@ public class AdminService(
             var bytes = new FileInfo(full).Length;
             var tamano = FormatSize(bytes);
 
-            await admin.CrearRespaldoAsync(name, tamano, adminId, ct);
+            var idRespaldo = await admin.CrearRespaldoAsync(name, tamano, adminId, ct);
             await authLogs.LogAsync(adminId, adminId, LogAcciones.Backup,
                 $"Respaldo creado: {name} ({tamano}) en {root}", ip, ct);
 
             return OperationResult<BackupResultDto>.Ok(new BackupResultDto
             {
+                IdRespaldo = idRespaldo,
                 NombreArchivo = name,
                 Tamano = tamano,
                 FechaHora = now,
@@ -69,7 +70,7 @@ public class AdminService(
             return OperationResult.Fail("No fue posible restaurar el respaldo. Verifique el archivo e intente nuevamente");
 
         if (file.Length > options.Value.MaxRestoreBytes)
-            return OperationResult.Fail("No fue posible restaurar el respaldo. El archivo supera el tamaÃ±o permitido");
+            return OperationResult.Fail("No fue posible restaurar el respaldo. El archivo supera el tamaño permitido");
 
         try
         {
@@ -81,7 +82,7 @@ public class AdminService(
             await using (var fs = new FileStream(full, FileMode.CreateNew, FileAccess.Write, FileShare.None))
                 await file.CopyToAsync(fs, ct);
 
-            // ValidaciÃ³n mÃ­nima del contenido antes de darlo por restaurado.
+            // Validación mínima del contenido antes de darlo por restaurado.
             if (ext == ".json" || ext == ".backup")
             {
                 var contenido = await File.ReadAllTextAsync(full, ct);
@@ -146,16 +147,24 @@ public class AdminService(
             };
 
             await authLogs.LogAsync(adminId, adminId, LogAcciones.Mantenimiento,
-                $"Mantenimiento completado: {cod} cÃ³digos, {ses} sesiones, {logs} logs", ip, ct);
+                $"Mantenimiento completado: {cod} códigos, {ses} sesiones, {logs} logs", ip, ct);
 
             return OperationResult<MaintenanceResultDto>.Ok(result,
-                "Mantenimiento completado â€” registros temporales eliminados (0 datos de pacientes afectados)");
+                "Mantenimiento completado — registros temporales eliminados (0 datos de pacientes afectados)");
         }
         catch (Exception ex)
         {
             logger.LogError(ex, "No fue posible ejecutar mantenimiento por {AdminId}", adminId);
             return OperationResult<MaintenanceResultDto>.Fail("No fue posible ejecutar el mantenimiento. Intente nuevamente");
         }
+    }
+
+    // Devuelve la ruta física de un respaldo por id, o null si no existe.
+    public async Task<string?> GetBackupFilePath(int idRespaldo, CancellationToken ct = default)
+    {
+        var r = await admin.FindRespaldoByIdAsync(idRespaldo, ct);
+        if (r is null) return null;
+        return Path.Combine(options.Value.BackupsPath, r.NombreArchivo);
     }
 
     // Devuelve el id_usuario del administrador autenticado o null si no es admin.

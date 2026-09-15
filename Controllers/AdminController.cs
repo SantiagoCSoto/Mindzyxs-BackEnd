@@ -58,6 +58,28 @@ public class AdminController(AdminService admin) : ControllerBase
         return Ok(new { mensaje = r.Message, detalle = r.Data });
     }
 
+    // Descargar respaldo existente por id. Devuelve el archivo del disco local.
+    [HttpGet("backups/{id}/download")]
+    public async Task<IActionResult> Download(int id, CancellationToken ct)
+    {
+        var (ok, _, reason) = await EnsureAdminAsync(ct);
+        if (!ok) return StatusCode(403, new { error = reason });
+
+        var filePath = await admin.GetBackupFilePath(id, ct);
+        if (filePath is null || !System.IO.File.Exists(filePath))
+            return NotFound(new { error = "Archivo de respaldo no encontrado" });
+
+        var fileName = Path.GetFileName(filePath);
+        var contentType = Path.GetExtension(fileName).ToLowerInvariant() switch
+        {
+            ".json" => "application/json",
+            ".db" or ".sqlite" => "application/octet-stream",
+            ".backup" => "application/octet-stream",
+            _ => "application/json"
+        };
+        return PhysicalFile(filePath, contentType, fileName);
+    }
+
     // Valida que el token corresponda a una sesión activa y el rol sea Administrador.
     private async Task<(bool Ok, int? AdminId, string Reason)> EnsureAdminAsync(CancellationToken ct)
     {

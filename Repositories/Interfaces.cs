@@ -50,7 +50,8 @@ public interface IAuthLogRepository
 public interface IAdminRepository
 {
     Task<List<RespaldoDto>> ListRespaldosAsync(CancellationToken ct = default);
-    Task CrearRespaldoAsync(string nombreArchivo, string tamano, int idAdmin, CancellationToken ct = default);
+    Task<int> CrearRespaldoAsync(string nombreArchivo, string tamano, int idAdmin, CancellationToken ct = default);
+    Task<RespaldoDto?> FindRespaldoByIdAsync(int idRespaldo, CancellationToken ct = default);
     Task<int> LimpiarCodigosExpiradosAsync(CancellationToken ct = default);
     Task<int> LimpiarSesionesExpiradasAsync(CancellationToken ct = default);
     Task<int> LimpiarAuthAntiguosAsync(int dias, CancellationToken ct = default);

@@ -196,17 +196,25 @@ public class EfAdminRepository(MindzyxsDbContext db) : IAdminRepository
             .Select(r => new RespaldoDto(r.IdRespaldo, r.NombreArchivo, r.Tamano, r.FechaHora, r.IdAdmin))
             .ToListAsync(ct);
 
-    public async Task CrearRespaldoAsync(string nombreArchivo, string tamano, int idAdmin, CancellationToken ct = default)
+    public async Task<int> CrearRespaldoAsync(string nombreArchivo, string tamano, int idAdmin, CancellationToken ct = default)
     {
-        db.Respaldos.Add(new RespaldoRow
+        var row = new RespaldoRow
         {
             NombreArchivo = nombreArchivo,
             Tamano = tamano,
             FechaHora = DateTime.UtcNow,
             IdAdmin = idAdmin
-        });
+        };
+        db.Respaldos.Add(row);
         await db.SaveChangesAsync(ct);
+        return row.IdRespaldo;
     }
+
+    public async Task<RespaldoDto?> FindRespaldoByIdAsync(int idRespaldo, CancellationToken ct = default)
+        => await db.Respaldos.AsNoTracking()
+            .Where(r => r.IdRespaldo == idRespaldo)
+            .Select(r => new RespaldoDto(r.IdRespaldo, r.NombreArchivo, r.Tamano, r.FechaHora, r.IdAdmin))
+            .FirstOrDefaultAsync(ct);
 
     public async Task<int> LimpiarCodigosExpiradosAsync(CancellationToken ct = default)
         => await db.Codigos.Where(c => c.ExpiraEn < DateTime.UtcNow).ExecuteDeleteAsync(ct);
