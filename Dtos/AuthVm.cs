@@ -70,3 +70,36 @@ public class LoginResponseDto
     public DateTime ExpiraEn { get; set; }
     public string Panel { get; set; } = string.Empty;
 }
+
+// PB-05 HU1-PB5: solicitar código de recuperación (pantalla Recuperar contraseña).
+public class ForgotVm
+{
+    [Required(ErrorMessage = "Este campo es obligatorio")]
+    [EmailAddress(ErrorMessage = "Ingresa un correo válido")]
+    public string? Correo { get; set; }
+}
+
+// PB-05 HU2-PB5: validar el código recibido (pantalla Verificar código).
+public class VerifyCodeVm
+{
+    [Required(ErrorMessage = "Este campo es obligatorio")]
+    [EmailAddress(ErrorMessage = "Ingresa un correo válido")]
+    public string? Correo { get; set; }
+
+    [Required(ErrorMessage = "Este campo es obligatorio")]
+    public string? Codigo { get; set; }
+}
+
+// PB-05 HU2-PB5: guardar la nueva contraseña (pantalla Nueva contraseña).
+public class ResetPasswordVm
+{
+    [Required(ErrorMessage = "Este campo es obligatorio")]
+    [EmailAddress(ErrorMessage = "Ingresa un correo válido")]
+    public string? Correo { get; set; }
+
+    [Required(ErrorMessage = "Este campo es obligatorio")]
+    public string? Codigo { get; set; }
+
+    [Required(ErrorMessage = "Este campo es obligatorio")]
+    public string? Password { get; set; }
+}
