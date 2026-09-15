@@ -105,26 +105,7 @@ public class AccountController(
     [HttpGet("me")]
     public async Task<IActionResult> Me(CancellationToken ct)
     {
-        // Soporta Authorization: Bearer <token> (Postman Agent, curl) y fallback ?token=
-        // Postman a veces envía 'authorization' en minúsculas o con comillas
-        var authHeader = "";
-        if (Request.Headers.TryGetValue("Authorization", out var v1)) authHeader = v1.ToString();
-        if (string.IsNullOrWhiteSpace(authHeader) && Request.Headers.TryGetValue("authorization", out var v2)) authHeader = v2.ToString();
-        if (string.IsNullOrWhiteSpace(authHeader) && Request.Headers.TryGetValue("X-Auth-Token", out var v3)) authHeader = v3.ToString();
-
-        var token = "";
-        if (!string.IsNullOrWhiteSpace(authHeader))
-        {
-            // Permite "Bearer <token>", "<token>", "'<token>'", "\"<token>\""
-            var parts = authHeader.Trim().Split(' ', StringSplitOptions.RemoveEmptyEntries);
-            token = parts.Length == 1 ? parts[0] : parts[^1];
-            token = token.Trim().Trim('"').Trim('\'');
-        }
-
-        // También soporta ?token=xxx para pruebas rápidas
-        if (string.IsNullOrWhiteSpace(token) && Request.Query.TryGetValue("token", out var q))
-            token = q.ToString().Trim().Trim('"').Trim('\'');
-
+        var token = ReadBearerToken();
         var ip = HttpContext.Connection.RemoteIpAddress?.ToString();
         var r = await login.ValidateSessionAsync(token, ip, ct);
         if (!r.Success)
@@ -135,5 +116,43 @@ public class AccountController(
         }
 
         return Ok(new { idUsuario = r.Data!.IdUsuario, correo = r.Data.Correo, nombre = r.Data.Nombre, apellido = r.Data.Apellido });
+    }
+
+    // PB-03 HU1-PB3: cerrar sesión. Invalida la sesión (borra dbo.sesiones), registra LOGOUT
+    // en dbo.auth y devuelve 200 para que el front limpie el token y redirija a la Landing.
+    // Ante un error interno: 500 "No fue posible cerrar sesión. Intenta nuevamente".
+    [HttpPost("logout")]
+    public async Task<IActionResult> Logout(CancellationToken ct)
+    {
+        var token = ReadBearerToken();
+        var ip = HttpContext.Connection.RemoteIpAddress?.ToString();
+        var r = await login.LogoutAsync(token, ip, ct);
+        if (!r.Success)
+            return StatusCode(500, new { error = r.Message });
+        return Ok(new { mensaje = r.Message });
+    }
+
+    // Lee el token de sesión de forma robusta: Authorization Bearer <token> (Postman, curl),
+    // '<token>', "Bearer", comillas o minúsculas, con fallback ?token= para pruebas rápidas.
+    private string? ReadBearerToken()
+    {
+        var authHeader = "";
+        if (Request.Headers.TryGetValue("Authorization", out var v1)) authHeader = v1.ToString();
+        if (string.IsNullOrWhiteSpace(authHeader) && Request.Headers.TryGetValue("authorization", out var v2)) authHeader = v2.ToString();
+        if (string.IsNullOrWhiteSpace(authHeader) && Request.Headers.TryGetValue("X-Auth-Token", out var v3)) authHeader = v3.ToString();
+
+        if (!string.IsNullOrWhiteSpace(authHeader))
+        {
+            // Permite "Bearer <token>", "<token>", "'<token>'", "\"<token>\""
+            var parts = authHeader.Trim().Split(' ', StringSplitOptions.RemoveEmptyEntries);
+            var token = parts.Length == 1 ? parts[0] : parts[^1];
+            return token.Trim().Trim('"').Trim('\'');
+        }
+
+        // También soporta ?token=xxx para pruebas rápidas
+        if (Request.Query.TryGetValue("token", out var q))
+            return q.ToString().Trim().Trim('"').Trim('\'');
+
+        return null;
     }
 }
