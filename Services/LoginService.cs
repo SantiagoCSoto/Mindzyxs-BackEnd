@@ -165,4 +165,50 @@ public class LoginService(
         await authLogs.LogAsync(user.IdUsuario, user.IdUsuario, "SESION_VALIDADA", "Sesión válida", ip, ct);
         return OperationResult<UsuarioDto>.Ok(user, "Sesión válida");
     }
+
+    // PB-03 HU1-PB3: cerrar sesión de forma segura. Invalida la sesión borrando
+    // dbo.sesiones (token_hash) y registra el evento LOGOUT en dbo.auth.
+    // Idempotente: sin token o sesión inexistente devuelve éxito para que el
+    // front limpie el token local y redirija. Ante error interno devuelve el
+    // mensaje exacto "No fue posible cerrar sesión. Intenta nuevamente".
+    public async Task<OperationResult> LogoutAsync(string? tokenRaw, string? ip, CancellationToken ct = default)
+    {
+        try
+        {
+            if (string.IsNullOrWhiteSpace(tokenRaw))
+            {
+                await SafeLogAsync(null, LogAcciones.Logout, "Logout sin token", ip, ct);
+                return OperationResult.Ok("Sesión cerrada exitosamente");
+            }
+
+            var hash = TokenHelper.Hash(tokenRaw.Trim());
+            var sesion = await sesiones.FindByTokenHashAsync(hash, ct);
+            if (sesion is null)
+            {
+                await SafeLogAsync(null, LogAcciones.Logout, "Logout de sesión inexistente", ip, ct);
+                return OperationResult.Ok("Sesión cerrada exitosamente");
+            }
+
+            await sesiones.DeleteByTokenHashAsync(hash, ct);
+            await SafeLogAsync(sesion.IdUsuario, LogAcciones.Logout, "Cierre de sesión", ip, ct);
+            return OperationResult.Ok("Sesión cerrada exitosamente");
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "No fue posible cerrar sesión");
+            return OperationResult.Fail("No fue posible cerrar sesión. Intenta nuevamente");
+        }
+    }
+
+    private async Task SafeLogAsync(int? userId, string accion, string detalle, string? ip, CancellationToken ct)
+    {
+        try
+        {
+            await authLogs.LogAsync(userId, userId, accion, detalle, ip, ct);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "No se pudo registrar {Accion} en dbo.auth", accion);
+        }
+    }
 }

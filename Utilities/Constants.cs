@@ -33,4 +33,5 @@ public static class LogAcciones
     public const string LoginBloqueadoPendienteAprobacion = "LOGIN_BLOQUEADO_PENDIENTE_APROBACION";
     public const string SesionExpirada = "SESION_EXPIRADA";
     public const string PasswordReset = "PASSWORD_RESET";
+    public const string Logout = "LOGOUT";
 }
