@@ -356,4 +356,119 @@ curl --location --request POST "http://localhost:5015/api/account/logout" --head
 * Cada `login` crea nueva `sesiones`; las viejas siguen válidas 8h. `logout` borra solo la sesión actual (por token).
 * `¿Deseas cerrar sesión?` es front (modal): `Sí, cerrar sesión` → `POST /logout`; `No, permanecer` → cerrar modal sin llamar API.
 * CORS ya permite todo. No uses `?token=` en prod, solo debug.
+* Rama actual `PB2`, BD `SANTI/Mindzyxs` usuario `mindzyxs_app` (`db_datareader/db_datawriter`).
+
+# Mindzyxs-API — Guía Front-End PB-05 (Recuperar contraseña)
+
+API REST `Mindzyxs 1.1` — solo back-end. Todo pasa por `Controllers/AccountController.cs` → `Services/PasswordRecoveryService.cs` → `Repositories/*`. Usa `dbo.codigos_verificacion` con tipo `Recuperar` y `dbo.auth` para los logs (`PASSWORD_RESET`).
+
+## Endpoints PB-05
+
+| Método | Ruta | HU | Descripción | Auth |
+|--------|------|----|-------------|------|
+| `POST` | `/api/account/forgot` | HU1-PB5 | Solicitar código de recuperación | no |
+| `POST` | `/api/account/forgot/verify` | HU2-PB5 | Validar el código antes de mostrar Nueva contraseña | no |
+| `POST` | `/api/account/forgot/reset` | HU2-PB5 | Guardar la nueva contraseña | no |
+| `POST` | `/api/account/forgot/resend` | HU2-PB5 | Reenviar código de recuperación | no |
+
+### 2.1 `POST /api/account/forgot` — pantalla Recuperar contraseña (HU1-PB5)
+
+`Dtos/AuthVm.cs:ForgotVm` → `{correo}`
+
+```js
+const res = await fetch("http://localhost:5015/api/account/forgot", {
+  method:"POST", headers:{"Content-Type":"application/json"},
+  body: JSON.stringify({ correo })
+});
+const data = await res.json();
+if (!res.ok) {
+  // 400 {error:"Este campo es obligatorio"}  // vacío
+  // 400 {error:"Ingresa un correo válido"}   // formato inválido
+  showError(data.error); // no envía código
+} else {
+  // 200 {mensaje:"Código enviado a tu correo"} // correo registrado -> pantalla Verificar código
+  // 200 {mensaje:"Si el correo está registrado, recibirás un código"} // genérico si NO existe (no confirma la cuenta)
+  location.href = "/recuperar/verificar?correo=" + encodeURIComponent(correo);
+}
+```
+
+`Services/PasswordRecoveryService.cs:ForgotAsync`: valida vacío/formato, busca el usuario; si NO existe devuelve `200` con mensaje genérico (seguridad, no revela si la cuenta existe); si existe genera código 6 dígitos tipo `Recuperar`, expira `Registro:CodigoExpiraMinutos`, y envía `Utilities/EmailTemplate.cs:RecoveryCode`.
+
+**cURL:**
+
+```bash
+curl --location "http://localhost:5015/api/account/forgot" -H "Content-Type: application/json" -d "{\"correo\":\"paciente.nuevo@test.com\"}"
+```
+
+### 2.2 `POST /api/account/forgot/verify` — pantalla Verificar código (HU2-PB5)
+
+`Dtos/AuthVm.cs:VerifyCodeVm` → `{correo, codigo}`
+
+```js
+const res = await fetch("http://localhost:5015/api/account/forgot/verify", {
+  method:"POST", headers:{"Content-Type":"application/json"},
+  body: JSON.stringify({ correo, codigo })
+});
+const data = await res.json();
+if (!res.ok) {
+  // 400 {error:"Código incorrecto. Verifica e intenta nuevamente"} // incorrecto -> reintentar
+  // 410 {error:"El código expiró. Reenvía el código"}               // expiró -> enlace Reenviar código
+  showError(data.error);
+} else {
+  // 200 {mensaje:"Código verificado. Define tu nueva contraseña"} -> pantalla Nueva contraseña
+  location.href = "/recuperar/nueva?correo=" + encodeURIComponent(correo);
+}
+```
+
+**cURL:**
+
+```bash
+curl --location "http://localhost:5015/api/account/forgot/verify" -H "Content-Type: application/json" -d "{\"correo\":\"paciente.nuevo@test.com\",\"codigo\":\"123456\"}"
+```
+
+### 2.3 `POST /api/account/forgot/reset` — pantalla Nueva contraseña (HU2-PB5)
+
+`Dtos/AuthVm.cs:ResetPasswordVm` → `{correo, codigo, password}`
+
+```js
+const res = await fetch("http://localhost:5015/api/account/forgot/reset", {
+  method:"POST", headers:{"Content-Type":"application/json"},
+  body: JSON.stringify({ correo, codigo, password })
+});
+const data = await res.json();
+if (!res.ok) {
+  // 400 {error:"Código incorrecto. Verifica e intenta nuevamente"}
+  // 410 {error:"El código expiró. Reenvía el código"}
+  // 400 {error:"La contraseña debe tener mínimo 6 caracteres e incluir al menos una letra y un número"}
+  showError(data.error);
+} else {
+  // 200 {mensaje:"Contraseña actualizada exitosamente"} -> botón Iniciar sesión
+}
+```
+
+`ResetPasswordAsync` revalida el código, valida la política (`Utilities/SecurityHelper.cs:PasswordHelper.IsStrongEnough`), actualiza `password_hash` (`Repositories/EfRepositories.cs:SetPasswordAsync`), consume el código y registra `PASSWORD_RESET` en `dbo.auth` con la IP. La comprobación de "las contraseñas coinciden" es del front (comparar `password` vs confirmación antes de llamar).
+
+**cURL:**
+
+```bash
+curl --location "http://localhost:5015/api/account/forgot/reset" -H "Content-Type: application/json" -d "{\"correo\":\"paciente.nuevo@test.com\",\"codigo\":\"123456\",\"password\":\"Nueva12345\"}"
+```
+
+### 2.4 `POST /api/account/forgot/resend` — enlace Reenviar código (HU2-PB5)
+
+`{correo}` → `200 {mensaje:"Código reenviado"}` (genérico si no existe, para no revelar cuentas).
+
+## Mensajes exactos PB-05
+
+* `"Este campo es obligatorio"` / `"Ingresa un correo válido"` (400)
+* `"Código enviado a tu correo"` (200)
+* `"Si el correo está registrado, recibirás un código"` (200, correo no registrado — no confirma si existe)
+* `"Código incorrecto. Verifica e intenta nuevamente"` (400)
+* `"El código expiró. Reenvía el código"` (410)
+* `"La contraseña debe tener mínimo 6 caracteres e incluir al menos una letra y un número"` (400)
+* `"Contraseña actualizada exitosamente"` (200)
+* `"Las contraseñas no coinciden"` (validación front, no llama API)
+* `"Código reenviado"` (200)
+
+* Rama actual `PB5`, BD `SANTI/Mindzyxs`, retoma con `Paciente` y `Psicologo` los corridos en base. La tabla `dbo.codigos_verificacion.tipo` ya soporta `Recuperar` (no requiere DDL).
 * Rama actual `PB03-HU01PB3` (base PB1 + PB2 fusionados), BD `SANTI/Mindzyxs` usuario `mindzyxs_app` (`db_datareader/db_datawriter`), `appsettings.json:ConnectionStrings:Mindzyxs`.

@@ -41,6 +41,7 @@ builder.Services.AddScoped<CatalogService>();
 builder.Services.AddScoped<AuthService>();
 builder.Services.AddScoped<VerificationService>();
 builder.Services.AddScoped<LoginService>();
+builder.Services.AddScoped<PasswordRecoveryService>();
 
 var app = builder.Build();
 

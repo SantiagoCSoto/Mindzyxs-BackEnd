@@ -54,6 +54,11 @@ public class EfUserRepository(MindzyxsDbContext db) : IUserRepository
         => await db.Usuarios.Where(x => x.IdUsuario == idUsuario)
             .ExecuteUpdateAsync(s => s.SetProperty(x => x.IdEstadoCuenta, idEstado), ct);
 
+    // PB-05 HU2-PB5: actualiza password_hash al restablecer la contraseña.
+    public async Task SetPasswordAsync(int idUsuario, string passwordHash, CancellationToken ct = default)
+        => await db.Usuarios.Where(x => x.IdUsuario == idUsuario)
+            .ExecuteUpdateAsync(s => s.SetProperty(x => x.PasswordHash, passwordHash), ct);
+
     public async Task UpdateUltimoAccesoAsync(int idUsuario, CancellationToken ct = default)
         => await db.Usuarios.Where(x => x.IdUsuario == idUsuario)
             .ExecuteUpdateAsync(s => s.SetProperty(x => x.UltimoAcceso, DateTime.UtcNow), ct);

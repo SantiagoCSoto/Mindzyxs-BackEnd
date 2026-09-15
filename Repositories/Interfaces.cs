@@ -10,6 +10,7 @@ public interface IUserRepository
     Task<int> AddAsync(UsuarioDto user, CancellationToken ct = default);
     Task SetFilePathAsync(int idUsuario, string path, CancellationToken ct = default);
     Task SetEstadoCuentaAsync(int idUsuario, int idEstado, CancellationToken ct = default);
+    Task SetPasswordAsync(int idUsuario, string passwordHash, CancellationToken ct = default);
     Task UpdateUltimoAccesoAsync(int idUsuario, CancellationToken ct = default);
     Task<string?> GetRolNombreAsync(int idRol, CancellationToken ct = default);
     Task<string?> GetEstadoCuentaNombreAsync(int idEstadoCuenta, CancellationToken ct = default);

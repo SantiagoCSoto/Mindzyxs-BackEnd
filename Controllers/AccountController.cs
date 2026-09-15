@@ -12,7 +12,8 @@ public class AccountController(
     AuthService auth,
     VerificationService verification,
     CatalogService catalogs,
-    LoginService login) : ControllerBase
+    LoginService login,
+    PasswordRecoveryService recovery) : ControllerBase
 {
     // Catálogos para el formulario Registro (tipos Paciente/Psicologo + géneros).
     [HttpGet("catalogos")]
@@ -154,5 +155,60 @@ public class AccountController(
             return q.ToString().Trim().Trim('"').Trim('\'');
 
         return null;
+    }
+
+    // PB-05 HU1-PB5: enviar código de recuperación (pantalla Recuperar contraseña).
+    [HttpPost("forgot")]
+    public async Task<IActionResult> Forgot([FromBody] ForgotVm vm, CancellationToken ct)
+    {
+        if (!ModelState.IsValid)
+        {
+            var first = ModelState.Values.SelectMany(v => v.Errors).FirstOrDefault()?.ErrorMessage
+                ?? "Solicitud inválida.";
+            return BadRequest(new { error = first });
+        }
+
+        var r = await recovery.ForgotAsync(vm.Correo, ct);
+        if (!r.Success) return BadRequest(new { error = r.Message });
+        return Ok(new { mensaje = r.Message });
+    }
+
+    // PB-05 HU2-PB5: validar el código ingresado antes de mostrar Nueva contraseña.
+    [HttpPost("forgot/verify")]
+    public async Task<IActionResult> VerifyCode([FromBody] VerifyCodeVm vm, CancellationToken ct)
+    {
+        if (!ModelState.IsValid) return BadRequest(new { error = "Este campo es obligatorio" });
+        var r = await recovery.VerifyCodeAsync(vm.Correo, vm.Codigo, ct);
+        if (!r.Success)
+        {
+            var status = r.Message.StartsWith("El código expiró") ? 410 : 400;
+            return StatusCode(status, new { error = r.Message });
+        }
+        return Ok(new { mensaje = r.Message });
+    }
+
+    // PB-05 HU2-PB5: guardar la nueva contraseña (pantalla Nueva contraseña).
+    [HttpPost("forgot/reset")]
+    public async Task<IActionResult> ResetPassword([FromBody] ResetPasswordVm vm, CancellationToken ct)
+    {
+        if (!ModelState.IsValid) return BadRequest(new { error = "Este campo es obligatorio" });
+        var ip = HttpContext.Connection.RemoteIpAddress?.ToString();
+        var r = await recovery.ResetPasswordAsync(vm.Correo, vm.Codigo, vm.Password, ip, ct);
+        if (!r.Success)
+        {
+            var status = r.Message.StartsWith("El código expiró") ? 410 : 400;
+            return StatusCode(status, new { error = r.Message });
+        }
+        return Ok(new { mensaje = r.Message });
+    }
+
+    // PB-05 HU2-PB5: reenviar el código de recuperación.
+    [HttpPost("forgot/resend")]
+    public async Task<IActionResult> ResendRecovery([FromBody] ForgotVm vm, CancellationToken ct)
+    {
+        if (!ModelState.IsValid) return BadRequest(new { error = "Este campo es obligatorio" });
+        var r = await recovery.ResendAsync(vm.Correo, ct);
+        if (!r.Success) return BadRequest(new { error = r.Message });
+        return Ok(new { mensaje = r.Message });
     }
 }
