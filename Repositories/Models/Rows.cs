@@ -65,3 +65,12 @@ public class AuthRow
     public DateTime Fecha { get; set; }
     public string? IpAddress { get; set; }
 }
+
+public class RespaldoRow
+{
+    public int IdRespaldo { get; set; }
+    public string NombreArchivo { get; set; } = string.Empty;
+    public string? Tamano { get; set; }
+    public DateTime FechaHora { get; set; }
+    public int IdAdmin { get; set; }
+}

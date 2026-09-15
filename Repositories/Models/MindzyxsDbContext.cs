@@ -12,6 +12,7 @@ public class MindzyxsDbContext(DbContextOptions<MindzyxsDbContext> options) : Db
     public DbSet<CodigoRow> Codigos => Set<CodigoRow>();
     public DbSet<SesionRow> Sesiones => Set<SesionRow>();
     public DbSet<AuthRow> AuthLogs => Set<AuthRow>();
+    public DbSet<RespaldoRow> Respaldos => Set<RespaldoRow>();
 
     protected override void OnModelCreating(ModelBuilder b)
     {
@@ -80,6 +81,15 @@ public class MindzyxsDbContext(DbContextOptions<MindzyxsDbContext> options) : Db
             e.Property(x => x.Detalle).HasColumnName("detalle").IsUnicode(false);
             e.Property(x => x.Fecha).HasColumnName("fecha");
             e.Property(x => x.IpAddress).HasColumnName("ip_address").HasMaxLength(45).IsUnicode(false);
+        });
+        b.Entity<RespaldoRow>(e =>
+        {
+            e.ToTable("respaldos", "dbo").HasKey(x => x.IdRespaldo);
+            e.Property(x => x.IdRespaldo).HasColumnName("id_respaldo");
+            e.Property(x => x.NombreArchivo).HasColumnName("nombre_archivo").HasMaxLength(255).IsUnicode(false);
+            e.Property(x => x.Tamano).HasColumnName("tamano").HasMaxLength(20).IsUnicode(false);
+            e.Property(x => x.FechaHora).HasColumnName("fecha_hora").HasDefaultValueSql("SYSDATETIME()");
+            e.Property(x => x.IdAdmin).HasColumnName("id_admin");
         });
     }
 }

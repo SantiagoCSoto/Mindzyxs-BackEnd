@@ -187,3 +187,54 @@ public class EfAuthLogRepository(MindzyxsDbContext db) : IAuthLogRepository
         await db.SaveChangesAsync(ct);
     }
 }
+
+public class EfAdminRepository(MindzyxsDbContext db) : IAdminRepository
+{
+    public async Task<List<RespaldoDto>> ListRespaldosAsync(CancellationToken ct = default)
+        => await db.Respaldos.AsNoTracking()
+            .OrderByDescending(r => r.FechaHora)
+            .Select(r => new RespaldoDto(r.IdRespaldo, r.NombreArchivo, r.Tamano, r.FechaHora, r.IdAdmin))
+            .ToListAsync(ct);
+
+    public async Task CrearRespaldoAsync(string nombreArchivo, string tamano, int idAdmin, CancellationToken ct = default)
+    {
+        db.Respaldos.Add(new RespaldoRow
+        {
+            NombreArchivo = nombreArchivo,
+            Tamano = tamano,
+            FechaHora = DateTime.UtcNow,
+            IdAdmin = idAdmin
+        });
+        await db.SaveChangesAsync(ct);
+    }
+
+    public async Task<int> LimpiarCodigosExpiradosAsync(CancellationToken ct = default)
+        => await db.Codigos.Where(c => c.ExpiraEn < DateTime.UtcNow).ExecuteDeleteAsync(ct);
+
+    public async Task<int> LimpiarSesionesExpiradasAsync(CancellationToken ct = default)
+        => await db.Sesiones.Where(s => s.ExpiraEn < DateTime.UtcNow).ExecuteDeleteAsync(ct);
+
+    public async Task<int> LimpiarAuthAntiguosAsync(int dias, CancellationToken ct = default)
+        => await db.AuthLogs.Where(a => a.Fecha < DateTime.UtcNow.AddDays(-dias)).ExecuteDeleteAsync(ct);
+
+    // Snapshot JSON de datos (agnóstico SQL/NoSQL). El usuario de la app no puede
+    // ejecutar BACKUP DATABASE (no tiene permisos DDL), por eso se exportan los datos.
+    public async Task<string> ExportSnapshotJsonAsync(CancellationToken ct = default)
+    {
+        var snapshot = new
+        {
+            sistema = "Mindzyx",
+            tipo = "respaldo-datos",
+            version = 1,
+            exportadoEn = DateTime.UtcNow,
+            data = new
+            {
+                roles = await db.Roles.AsNoTracking().ToListAsync(ct),
+                generos = await db.Generos.AsNoTracking().ToListAsync(ct),
+                estados = await db.Estados.AsNoTracking().ToListAsync(ct),
+                usuarios = await db.Usuarios.AsNoTracking().ToListAsync(ct)
+            }
+        };
+        return System.Text.Json.JsonSerializer.Serialize(snapshot, new System.Text.Json.JsonSerializerOptions { WriteIndented = true });
+    }
+}

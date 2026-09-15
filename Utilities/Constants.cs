@@ -34,4 +34,9 @@ public static class LogAcciones
     public const string SesionExpirada = "SESION_EXPIRADA";
     public const string PasswordReset = "PASSWORD_RESET";
     public const string Logout = "LOGOUT";
+    public const string Backup = "BACKUP";
+    public const string Restore = "RESTORE";
+    public const string Mantenimiento = "MANTENIMIENTO";
+    public const string VerRespaldos = "VIEW_BACKUPS";
+    public const string PermisoDenegado = "PERMISO_DENEGADO";
 }

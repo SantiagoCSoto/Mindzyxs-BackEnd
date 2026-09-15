@@ -47,5 +47,16 @@ public interface IAuthLogRepository
     Task LogAsync(int? actorId, int? targetId, string accion, string detalle, string? ip, CancellationToken ct = default);
 }
 
+public interface IAdminRepository
+{
+    Task<List<RespaldoDto>> ListRespaldosAsync(CancellationToken ct = default);
+    Task CrearRespaldoAsync(string nombreArchivo, string tamano, int idAdmin, CancellationToken ct = default);
+    Task<int> LimpiarCodigosExpiradosAsync(CancellationToken ct = default);
+    Task<int> LimpiarSesionesExpiradasAsync(CancellationToken ct = default);
+    Task<int> LimpiarAuthAntiguosAsync(int dias, CancellationToken ct = default);
+    Task<string> ExportSnapshotJsonAsync(CancellationToken ct = default);
+}
+
+public record RespaldoDto(int IdRespaldo, string NombreArchivo, string? Tamano, DateTime FechaHora, int IdAdmin);
 public record mindzyxsCode(int IdCodigo, string Codigo, DateTime ExpiraEn);
 public record SesionDto(int IdSesion, int IdUsuario, string TokenHash, DateTime ExpiraEn, DateTime CreadaEn);
