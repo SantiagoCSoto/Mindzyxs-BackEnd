@@ -14,6 +14,12 @@ public class EfUserRepository(MindzyxsDbContext db) : IUserRepository
         return u is null ? null : Map(u);
     }
 
+    public async Task<UsuarioDto?> FindByIdAsync(int idUsuario, CancellationToken ct = default)
+    {
+        var u = await db.Usuarios.AsNoTracking().FirstOrDefaultAsync(x => x.IdUsuario == idUsuario, ct);
+        return u is null ? null : Map(u);
+    }
+
     public async Task<bool> ExistsByCorreoAsync(string correo, CancellationToken ct = default)
     {
         var c = ContactHelper.Normalize(correo).ToLower();
@@ -47,6 +53,17 @@ public class EfUserRepository(MindzyxsDbContext db) : IUserRepository
     public async Task SetEstadoCuentaAsync(int idUsuario, int idEstado, CancellationToken ct = default)
         => await db.Usuarios.Where(x => x.IdUsuario == idUsuario)
             .ExecuteUpdateAsync(s => s.SetProperty(x => x.IdEstadoCuenta, idEstado), ct);
+
+    public async Task UpdateUltimoAccesoAsync(int idUsuario, CancellationToken ct = default)
+        => await db.Usuarios.Where(x => x.IdUsuario == idUsuario)
+            .ExecuteUpdateAsync(s => s.SetProperty(x => x.UltimoAcceso, DateTime.UtcNow), ct);
+
+    // Intento actualizar ultimo_acceso si existe; si no, no falla.
+    public async Task<string?> GetRolNombreAsync(int idRol, CancellationToken ct = default)
+        => await db.Roles.Where(r => r.IdRol == idRol).Select(r => r.Nombre).FirstOrDefaultAsync(ct);
+
+    public async Task<string?> GetEstadoCuentaNombreAsync(int idEstadoCuenta, CancellationToken ct = default)
+        => await db.Estados.Where(e => e.IdEstado == idEstadoCuenta).Select(e => e.Nombre).FirstOrDefaultAsync(ct);
 
     private static UsuarioDto Map(UsuarioRow u) => new()
     {
@@ -86,6 +103,12 @@ public class EfCatalogRepository(MindzyxsDbContext db) : ICatalogRepository
 
     public async Task<bool> ExisteGeneroAsync(int idGenero, CancellationToken ct = default)
         => await db.Generos.AnyAsync(g => g.IdGenero == idGenero, ct);
+
+    public async Task<string?> GetRolNombreAsync(int idRol, CancellationToken ct = default)
+        => await db.Roles.Where(r => r.IdRol == idRol).Select(r => r.Nombre).FirstOrDefaultAsync(ct);
+
+    public async Task<string?> GetEstadoNombreAsync(int idEstado, CancellationToken ct = default)
+        => await db.Estados.Where(e => e.IdEstado == idEstado).Select(e => e.Nombre).FirstOrDefaultAsync(ct);
 }
 
 public class EfCodigoRepository(MindzyxsDbContext db) : ICodigoRepository
@@ -112,4 +135,50 @@ public class EfCodigoRepository(MindzyxsDbContext db) : ICodigoRepository
 
     public async Task ConsumirAsync(int idCodigo, CancellationToken ct = default)
         => await db.Codigos.Where(c => c.IdCodigo == idCodigo).ExecuteDeleteAsync(ct);
+}
+
+public class EfSesionRepository(MindzyxsDbContext db) : ISesionRepository
+{
+    public async Task<int> CrearAsync(int idUsuario, string tokenHash, DateTime expiraEn, CancellationToken ct = default)
+    {
+        var row = new SesionRow
+        {
+            IdUsuario = idUsuario,
+            TokenHash = tokenHash,
+            ExpiraEn = expiraEn,
+            CreadaEn = DateTime.UtcNow
+        };
+        db.Sesiones.Add(row);
+        await db.SaveChangesAsync(ct);
+        return row.IdSesion;
+    }
+
+    public async Task<SesionDto?> FindByTokenHashAsync(string tokenHash, CancellationToken ct = default)
+        => await db.Sesiones.AsNoTracking()
+            .Where(s => s.TokenHash == tokenHash)
+            .Select(s => new SesionDto(s.IdSesion, s.IdUsuario, s.TokenHash, s.ExpiraEn, s.CreadaEn))
+            .FirstOrDefaultAsync(ct);
+
+    public async Task DeleteAsync(int idSesion, CancellationToken ct = default)
+        => await db.Sesiones.Where(s => s.IdSesion == idSesion).ExecuteDeleteAsync(ct);
+
+    public async Task DeleteByTokenHashAsync(string tokenHash, CancellationToken ct = default)
+        => await db.Sesiones.Where(s => s.TokenHash == tokenHash).ExecuteDeleteAsync(ct);
+}
+
+public class EfAuthLogRepository(MindzyxsDbContext db) : IAuthLogRepository
+{
+    public async Task LogAsync(int? actorId, int? targetId, string accion, string detalle, string? ip, CancellationToken ct = default)
+    {
+        db.AuthLogs.Add(new AuthRow
+        {
+            ActorIdUsuario = actorId,
+            TargetIdUsuario = targetId,
+            Accion = accion,
+            Detalle = detalle,
+            Fecha = DateTime.UtcNow,
+            IpAddress = ip
+        });
+        await db.SaveChangesAsync(ct);
+    }
 }

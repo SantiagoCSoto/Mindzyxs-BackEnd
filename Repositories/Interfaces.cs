@@ -5,10 +5,14 @@ namespace Mindzyxs_API.Repositories;
 public interface IUserRepository
 {
     Task<UsuarioDto?> FindByCorreoAsync(string correo, CancellationToken ct = default);
+    Task<UsuarioDto?> FindByIdAsync(int idUsuario, CancellationToken ct = default);
     Task<bool> ExistsByCorreoAsync(string correo, CancellationToken ct = default);
     Task<int> AddAsync(UsuarioDto user, CancellationToken ct = default);
     Task SetFilePathAsync(int idUsuario, string path, CancellationToken ct = default);
     Task SetEstadoCuentaAsync(int idUsuario, int idEstado, CancellationToken ct = default);
+    Task UpdateUltimoAccesoAsync(int idUsuario, CancellationToken ct = default);
+    Task<string?> GetRolNombreAsync(int idRol, CancellationToken ct = default);
+    Task<string?> GetEstadoCuentaNombreAsync(int idEstadoCuenta, CancellationToken ct = default);
 }
 
 public interface ICatalogRepository
@@ -18,6 +22,8 @@ public interface ICatalogRepository
     Task<int> GetRolIdAsync(string nombre, CancellationToken ct = default);
     Task<int> GetEstadoIdAsync(string nombre, CancellationToken ct = default);
     Task<bool> ExisteGeneroAsync(int idGenero, CancellationToken ct = default);
+    Task<string?> GetRolNombreAsync(int idRol, CancellationToken ct = default);
+    Task<string?> GetEstadoNombreAsync(int idEstado, CancellationToken ct = default);
 }
 
 public interface ICodigoRepository
@@ -27,4 +33,18 @@ public interface ICodigoRepository
     Task ConsumirAsync(int idCodigo, CancellationToken ct = default);
 }
 
+public interface ISesionRepository
+{
+    Task<int> CrearAsync(int idUsuario, string tokenHash, DateTime expiraEn, CancellationToken ct = default);
+    Task<SesionDto?> FindByTokenHashAsync(string tokenHash, CancellationToken ct = default);
+    Task DeleteAsync(int idSesion, CancellationToken ct = default);
+    Task DeleteByTokenHashAsync(string tokenHash, CancellationToken ct = default);
+}
+
+public interface IAuthLogRepository
+{
+    Task LogAsync(int? actorId, int? targetId, string accion, string detalle, string? ip, CancellationToken ct = default);
+}
+
 public record mindzyxsCode(int IdCodigo, string Codigo, DateTime ExpiraEn);
+public record SesionDto(int IdSesion, int IdUsuario, string TokenHash, DateTime ExpiraEn, DateTime CreadaEn);

@@ -48,3 +48,25 @@ public class ResendVm
     [EmailAddress(ErrorMessage = "Ingresa un correo válido")]
     public string? Correo { get; set; }
 }
+
+// PB-02 HU1-PB2: Inicio de sesión
+public class LoginVm
+{
+    [Required(ErrorMessage = "Este campo es obligatorio")]
+    [EmailAddress(ErrorMessage = "Ingresa un correo válido")]
+    public string? Correo { get; set; }
+
+    [Required(ErrorMessage = "Este campo es obligatorio")]
+    public string? Password { get; set; }
+}
+
+public class LoginResponseDto
+{
+    public int IdUsuario { get; set; }
+    public string Correo { get; set; } = string.Empty;
+    public string Rol { get; set; } = string.Empty;
+    public string EstadoCuenta { get; set; } = string.Empty;
+    public string Token { get; set; } = string.Empty;
+    public DateTime ExpiraEn { get; set; }
+    public string Panel { get; set; } = string.Empty;
+}
