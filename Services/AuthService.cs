@@ -33,8 +33,15 @@ public class AuthService(
         // HU2-PB1: obligatorios y formatos.
         if (string.IsNullOrWhiteSpace(vm.Nombre) || string.IsNullOrWhiteSpace(vm.Apellido))
             return OperationResult<int>.Fail("Este campo es obligatorio");
-        if (vm.Edad is null or < 1 or > 120)
-            return OperationResult<int>.Fail("Ingresa una edad válida");
+
+        // Fecha de nacimiento: obligatoria, formato yyyy-MM-dd, no en el futuro y al menos 14 años.
+        if (!DateOnly.TryParseExact(vm.FechaNacimiento, "yyyy-MM-dd", out var nacimiento))
+            return OperationResult<int>.Fail("Ingresa una fecha de nacimiento válida");
+        if (nacimiento > DateOnly.FromDateTime(DateTime.Today))
+            return OperationResult<int>.Fail("La fecha de nacimiento no puede ser en el futuro");
+        if (nacimiento > DateOnly.FromDateTime(DateTime.Today.AddYears(-14)))
+            return OperationResult<int>.Fail("Debes tener al menos 14 años para registrarte");
+
         if (vm.IdGenero is null || !await catalogs.ExisteGeneroAsync(vm.IdGenero.Value, ct))
             return OperationResult<int>.Fail("Este campo es obligatorio");
 
@@ -65,7 +72,7 @@ public class AuthService(
             Apellido = vm.Apellido.Trim(),
             Correo = correo,
             PasswordHash = PasswordHelper.Hash(vm.Password),
-            FechaNacimiento = AgeHelper.ToBirthDate(vm.Edad.Value),
+            FechaNacimiento = nacimiento.ToDateTime(TimeOnly.MinValue),
             IdRol = idRol,
             IdEstadoCuenta = idPendVerif,
             IdEstadoAprobacion = idAprob,

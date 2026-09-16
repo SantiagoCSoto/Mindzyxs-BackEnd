@@ -42,7 +42,7 @@ Mindzyxs-API/
 │   └── OperationResult.cs         # Resultado genérico de operaciones de servicio
 │
 └── Utilities/                     # Helpers transversales
-    ├── CodeHelper.cs              # Generación del código de 6 dígitos y cálculo de edad → fecha_nacimiento
+    ├── CodeHelper.cs              # Generación del código de 6 dígitos
     ├── Constants.cs               # Constantes compartidas (acciones de auth, etc.)
     ├── ContactHelper.cs           # Validación de tipo de cuenta y contacto
     ├── EmailHelper.cs             # Envío SMTP
@@ -109,7 +109,7 @@ Campos exactos `Dtos/AuthVm.cs:RegisterVm`:
 |-------|------|----------|
 | `TipoUsuario` | `Paciente` \| `Psicologo` | HU1 → `400 "Debes seleccionar un tipo de cuenta: Paciente o Psicólogo"` (`Utilities/ContactHelper.cs`) |
 | `Nombre`, `Apellido` | string | HU2 → `400 "Este campo es obligatorio"` |
-| `Edad` | int 1-120 | → `400 "Ingresa una edad válida"` (API calcula `fecha_nacimiento = Today.AddYears(-Edad)` `Utilities/CodeHelper.cs:AgeHelper`) |
+| `FechaNacimiento` | string `yyyy-MM-dd` | → `400 "Ingresa una fecha de nacimiento válida"` / `400 "La fecha de nacimiento no puede ser en el futuro"` / `400 "Debes tener al menos 14 años para registrarte"` (validación manual en `Services/AuthService.cs:RegisterAsync`) |
 | `IdGenero` | int (de catalogos) | → `400 "Este campo es obligatorio"` |
 | `Correo` | string | → `400 "Este campo es obligatorio"` / `400 "Ingresa un correo válido"` / `409 "El correo ya se encuentra registrado"` |
 | `Password` | string | HU2 → `400 "La contraseña debe tener mínimo 6 caracteres e incluir al menos una letra y un número"` (`Utilities/SecurityHelper.cs:PasswordHelper`) |
@@ -122,7 +122,7 @@ const fd = new FormData();
 fd.append("TipoUsuario", tipo); // "Paciente" | "Psicologo"
 fd.append("Nombre", nombres);
 fd.append("Apellido", apellidos);
-fd.append("Edad", edad);
+fd.append("FechaNacimiento", fechaNacimiento); // "yyyy-MM-dd"
 fd.append("IdGenero", generoId);
 fd.append("Correo", correo);
 fd.append("Password", password);
@@ -142,9 +142,9 @@ else {
 **cURL Paciente / Psicólogo:**
 
 ```bash
-curl --location "http://localhost:5015/api/account/register" -F "TipoUsuario=Paciente" -F "Nombre=Camila" -F "Apellido=Rojas" -F "Edad=22" -F "IdGenero=2" -F "Correo=paciente.nuevo@test.com" -F "Password=Abc12345"
+curl --location "http://localhost:5015/api/account/register" -F "TipoUsuario=Paciente" -F "Nombre=Camila" -F "Apellido=Rojas" -F "FechaNacimiento=2004-05-10" -F "IdGenero=2" -F "Correo=paciente.nuevo@test.com" -F "Password=Abc12345"
 
-curl --location "http://localhost:5015/api/account/register" -F "TipoUsuario=Psicologo" -F "Nombre=Pedro" -F "Apellido=Lopez" -F "Edad=35" -F "IdGenero=1" -F "Correo=psy@test.com" -F "Password=Abc12345" -F "TarjetaProfesional=@C:/ruta/tarjeta.pdf;type=application/pdf"
+curl --location "http://localhost:5015/api/account/register" -F "TipoUsuario=Psicologo" -F "Nombre=Pedro" -F "Apellido=Lopez" -F "FechaNacimiento=1991-03-22" -F "IdGenero=1" -F "Correo=psy@test.com" -F "Password=Abc12345" -F "TarjetaProfesional=@C:/ruta/tarjeta.pdf;type=application/pdf"
 ```
 
 ### 2.3 `POST /api/account/verify` + `resend` — HU4
@@ -181,7 +181,8 @@ curl --location "http://localhost:5015/api/account/resend" -H "Content-Type: app
 
 * `"Debes seleccionar un tipo de cuenta: Paciente o Psicólogo"`
 * `"Este campo es obligatorio"`
-* `"Ingresa una edad válida"` / `"Ingresa un correo válido"`
+* `"Ingresa una fecha de nacimiento válida"` / `"La fecha de nacimiento no puede ser en el futuro"` / `"Debes tener al menos 14 años para registrarte"`
+* `"Ingresa un correo válido"`
 * `"La contraseña debe tener mínimo 6 caracteres e incluir al menos una letra y un número"`
 * `"El correo ya se encuentra registrado"` (409)
 * `"La tarjeta profesional es obligatoria para registrarse como psicólogo"` / `"El archivo debe estar en formato PDF"` / `"El archivo supera el tamaño máximo permitido de 5MB"`
@@ -196,7 +197,7 @@ curl --location "http://localhost:5015/api/account/resend" -H "Content-Type: app
 ## 5. Notas front
 
 * El front no hace `Cancelar/Volver` en API — es solo modal `¿Deseas cancelar el registro?`.
-* `Edad` → `fecha_nacimiento`, sin cambio DDL.
+* `FechaNacimiento` (string `yyyy-MM-dd`) se guarda directo en `dbo.usuarios.fecha_nacimiento`, sin cálculo de edad. Validaciones: obligatoria, no futura y ≥14 años.
 * Tarjeta solo en `file_path` (disco `C:\uploads\mindzyxs\tarjetas`), no blob.
 * Rama actual `PB1`, BD `SANTI/Mindzyxs` usuario `mindzyxs_app` (`db_datareader/db_datawriter`), `appsettings.json:ConnectionStrings:Mindzyxs`.
 
@@ -245,7 +246,7 @@ Campos exactos `Dtos/AuthVm.cs:RegisterVm`:
 |-------|------|----------|
 | `TipoUsuario` | `Paciente` \| `Psicologo` | HU1 → `400 "Debes seleccionar un tipo de cuenta: Paciente o Psicólogo"` (`Utilities/ContactHelper.cs`) |
 | `Nombre`, `Apellido` | string | HU2 → `400 "Este campo es obligatorio"` |
-| `Edad` | int 1-120 | → `400 "Ingresa una edad válida"` (API calcula `fecha_nacimiento = Today.AddYears(-Edad)` `Utilities/CodeHelper.cs:AgeHelper`) |
+| `FechaNacimiento` | string `yyyy-MM-dd` | → `400 "Ingresa una fecha de nacimiento válida"` / `400 "La fecha de nacimiento no puede ser en el futuro"` / `400 "Debes tener al menos 14 años para registrarte"` (validación manual en `Services/AuthService.cs:RegisterAsync`) |
 | `IdGenero` | int (de catalogos) | → `400 "Este campo es obligatorio"` |
 | `Correo` | string | → `400 "Este campo es obligatorio"` / `400 "Ingresa un correo válido"` / `409 "El correo ya se encuentra registrado"` |
 | `Password` | string | HU2 → `400 "La contraseña debe tener mínimo 6 caracteres e incluir al menos una letra y un número"` (`Utilities/SecurityHelper.cs:PasswordHelper`) |
@@ -258,7 +259,7 @@ const fd = new FormData();
 fd.append("TipoUsuario", tipo); // "Paciente" | "Psicologo"
 fd.append("Nombre", nombres);
 fd.append("Apellido", apellidos);
-fd.append("Edad", edad);
+fd.append("FechaNacimiento", fechaNacimiento); // "yyyy-MM-dd"
 fd.append("IdGenero", generoId);
 fd.append("Correo", correo);
 fd.append("Password", password);
@@ -276,9 +277,9 @@ else {
 **cURL Paciente / Psicólogo:**
 
 ```bash
-curl --location "http://localhost:5015/api/account/register" -F "TipoUsuario=Paciente" -F "Nombre=Camila" -F "Apellido=Rojas" -F "Edad=22" -F "IdGenero=2" -F "Correo=paciente.nuevo@test.com" -F "Password=Abc12345"
+curl --location "http://localhost:5015/api/account/register" -F "TipoUsuario=Paciente" -F "Nombre=Camila" -F "Apellido=Rojas" -F "FechaNacimiento=2004-05-10" -F "IdGenero=2" -F "Correo=paciente.nuevo@test.com" -F "Password=Abc12345"
 
-curl --location "http://localhost:5015/api/account/register" -F "TipoUsuario=Psicologo" -F "Nombre=Pedro" -F "Apellido=Lopez" -F "Edad=35" -F "IdGenero=1" -F "Correo=psy@test.com" -F "Password=Abc12345" -F "TarjetaProfesional=@C:/ruta/tarjeta.pdf;type=application/pdf"
+curl --location "http://localhost:5015/api/account/register" -F "TipoUsuario=Psicologo" -F "Nombre=Pedro" -F "Apellido=Lopez" -F "FechaNacimiento=1991-03-22" -F "IdGenero=1" -F "Correo=psy@test.com" -F "Password=Abc12345" -F "TarjetaProfesional=@C:/ruta/tarjeta.pdf;type=application/pdf"
 ```
 
 ### 2.3 `POST /api/account/verify` + `resend` — HU4
@@ -399,7 +400,8 @@ curl --location --request POST "http://localhost:5015/api/account/logout" --head
 
 * `"Debes seleccionar un tipo de cuenta: Paciente o Psicólogo"`
 * `"Este campo es obligatorio"`
-* `"Ingresa una edad válida"` / `"Ingresa un correo válido"`
+* `"Ingresa una fecha de nacimiento válida"` / `"La fecha de nacimiento no puede ser en el futuro"` / `"Debes tener al menos 14 años para registrarte"`
+* `"Ingresa un correo válido"`
 * `"La contraseña debe tener mínimo 6 caracteres e incluir al menos una letra y un número"`
 * `"El correo ya se encuentra registrado"` (409)
 * `"La tarjeta profesional es obligatoria para registrarse como psicólogo"` / `"El archivo debe estar en formato PDF"` / `"El archivo supera el tamaño máximo permitido de 5MB"`

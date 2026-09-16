@@ -19,10 +19,12 @@ public class RegisterVm
     [Required(ErrorMessage = "Este campo es obligatorio")]
     public string? Apellido { get; set; }
 
-    /// <summary>Edad del usuario (1-120). El backend calcula `fecha_nacimiento = hoy - Edad`.</summary>
-    [Required(ErrorMessage = "Ingresa una edad válida")]
-    [Range(1, 120, ErrorMessage = "Ingresa una edad válida")]
-    public int? Edad { get; set; }
+    /// <summary>
+    /// Fecha de nacimiento en formato `yyyy-MM-dd` (string para validación manual del backend).
+    /// No puede ser una fecha futura ni indicar una edad menor a 14 años.
+    /// </summary>
+    [Required(ErrorMessage = "Este campo es obligatorio")]
+    public string? FechaNacimiento { get; set; }
 
     /// <summary>Id del género, tomado de `GET /api/account/catalogos`.</summary>
     [Required(ErrorMessage = "Este campo es obligatorio")]

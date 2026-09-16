@@ -29,7 +29,7 @@ public class UsuarioDto
     /// <summary>Hash de contraseña (PBKDF2), nunca se expone.</summary>
     public string PasswordHash { get; set; } = string.Empty;
 
-    /// <summary>Fecha de nacimiento calculada desde la edad al registrarse.</summary>
+    /// <summary>Fecha de nacimiento del usuario (no puede ser futura ni menor a 14 años).</summary>
     public DateTime? FechaNacimiento { get; set; }
 
     /// <summary>Fecha de registro.</summary>

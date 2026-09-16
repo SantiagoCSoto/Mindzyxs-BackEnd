@@ -15,10 +15,3 @@ public static class DateTimeProvider
 {
     public static DateTime UtcNow() => DateTime.UtcNow;
 }
-
-public static class AgeHelper
-{
-    // Acuerdo PB-01: el API recibe Edad y calcula fecha_nacimiento.
-    public static DateTime ToBirthDate(int edad)
-        => DateTime.Today.AddYears(-edad);
-}

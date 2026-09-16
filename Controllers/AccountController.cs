@@ -34,6 +34,8 @@ public class AccountController(
     /// <remarks>
     /// PB-01 HU1 + HU2 + HU3. Cuerpo `multipart/form-data`.
     /// El campo `TarjetaProfesional` (PDF ≤5MB) es obligatorio solo para Psicólogo.
+    /// `FechaNacimiento` va en formato `yyyy-MM-dd`, no puede ser una fecha futura
+    /// ni indicar una edad menor a 14 años.
     /// Crea la cuenta en estado `PendienteVerificacion` (`PendienteAprobacion` para Psicólogo),
     /// genera un código de 6 dígitos con expiración de 15 min y lo envía por correo.
     ///
