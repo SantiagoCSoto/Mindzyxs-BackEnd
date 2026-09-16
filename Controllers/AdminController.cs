@@ -1,16 +1,36 @@
 using Microsoft.AspNetCore.Mvc;
+using Mindzyxs_API.Dtos;
 using Mindzyxs_API.Services;
 
 namespace Mindzyxs_API.Controllers;
 
-// PB-27 HU1-PB27: Administrar BD. Solo rol Administrador (token de sesión válido).
-// Respaldos locales, restaurar, ver respaldos y mantenimiento. Todo logueado en dbo.auth.
+/// <summary>
+/// Administración de BD (PB-27 HU1-PB27). Solo para rol Administrador con sesión activa.
+/// Respaldos nativos SQL (.bak), listado, descarga y mantenimiento. Todo queda registrado en `dbo.auth`.
+/// </summary>
 [ApiController]
 [Route("api/[controller]")]
 public class AdminController(AdminService admin) : ControllerBase
 {
-    // Crear respaldo local (JSON snapshot). Registra en dbo.respaldos + dbo.auth.
+    /// <summary>Crea un respaldo nativo de la base de datos (archivo `.bak`).</summary>
+    /// <remarks>
+    /// PB-27. Requiere `Authorization: Bearer &lt;token&gt;` de un Administrador.
+    /// Genera un backup nativo de SQL Server (`Admin.BackupConnectionString`, usuario `mindzyxs_backup`)
+    /// en `Admin.BackupsPath`, registra la fila en `dbo.respaldos` y un log en `dbo.auth`.
+    /// Si el respaldo nativo falla, cae a un snapshot JSON como respaldo de contingencia (`Tipo: json`).
+    ///
+    /// Respuestas:
+    /// - `201` — `{ "mensaje": "...", "respaldo": { "idRespaldo", "nombreArchivo", "tamano", "fechaHora", "ubicacion", "tipo" } }`
+    /// - `403` — `{ "error": "Tu sesión ha expirado. Inicia sesión nuevamente" }` o `{ "error": "No tienes permisos para acceder a esta función" }`
+    /// - `500` — `{ "error": "No fue posible crear el respaldo" }`
+    /// </remarks>
+    /// <response code="201">Respaldo creado correctamente.</response>
+    /// <response code="403">Sesión inválida o sin rol Administrador.</response>
+    /// <response code="500">Error interno al generar el respaldo.</response>
     [HttpPost("backup")]
+    [ProducesResponseType(typeof(BackupCreatedResult), StatusCodes.Status201Created)]
+    [ProducesResponseType(typeof(ErrorResult), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(typeof(ErrorResult), StatusCodes.Status500InternalServerError)]
     public async Task<IActionResult> Backup(CancellationToken ct)
     {
         var (ok, adminId, reason) = await EnsureAdminAsync(ct);
@@ -21,8 +41,23 @@ public class AdminController(AdminService admin) : ControllerBase
         return StatusCode(201, new { mensaje = r.Message, respaldo = r.Data });
     }
 
-    // Listar respaldos existentes.
+    /// <summary>Lista los respaldos existentes de la base de datos.</summary>
+    /// <remarks>
+    /// PB-27. Requiere `Authorization: Bearer &lt;token&gt;` de un Administrador.
+    /// Devuelve los respaldos registrados en `dbo.respaldos` (más recientes primero).
+    ///
+    /// Respuestas:
+    /// - `200` — `{ "respaldos": [ { "idRespaldo", "nombreArchivo", "tamano", "fechaHora" }, ... ] }`
+    /// - `403` — `{ "error": "Tu sesión ha expirado. Inicia sesión nuevamente" }` o `{ "error": "No tienes permisos para acceder a esta función" }`
+    /// - `500` — `{ "error": "No fue posible consultar los respaldos" }`
+    /// </remarks>
+    /// <response code="200">Lista de respaldos registrados.</response>
+    /// <response code="403">Sesión inválida o sin rol Administrador.</response>
+    /// <response code="500">Error interno al consultar.</response>
     [HttpGet("backups")]
+    [ProducesResponseType(typeof(BackupListResult), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ErrorResult), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(typeof(ErrorResult), StatusCodes.Status500InternalServerError)]
     public async Task<IActionResult> List(CancellationToken ct)
     {
         var (ok, adminId, reason) = await EnsureAdminAsync(ct);
@@ -33,8 +68,25 @@ public class AdminController(AdminService admin) : ControllerBase
         return Ok(new { respaldos = r.Data });
     }
 
-    // Mantenimiento: limpia registros temporales obsoletos sin afectar pacientes.
+    /// <summary>Ejecuta el mantenimiento de la base de datos.</summary>
+    /// <remarks>
+    /// PB-27. Requiere `Authorization: Bearer &lt;token&gt;` de un Administrador.
+    /// Limpia registros temporales obsoletos sin tocar datos de pacientes:
+    /// códigos de verificación expirados, sesiones expiradas y logs de `dbo.auth` mayores a
+    /// `Admin.RetencionLogDias` (90 días).
+    ///
+    /// Respuestas:
+    /// - `200` — `{ "mensaje": "...", "detalle": { "codigosExpiradosEliminados", "sesionesExpiradasEliminadas", "logsAntiguosEliminados" } }`
+    /// - `403` — `{ "error": "Tu sesión ha expirado. Inicia sesión nuevamente" }` o `{ "error": "No tienes permisos para acceder a esta función" }`
+    /// - `500` — `{ "error": "No fue posible ejecutar el mantenimiento" }`
+    /// </remarks>
+    /// <response code="200">Mantenimiento ejecutado con detalle de registros limpiados.</response>
+    /// <response code="403">Sesión inválida o sin rol Administrador.</response>
+    /// <response code="500">Error interno al ejecutar el mantenimiento.</response>
     [HttpPost("maintenance")]
+    [ProducesResponseType(typeof(MaintenanceResult), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ErrorResult), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(typeof(ErrorResult), StatusCodes.Status500InternalServerError)]
     public async Task<IActionResult> Maintenance(CancellationToken ct)
     {
         var (ok, adminId, reason) = await EnsureAdminAsync(ct);
@@ -45,8 +97,24 @@ public class AdminController(AdminService admin) : ControllerBase
         return Ok(new { mensaje = r.Message, detalle = r.Data });
     }
 
-    // Descargar respaldo existente por id. Devuelve el archivo del disco local.
+    /// <summary>Descarga un respaldo existente por su id.</summary>
+    /// <remarks>
+    /// PB-27. Requiere `Authorization: Bearer &lt;token&gt;` de un Administrador.
+    /// Devuelve el archivo físico del respaldo (`.bak` o `.json`) desde el disco local
+    /// como descarga de archivo (`application/octet-stream` o `application/json`).
+    ///
+    /// Respuestas:
+    /// - `200` — archivo binario del respaldo (Content-Disposition con el nombre del archivo)
+    /// - `403` — `{ "error": "Tu sesión ha expirado. Inicia sesión nuevamente" }` o `{ "error": "No tienes permisos para acceder a esta función" }`
+    /// - `404` — `{ "error": "Archivo de respaldo no encontrado" }`
+    /// </remarks>
+    /// <response code="200">Descarga del archivo de respaldo.</response>
+    /// <response code="403">Sesión inválida o sin rol Administrador.</response>
+    /// <response code="404">El respaldo no existe en disco.</response>
     [HttpGet("backups/{id}/download")]
+    [ProducesResponseType(typeof(FileResult), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ErrorResult), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(typeof(ErrorResult), StatusCodes.Status404NotFound)]
     public async Task<IActionResult> Download(int id, CancellationToken ct)
     {
         var (ok, _, reason) = await EnsureAdminAsync(ct);
@@ -65,7 +133,7 @@ public class AdminController(AdminService admin) : ControllerBase
         return PhysicalFile(filePath, contentType, fileName);
     }
 
-    // Valida que el token corresponda a una sesión activa y el rol sea Administrador.
+    /// <summary>Valida que el token corresponda a una sesión activa y el rol sea Administrador.</summary>
     private async Task<(bool Ok, int? AdminId, string Reason)> EnsureAdminAsync(CancellationToken ct)
     {
         var token = ReadBearerToken();
@@ -80,7 +148,7 @@ public class AdminController(AdminService admin) : ControllerBase
         return (true, adminId, string.Empty);
     }
 
-    // Mismo parser robusto que AccountController (Authorization Bearer, comillas, ?token=).
+    /// <summary>Mismo parser robusto que AccountController (Authorization Bearer, comillas, ?token=).</summary>
     private string? ReadBearerToken()
     {
         var authHeader = "";

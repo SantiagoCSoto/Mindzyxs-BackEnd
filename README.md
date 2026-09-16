@@ -54,6 +54,24 @@ Mindzyxs-API/
 
 Dependencias principales registradas en `Program.cs`: repositorios EF (`IUserRepository`, `ICatalogRepository`, `ICodigoRepository`, `ISesionRepository`, `IAuthLogRepository`, `IAdminRepository`), almacenamiento (`ITarjetaStorage`), correo (`IEmailSender`) y servicios de negocio.
 
+## Swagger (documentación interactiva)
+
+Swagger UI siempre disponible al levantar la API:
+
+* **UI interactiva:** `http://localhost:5015/swagger`
+* **Spec OpenAPI JSON:** `http://localhost:5015/swagger/v1/swagger.json`
+
+Cada endpoint documenta las HUs que cubre, los mensajes exactos de error y los códigos de respuesta (200/201/400/401/403/409/410/500) con sus esquemas de `request`/`response`.
+
+**Probar un endpoint autenticado desde Swagger:**
+
+1. `POST /api/account/login` con las credenciales (ej. admin real de prueba `sankie453@gmail.com` / `abc123`).
+2. Copia el `token` de la respuesta.
+3. Click en **Authorize** (botón arriba a la derecha) y pega el token como `Bearer <token>` (el prefijo `Bearer ` se añade automáticamente por el esquema).
+4. Ejecuta el endpoint protegido (p.ej. `GET /api/account/me`, o `POST /api/admin/backup` para PB-27).
+
+> Los endpoints de `AdminController` (`/api/admin/*`) requieren una sesión con rol **Administrador**.
+
 ## 1. Levantar el API
 
 ```bash
