@@ -1,7 +1,58 @@
-# Mindzyxs-API — Guía Front-End (PB-01 + PB-02 + PB-03)
-# Mindzyxs-API — Guía Front-End PB-01 (Registrar usuario)
+# Mindzyxs-API — Guía Back-End (PB-01, PB-02, PB-03, PB-05, PB-27)
 
-API REST `Mindzyxs 1.1` — solo back-end. Front en `Mindzyxs-FrontEnd` (`develop`) nunca toca BD. Todo pasa por `Controllers/AccountController.cs` → `Services/AuthService.cs` + `VerificationService.cs` → `Repositories/*` (EF Core a `SANTI/Mindzyxs`).
+API REST `Mindzyxs 1.1` — solo back-end. Front en `Mindzyxs-FrontEnd` (`develop`) nunca toca BD. Todo pasa por `Controllers/*` → `Services/*` → `Repositories/*` (EF Core a `SANTI/Mindzyxs`).
+
+## 0. Estructura del proyecto
+
+```
+Mindzyxs-API/
+├── Program.cs                     # Punto de entrada: DI, CORS, EF Core, mapeo de controladores
+├── appsettings.json               # Config de producción: ConnectionStrings, Smtp, Storage, Registro, Sesion, Admin
+├── appsettings.Development.json   # Overrides de desarrollo
+├── Mindzyxs-API.csproj            # net9.0, EF Core SqlServer, OpenApi
+├── Mindzyxs-API.http              # Peticiones HTTP de prueba
+├── Properties/
+│   └── launchSettings.json        # Perfiles de arranque (http en 5015)
+│
+├── Controllers/                   # Capa HTTP: reciben peticiones y arman respuestas
+│   ├── AccountController.cs       # Registro, verificación, login, sesión, recuperación de contraseña
+│   ├── AdminController.cs         # PB-27: respaldos (.bak), descarga y mantenimiento
+│   └── WeatherForecastController.cs # Plantilla por defecto (no funcional)
+│
+├── Services/                      # Lógica de negocio (no conoce HTTP)
+│   ├── AuthService.cs             # Registro de usuario y envío de código de verificación
+│   ├── VerificationService.cs     # Verificación de correo (activa cuenta / pendiente aprobación)
+│   ├── LoginService.cs            # Login, creación/validación de sesiones y logout
+│   ├── PasswordRecoveryService.cs # Flujo forgot/verify/reset/resend
+│   ├── CatalogService.cs          # Catálogos (tipos de cuenta, géneros)
+│   └── AdminService.cs            # Respaldos nativos SQL (.bak), listado, descarga y mantenimiento
+│
+├── Repositories/                  # Acceso a datos (EF Core)
+│   ├── Interfaces.cs              # Contratos de repositorio + records (RespaldoDto, SesionDto, etc.)
+│   ├── EfRepositories.cs          # Implementaciones EF Core de cada interfaz
+│   └── Models/
+│       ├── MindzyxsDbContext.cs   # DbContext y mapeo de tablas dbo.*
+│       └── Rows.cs                # Entidades de tabla (UsuarioRow, CodigoRow, RespaldoRow, ...)
+│
+├── Dtos/                          # Objetos de transferencia
+│   ├── AuthVm.cs                  # RegisterVm, LoginVm, VerifyCodeVm, ForgotVm, ResetPasswordVm
+│   ├── AdminDto.cs                # DTOs de administración / respaldos
+│   ├── CatalogDto.cs              # Catálogos (tipos de cuenta, géneros)
+│   ├── UserDto.cs                 # Datos de usuario expuestos por la API
+│   └── OperationResult.cs         # Resultado genérico de operaciones de servicio
+│
+└── Utilities/                     # Helpers transversales
+    ├── CodeHelper.cs              # Generación del código de 6 dígitos y cálculo de edad → fecha_nacimiento
+    ├── Constants.cs               # Constantes compartidas (acciones de auth, etc.)
+    ├── ContactHelper.cs           # Validación de tipo de cuenta y contacto
+    ├── EmailHelper.cs             # Envío SMTP
+    ├── EmailTemplate.cs           # Plantillas HTML de los correos
+    ├── FileHelper.cs              # Validación PDF ≤5MB y almacenamiento en disco
+    ├── SecurityHelper.cs          # Hashing PBKDF2 y política de contraseñas
+    └── TokenHelper.cs             # Generación/hashing de tokens de sesión
+```
+
+Dependencias principales registradas en `Program.cs`: repositorios EF (`IUserRepository`, `ICatalogRepository`, `ICodigoRepository`, `ISesionRepository`, `IAuthLogRepository`, `IAdminRepository`), almacenamiento (`ITarjetaStorage`), correo (`IEmailSender`) y servicios de negocio.
 
 ## 1. Levantar el API
 
