@@ -9,12 +9,12 @@ public class AdminOptions
 {
     public string BackupsPath { get; set; } = @"C:\uploads\mindzyxs\backups";
     public int RetencionLogDias { get; set; } = 90;
-    public long MaxRestoreBytes { get; set; } = 50 * 1024 * 1024;
+    public string BackupConnectionString { get; set; } = string.Empty;
 }
 
-// PB-27 HU1-PB27: administrar BD. Se crea respaldo local (JSON snapshot), se restaura
-// desde archivo subido, se listan respaldos y se ejecuta mantenimiento de registros
-// temporales obsoletos SIN tocar datos de pacientes. Todo queda en dbo.auth.
+// PB-27 HU1-PB27: administrar BD. Crear respaldo local (.bak nativo de SQL Server o
+// snapshot JSON de contingencia), listar/descargar respaldos y ejecutar mantenimiento
+// de registros temporales obsoletos SIN tocar datos de pacientes. Todo queda en dbo.auth.
 public class AdminService(
     IAdminRepository admin,
     IUserRepository users,
@@ -30,79 +30,49 @@ public class AdminService(
             var root = options.Value.BackupsPath;
             Directory.CreateDirectory(root);
             var now = DateTime.UtcNow;
-            var name = $"mindzyx_backup_{now:yyyy-MM-dd_HH-mm-ss}.backup";
-            var full = Path.Combine(root, name);
+            var full = string.Empty;
+            var nombre = string.Empty;
+            var tipo = "bak";
 
-            var snapshot = await admin.ExportSnapshotJsonAsync(ct);
-            await File.WriteAllTextAsync(full, snapshot, ct);
+            // 1) Respaldo nativo de SQL Server (.bak) con la credencial dedicada.
+            try
+            {
+                nombre = $"mindzyx_full_{now:yyyy-MM-dd_HH-mm-ss}.bak";
+                full = Path.Combine(root, nombre);
+                await admin.CreateSqlBackupAsync(full, ct);
+            }
+            catch (Exception ex)
+            {
+                // 2) Contingencia: snapshot JSON si el .bak nativo falla (permisos/carpeta).
+                logger.LogWarning(ex, "BACKUP DATABASE fallido por {AdminId}; usando snapshot JSON", adminId);
+                tipo = "json";
+                nombre = $"mindzyx_backup_{now:yyyy-MM-dd_HH-mm-ss}.backup";
+                full = Path.Combine(root, nombre);
+                var snapshot = await admin.ExportSnapshotJsonAsync(ct);
+                await File.WriteAllTextAsync(full, snapshot, ct);
+            }
 
             var bytes = new FileInfo(full).Length;
             var tamano = FormatSize(bytes);
 
-            var idRespaldo = await admin.CrearRespaldoAsync(name, tamano, adminId, ct);
+            var idRespaldo = await admin.CrearRespaldoAsync(nombre, tamano, adminId, ct);
             await authLogs.LogAsync(adminId, adminId, LogAcciones.Backup,
-                $"Respaldo creado: {name} ({tamano}) en {root}", ip, ct);
+                $"Respaldo {tipo} creado: {nombre} ({tamano}) en {root}", ip, ct);
 
             return OperationResult<BackupResultDto>.Ok(new BackupResultDto
             {
                 IdRespaldo = idRespaldo,
-                NombreArchivo = name,
+                NombreArchivo = nombre,
                 Tamano = tamano,
                 FechaHora = now,
-                Ubicacion = full
+                Ubicacion = full,
+                Tipo = tipo
             }, "Respaldo creado correctamente");
         }
         catch (Exception ex)
         {
             logger.LogError(ex, "No fue posible crear el respaldo por {AdminId}", adminId);
             return OperationResult<BackupResultDto>.Fail("No fue posible crear el respaldo. Intente nuevamente");
-        }
-    }
-
-    public async Task<OperationResult> RestoreAsync(int adminId, IFormFile? file, string? ip, CancellationToken ct = default)
-    {
-        if (file is null || file.Length == 0)
-            return OperationResult.Fail("Debes seleccionar un archivo de respaldo (.backup) antes de restaurar");
-
-        var ext = Path.GetExtension(file.FileName).ToLowerInvariant();
-        var allowed = new[] { ".backup", ".json", ".db", ".sqlite" };
-        if (!allowed.Contains(ext))
-            return OperationResult.Fail("No fue posible restaurar el respaldo. Verifique el archivo e intente nuevamente");
-
-        if (file.Length > options.Value.MaxRestoreBytes)
-            return OperationResult.Fail("No fue posible restaurar el respaldo. El archivo supera el tamaño permitido");
-
-        try
-        {
-            var root = options.Value.BackupsPath;
-            Directory.CreateDirectory(root);
-            var name = $"restore_{DateTime.UtcNow:yyyy-MM-dd_HH-mm-ss}{ext}";
-            var full = Path.Combine(root, name);
-
-            await using (var fs = new FileStream(full, FileMode.CreateNew, FileAccess.Write, FileShare.None))
-                await file.CopyToAsync(fs, ct);
-
-            // Validación mínima del contenido antes de darlo por restaurado.
-            if (ext == ".json" || ext == ".backup")
-            {
-                var contenido = await File.ReadAllTextAsync(full, ct);
-                if (string.IsNullOrWhiteSpace(contenido))
-                {
-                    File.Delete(full);
-                    return OperationResult.Fail("No fue posible restaurar el respaldo. Verifique el archivo e intente nuevamente");
-                }
-            }
-
-            var tamano = FormatSize(new FileInfo(full).Length);
-            await authLogs.LogAsync(adminId, adminId, LogAcciones.Restore,
-                $"Respaldo restaurado desde archivo: {file.FileName} ({tamano})", ip, ct);
-
-            return OperationResult.Ok("Respaldo restaurado correctamente");
-        }
-        catch (Exception ex)
-        {
-            logger.LogError(ex, "No fue posible restaurar el respaldo por {AdminId}", adminId);
-            return OperationResult.Fail("No fue posible restaurar el respaldo. Verifique el archivo e intente nuevamente");
         }
     }
 
@@ -171,12 +141,23 @@ public class AdminService(
     public async Task<int?> GetAdminIdAsync(string? tokenRaw, string? ip, CancellationToken ct = default)
     {
         var sesion = await login.ValidateSessionAsync(tokenRaw, ip, ct);
-        if (!sesion.Success || sesion.Data is null) return null;
+        if (!sesion.Success || sesion.Data is null)
+        {
+            if (!string.IsNullOrWhiteSpace(tokenRaw))
+                await authLogs.LogAsync(
+                    sesion.Success ? sesion.Data!.IdUsuario : null, null,
+                    LogAcciones.PermisoDenegado, "Acceso a Consola Administrador sin sesión válida", ip, ct);
+            return null;
+        }
 
         var rol = await users.GetRolNombreAsync(sesion.Data.IdRol, ct);
-        return string.Equals(rol, AppRoles.Administrador, StringComparison.OrdinalIgnoreCase)
-            ? sesion.Data.IdUsuario
-            : null;
+        if (!string.Equals(rol, AppRoles.Administrador, StringComparison.OrdinalIgnoreCase))
+        {
+            await authLogs.LogAsync(sesion.Data.IdUsuario, sesion.Data.IdUsuario,
+                LogAcciones.PermisoDenegado, $"Acceso a Consola Administrador denegado (rol={rol})", ip, ct);
+            return null;
+        }
+        return sesion.Data.IdUsuario;
     }
 
     private static string FormatSize(long bytes)

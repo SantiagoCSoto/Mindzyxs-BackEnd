@@ -1,6 +1,9 @@
+using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 using Mindzyxs_API.Dtos;
 using Mindzyxs_API.Repositories.Models;
+using Mindzyxs_API.Services;
 using Mindzyxs_API.Utilities;
 
 namespace Mindzyxs_API.Repositories;
@@ -188,7 +191,7 @@ public class EfAuthLogRepository(MindzyxsDbContext db) : IAuthLogRepository
     }
 }
 
-public class EfAdminRepository(MindzyxsDbContext db) : IAdminRepository
+public class EfAdminRepository(MindzyxsDbContext db, IOptions<AdminOptions> adminOptions) : IAdminRepository
 {
     public async Task<List<RespaldoDto>> ListRespaldosAsync(CancellationToken ct = default)
         => await db.Respaldos.AsNoTracking()
@@ -225,8 +228,8 @@ public class EfAdminRepository(MindzyxsDbContext db) : IAdminRepository
     public async Task<int> LimpiarAuthAntiguosAsync(int dias, CancellationToken ct = default)
         => await db.AuthLogs.Where(a => a.Fecha < DateTime.UtcNow.AddDays(-dias)).ExecuteDeleteAsync(ct);
 
-    // Snapshot JSON de datos (agnóstico SQL/NoSQL). El usuario de la app no puede
-    // ejecutar BACKUP DATABASE (no tiene permisos DDL), por eso se exportan los datos.
+    // Snapshot JSON de datos (agnóstico SQL/NoSQL). Se usa como respaldo de contingencia
+    // si BACKUP DATABASE nativo falla (permisos/carpeta). Nunca expone secrets.
     public async Task<string> ExportSnapshotJsonAsync(CancellationToken ct = default)
     {
         var snapshot = new
@@ -244,5 +247,23 @@ public class EfAdminRepository(MindzyxsDbContext db) : IAdminRepository
             }
         };
         return System.Text.Json.JsonSerializer.Serialize(snapshot, new System.Text.Json.JsonSerializerOptions { WriteIndented = true });
+    }
+
+    // BACKUP DATABASE nativo de SQL Server usando la credencial dedicada (db_backupoperator).
+    // El archivo lo escribe el motor de SQL Server; la carpeta destino debe ser escribible
+    // por el usuario de servicio del motor y legible por el proceso de la app (descarga).
+    public async Task CreateSqlBackupAsync(string rutaArchivo, CancellationToken ct = default)
+    {
+        var cs = adminOptions.Value.BackupConnectionString;
+        if (string.IsNullOrWhiteSpace(cs))
+            throw new InvalidOperationException("BackupConnectionString no configurada.");
+
+        await using var conn = new SqlConnection(cs);
+        await conn.OpenAsync(ct);
+        await using var cmd = conn.CreateCommand();
+        cmd.CommandTimeout = 0;
+        cmd.CommandText = "BACKUP DATABASE [Mindzyxs] TO DISK = @ruta WITH FORMAT, INIT, COMPRESSION";
+        cmd.Parameters.AddWithValue("@ruta", rutaArchivo);
+        await cmd.ExecuteNonQueryAsync(ct);
     }
 }

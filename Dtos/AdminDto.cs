@@ -8,6 +8,7 @@ public class BackupResultDto
     public string Tamano { get; set; } = string.Empty;
     public DateTime FechaHora { get; set; }
     public string Ubicacion { get; set; } = string.Empty;
+    public string Tipo { get; set; } = "bak";
 }
 
 public class BackupListItemDto

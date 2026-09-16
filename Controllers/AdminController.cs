@@ -21,19 +21,6 @@ public class AdminController(AdminService admin) : ControllerBase
         return StatusCode(201, new { mensaje = r.Message, respaldo = r.Data });
     }
 
-    // Restaurar respaldo desde archivo subido (multipart form-data, key "archivo").
-    [HttpPost("restore")]
-    [Consumes("multipart/form-data")]
-    public async Task<IActionResult> Restore([FromForm] IFormFile? archivo, CancellationToken ct)
-    {
-        var (ok, adminId, reason) = await EnsureAdminAsync(ct);
-        if (!ok) return StatusCode(403, new { error = reason });
-
-        var r = await admin.RestoreAsync(adminId!.Value, archivo, HttpContext.Connection.RemoteIpAddress?.ToString(), ct);
-        if (!r.Success) return BadRequest(new { error = r.Message });
-        return Ok(new { mensaje = r.Message });
-    }
-
     // Listar respaldos existentes.
     [HttpGet("backups")]
     public async Task<IActionResult> List(CancellationToken ct)
@@ -73,9 +60,7 @@ public class AdminController(AdminService admin) : ControllerBase
         var contentType = Path.GetExtension(fileName).ToLowerInvariant() switch
         {
             ".json" => "application/json",
-            ".db" or ".sqlite" => "application/octet-stream",
-            ".backup" => "application/octet-stream",
-            _ => "application/json"
+            _ => "application/octet-stream"
         };
         return PhysicalFile(filePath, contentType, fileName);
     }

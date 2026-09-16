@@ -56,6 +56,7 @@ public interface IAdminRepository
     Task<int> LimpiarSesionesExpiradasAsync(CancellationToken ct = default);
     Task<int> LimpiarAuthAntiguosAsync(int dias, CancellationToken ct = default);
     Task<string> ExportSnapshotJsonAsync(CancellationToken ct = default);
+    Task CreateSqlBackupAsync(string rutaArchivo, CancellationToken ct = default);
 }
 
 public record RespaldoDto(int IdRespaldo, string NombreArchivo, string? Tamano, DateTime FechaHora, int IdAdmin);
