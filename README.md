@@ -1,4 +1,4 @@
-﻿# Mindzyxs-API — Guía Back-End (PB-01, PB-02, PB-03, PB-04, PB-05, PB-06, PB-27)
+﻿# Mindzyxs-API — Guía Back-End (PB-01, PB-02, PB-03, PB-04, PB-05, PB-06, PB-07, PB-27)
 
 API REST `Mindzyxs 1.1` — solo back-end. Front en `Mindzyxs-FrontEnd` (`develop`) nunca toca BD. Todo pasa por `Controllers/*` → `Services/*` → `Repositories/*` (EF Core a `SANTI/Mindzyxs`).
 
@@ -19,6 +19,7 @@ Mindzyxs-API/
 │   ├── AvisoController.cs         # PB-04: mensaje aclaratorio (no diagnóstico clínico) y su log
 │   ├── AdminController.cs         # PB-27: respaldos (.bak), descarga y mantenimiento
 │   ├── InvitadoController.cs      # PB-06: modo invitado (acceso, panel, bloqueo de exclusivas, salida)
+│   ├── CuestionarioController.cs    # PB-07: cuestionario del invitado (pendiente, inicio, finalizar al 100%)
 │   └── WeatherForecastController.cs # Plantilla por defecto (no funcional)
 │
 ├── Services/                      # Lógica de negocio (no conoce HTTP)
@@ -29,6 +30,7 @@ Mindzyxs-API/
 │   ├── CatalogService.cs          # Catálogos (tipos de cuenta, géneros)
 │   ├── AvisoService.cs            # PB-04: contenido del mensaje aclaratorio y log de visualización
 │   ├── InvitadoService.cs         # PB-06: panel de invitado y registro de acceso/salida/bloqueos
+│   ├── CuestionarioService.cs       # PB-07: cuestionario pendiente, validación 100% y puntaje/nivel
 │   └── AdminService.cs            # Respaldos nativos SQL (.bak), listado, descarga y mantenimiento
 │
 ├── Repositories/                  # Acceso a datos (EF Core)
@@ -41,6 +43,7 @@ Mindzyxs-API/
 ├── Dtos/                          # Objetos de transferencia
 │   ├── AuthVm.cs                  # RegisterVm, LoginVm, VerifyCodeVm, ForgotVm, ResetPasswordVm
 │   ├── AvisoDto.cs                # PB-04: AvisoDto (contenido) y VisualizacionAvisoVm (log)
+│   ├── CuestionarioDto.cs           # PB-07: catálogo, inicio/finalizar y resultado con puntaje/nivel
 │   ├── AdminDto.cs                # DTOs de administración / respaldos
 │   ├── CatalogDto.cs              # Catálogos (tipos de cuenta, géneros)
 │   ├── UserDto.cs                 # Datos de usuario expuestos por la API
@@ -57,7 +60,7 @@ Mindzyxs-API/
     └── TokenHelper.cs             # Generación/hashing de tokens de sesión
 ```
 
-Dependencias principales registradas en `Program.cs`: repositorios EF (`IUserRepository`, `ICatalogRepository`, `ICodigoRepository`, `ISesionRepository`, `IAuthLogRepository`, `IAdminRepository`), almacenamiento (`ITarjetaStorage`), correo (`IEmailSender`) y servicios de negocio.
+Dependencias principales registradas en `Program.cs`: repositorios EF (`IUserRepository`, `ICatalogRepository`, `ICodigoRepository`, `ISesionRepository`, `IAuthLogRepository`, `IAdminRepository`, `ICuestionarioRepository`), almacenamiento (`ITarjetaStorage`), correo (`IEmailSender`) y servicios de negocio.
 
 ## Swagger (documentación interactiva)
 
@@ -686,3 +689,52 @@ Respuestas:
 * `"Mensaje aclaratorio"` (título de la modal)
 * `"No fue posible cargar el mensaje aclaratorio. Intente nuevamente"` (error de carga, se registra con `AVISO_ACLARATORIO_ERROR`)
 * `"Visualización registrada"` (200)
+
+# Mindzyxs-API — Guía PB-07 (Cuestionario emocional del invitado)
+
+API REST `Mindzyxs 1.1` — solo back-end. Catálogo **dinámico desde BD** (`dbo.cuestionarios` + `dbo.preguntas` + `dbo.opciones_pregunta` vía `ICuestionarioRepository`): sirve N preguntas con M opciones, sin nada hardcodeado. Solo `Predeterminado` + `Publicado` (los `Personalizado` de psicólogos van por `asignaciones_cuestionario`, PB-22). Todo vive en `Controllers/CuestionarioController.cs` → `Services/CuestionarioService.cs` → `ICuestionarioRepository` + `IAuthLogRepository` (log en `dbo.auth`).
+
+## Endpoints PB-07 (HU1-PB7)
+
+| Método | Ruta | Descripción | Auth |
+|--------|------|-------------|------|
+| `GET`  | `/api/cuestionario/invitado?excluidos=1,2` | Siguiente cuestionario pendiente (rotación; excluye los `cuest_*` de la cookie) | no |
+| `POST` | `/api/cuestionario/invitado/inicio` | Registrar inicio del cuestionario en `dbo.auth` | no |
+| `POST` | `/api/cuestionario/invitado/finalizar` | Validar 100%, calcular puntaje/nivel y registrar fin en `dbo.auth` | no |
+
+### 4.1 `GET /api/cuestionario/invitado` — pendiente con rotación
+
+```bash
+curl "http://localhost:5015/api/cuestionario/invitado?excluidos=1"
+```
+
+`200` con pendiente: `{ "disponible": true, "id": 2, "titulo": "Cuestionario de bienestar emocional", "avisoObligatorio": true, "preguntas": [{ "id": 4, "texto": "...", "orden": 1, "opciones": [{ "id": 13, "texto": "Nunca", "valor": 1, "orden": 1 }, ...] }] }`. Sin pendientes: `{ "disponible": false, "mensaje": "No tienes cuestionarios pendientes por responder." }`.
+
+### 4.2 `POST /api/cuestionario/invitado/inicio` — registrar inicio
+
+```bash
+curl --location "http://localhost:5015/api/cuestionario/invitado/inicio" -H "Content-Type: application/json" -d "{\"cuestionarioId\":2}"
+```
+
+`200 {mensaje:"Inicio registrado"}` → log `CUESTIONARIO_INVITADO_INICIO`. No bloquea la UI.
+
+### 4.3 `POST /api/cuestionario/invitado/finalizar` — validar 100% + puntaje
+
+El front envía TODAS las respuestas de su sesión temporal. El back valida que cada pregunta tenga respuesta y que cada opción pertenezca a su pregunta, calcula `puntaje = promedio(valores de escala, redondeado)` y `nivel` (1-2 Bajo, 3 Medio, 4-5 Alto, helper `CuestionarioService.CalcularPuntaje` compartido con PB-08) y registra `CUESTIONARIO_INVITADO_FIN`. **No persiste respuestas** (`respuestas`→`evento`→`paciente NOT NULL`; el invitado no tiene cuenta): el front marca `cuest_{id}` como hecho en cookies y reusa las respuestas en PB-08.
+
+```bash
+curl --location "http://localhost:5015/api/cuestionario/invitado/finalizar" -H "Content-Type: application/json" -d "{\"cuestionarioId\":2,\"respuestas\":[{\"preguntaId\":4,\"opcionId\":15}]}"
+```
+
+`200 {mensaje:"Cuestionario completado", cuestionarioId, puntaje, nivel, totalPreguntas, respondidas}`.
+
+## Mensajes exactos PB-07
+
+* `"Cuestionario completado"` (200) / `"Inicio registrado"` (200)
+* `"Debes seleccionar una respuesta para continuar"` (400) si falta alguna (todas son obligatorias)
+* `"La respuesta seleccionada no es válida"` (400) si la opción no pertenece a su pregunta
+* `"Cuestionario no disponible."` (404) si no está publicado
+* `"Este campo es obligatorio"` (400) si el body llega vacío/inválido
+* `"No tienes cuestionarios pendientes por responder."` (200 con `disponible:false`)
+
+* Rama actual `PB7`, BD `SANTI/Mindzyxs` (seed `Mindzyxs-BD/sql/06_seed_cuestionarios_invitado.sql`: 3 publicados, escala 1-4; `q4` binaria excluida del promedio).
