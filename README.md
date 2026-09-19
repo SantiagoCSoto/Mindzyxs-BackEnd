@@ -1,4 +1,4 @@
-# Mindzyxs-API — Guía Back-End (PB-01, PB-02, PB-03, PB-05, PB-27)
+﻿# Mindzyxs-API — Guía Back-End (PB-01, PB-02, PB-03, PB-05, PB-06, PB-27)
 
 API REST `Mindzyxs 1.1` — solo back-end. Front en `Mindzyxs-FrontEnd` (`develop`) nunca toca BD. Todo pasa por `Controllers/*` → `Services/*` → `Repositories/*` (EF Core a `SANTI/Mindzyxs`).
 
@@ -17,6 +17,7 @@ Mindzyxs-API/
 ├── Controllers/                   # Capa HTTP: reciben peticiones y arman respuestas
 │   ├── AccountController.cs       # Registro, verificación, login, sesión, recuperación de contraseña
 │   ├── AdminController.cs         # PB-27: respaldos (.bak), descarga y mantenimiento
+│   ├── InvitadoController.cs      # PB-06: modo invitado (acceso, panel, bloqueo de exclusivas, salida)
 │   └── WeatherForecastController.cs # Plantilla por defecto (no funcional)
 │
 ├── Services/                      # Lógica de negocio (no conoce HTTP)
@@ -25,6 +26,7 @@ Mindzyxs-API/
 │   ├── LoginService.cs            # Login, creación/validación de sesiones y logout
 │   ├── PasswordRecoveryService.cs # Flujo forgot/verify/reset/resend
 │   ├── CatalogService.cs          # Catálogos (tipos de cuenta, géneros)
+│   ├── InvitadoService.cs         # PB-06: panel de invitado y registro de acceso/salida/bloqueos
 │   └── AdminService.cs            # Respaldos nativos SQL (.bak), listado, descarga y mantenimiento
 │
 ├── Repositories/                  # Acceso a datos (EF Core)
@@ -543,3 +545,92 @@ curl --location "http://localhost:5015/api/account/forgot/reset" -H "Content-Typ
 
 * Rama actual `PB5`, BD `SANTI/Mindzyxs`, retoma con `Paciente` y `Psicologo` los corridos en base. La tabla `dbo.codigos_verificacion.tipo` ya soporta `Recuperar` (no requiere DDL).
 * Rama actual `PB03-HU01PB3` (base PB1 + PB2 fusionados), BD `SANTI/Mindzyxs` usuario `mindzyxs_app` (`db_datareader/db_datawriter`), `appsettings.json:ConnectionStrings:Mindzyxs`.
+
+# Mindzyxs-API — Guía PB-06 (Modo invitado)
+
+API REST `Mindzyxs 1.1` — solo back-end. El invitado NO tiene cuenta ni sesión: el front usa estos endpoints públicos para entrar sin registrarse, pintar el Panel de invitado, registrar accesos/salidas e intentos bloqueados sobre funciones exclusivas. Todo vive en `Controllers/InvitadoController.cs` → `Services/InvitadoService.cs` → `IAuthLogRepository` (log en `dbo.auth`).
+
+## Endpoints PB-06 (HU1-PB6)
+
+| Método | Ruta | Descripción | Auth |
+|--------|------|-------------|------|
+| `POST` | `/api/invitado/acceso` | Registrar acceso al modo invitado (o error de carga) en `dbo.auth` | no |
+| `GET`  | `/api/invitado/panel` | Configuración del Panel de invitado (disponibles + exclusivas) | no |
+| `POST` | `/api/invitado/bloqueo` | Registrar intento bloqueado de una función exclusiva | no |
+| `POST` | `/api/invitado/salida` | Registrar salida del modo invitado (vuelta a la Landing) | no |
+
+### 2.1 `POST /api/invitado/acceso` — entrar como invitado
+
+`Dtos/InvitadoDto.cs:AccesoInvitadoVm` → `{origen, resultado}` (ambos opcionales).
+
+```js
+await fetch("http://localhost:5015/api/invitado/acceso", {
+  method:"POST", headers:{"Content-Type":"application/json"},
+  body: JSON.stringify({ origen: "landing", resultado: "ok" })
+});
+// 200 {mensaje:"Acceso registrado"}
+// resultado:"error" -> log INVITADO_ACCESO_ERROR; "ok" (o vacío) -> INVITADO_ACCESO
+```
+
+El front lo llama al presionar "Modo invitado" en la Landing sin bloquear la UI. Si el endpoint no responde (red/back caído), mostrar `"No fue posible acceder en modo invitado. Intente nuevamente"`.
+
+**cURL:**
+
+```bash
+curl --location "http://localhost:5015/api/invitado/acceso" -H "Content-Type: application/json" -d "{\"origen\":\"landing\",\"resultado\":\"ok\"}"
+```
+
+### 2.2 `GET /api/invitado/panel` — configuración del panel
+
+Devuelve las 3 opciones disponibles del invitado y las 4 funciones exclusivas (bloqueadas) de usuarios registrados, más `avisoObligatorio` (flag que el front usa para mostrar el mensaje aclaratorio de no diagnóstico antes de funciones sensibles):
+
+```bash
+curl http://localhost:5015/api/invitado/panel
+```
+
+```json
+{
+  "avisoObligatorio": true,
+  "disponibles": [
+    { "codigo": "cuestionario", "titulo": "Responder cuestionario", "descripcion": "Cuestionario de bienestar emocional" },
+    { "codigo": "recomendaciones", "titulo": "Ver recomendaciones básicas", "descripcion": "Consejos generales de cuidado" },
+    { "codigo": "lineas-ayuda", "titulo": "Líneas de ayuda", "descripcion": "Contactos de emergencia y apoyo" }
+  ],
+  "exclusivas": [
+    { "codigo": "historial", "titulo": "Historial emocional", "descripcion": "Registro de tus estados" },
+    { "codigo": "graficos", "titulo": "Gráficos de progreso", "descripcion": "Evolución por tiempo" },
+    { "codigo": "recordatorios", "titulo": "Recordatorios", "descripcion": "Avisos programados" },
+    { "codigo": "psicologo", "titulo": "Autorización de psicólogo", "descripcion": "Vincular un profesional" }
+  ]
+}
+```
+
+### 2.3 `POST /api/invitado/bloqueo` — intento sobre función exclusiva
+
+```js
+await fetch("http://localhost:5015/api/invitado/bloqueo", {
+  method:"POST", headers:{"Content-Type":"application/json"},
+  body: JSON.stringify({ funcion: "Historial emocional" })
+});
+// 200 {mensaje:"Intento registrado"} -> log INVITADO_BLOQUEO en dbo.auth
+```
+
+El invitado recibe en el front el aviso `"🔒 ... requiere crear una cuenta o iniciar sesión"` (UI) y el back registra el intento.
+
+### 2.4 `POST /api/invitado/salida` — volver a la Landing
+
+```js
+await fetch("http://localhost:5015/api/invitado/salida", {
+  method:"POST", headers:{"Content-Type":"application/json"},
+  body: JSON.stringify({ origen: "panel" })
+});
+// 200 {mensaje:"Salida registrada"} -> log INVITADO_SALIDA en dbo.auth
+```
+
+## Mensajes exactos PB-06
+
+* `"No fue posible acceder en modo invitado. Intente nuevamente"` (muestra el front si el acceso/panel falla; se loguea como `INVITADO_ACCESO_ERROR`)
+* `"Acceso registrado"` (200) / `"Intento registrado"` (200) / `"Salida registrada"` (200)
+* `"Este campo es obligatorio"` (400) si el body llega vacío/inválido (los 3 POST)
+
+* Rama actual `PB6`, BD `SANTI/Mindzyxs`; los logs quedan en `dbo.auth` con actor/target nulos (invitado no tiene cuenta). Si llega un `Bearer` válido de forma accidental, se asocia el `actorId` del usuario para trazabilidad.

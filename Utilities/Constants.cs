@@ -39,4 +39,10 @@ public static class LogAcciones
     public const string Mantenimiento = "MANTENIMIENTO";
     public const string VerRespaldos = "VIEW_BACKUPS";
     public const string PermisoDenegado = "PERMISO_DENEGADO";
+
+    // PB-06 HU1-PB6: modo invitado (acceso, salida e intentos bloqueados sobre funciones exclusivas).
+    public const string InvitadoAcceso = "INVITADO_ACCESO";
+    public const string InvitadoAccesoError = "INVITADO_ACCESO_ERROR";
+    public const string InvitadoBloqueo = "INVITADO_BLOQUEO";
+    public const string InvitadoSalida = "INVITADO_SALIDA";
 }

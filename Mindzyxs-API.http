@@ -1,4 +1,4 @@
-@Host = http://localhost:5183
+@Host = http://localhost:5015
 
 ### PB-01 catálogos (HU1 tipos + HU2 géneros)
 GET {{Host}}/api/account/catalogos
@@ -21,9 +21,9 @@ Content-Disposition: form-data; name="Apellido"
 
 Rojas
 --pb01
-Content-Disposition: form-data; name="Edad"
+Content-Disposition: form-data; name="FechaNacimiento"
 
-22
+2004-05-10
 --pb01
 Content-Disposition: form-data; name="IdGenero"
 
@@ -53,4 +53,42 @@ Content-Type: application/json
 
 {
   "correo": "paciente.nuevo@test.com"
+}
+
+### PB-06 acceder en modo invitado (HU1-PB6)
+POST {{Host}}/api/invitado/acceso
+Content-Type: application/json
+
+{
+  "origen": "landing",
+  "resultado": "ok"
+}
+
+### PB-06 acceder modo invitado - error (HU1-PB6)
+POST {{Host}}/api/invitado/acceso
+Content-Type: application/json
+
+{
+  "origen": "landing",
+  "resultado": "error"
+}
+
+### PB-06 panel de invitado (HU1-PB6)
+GET {{Host}}/api/invitado/panel
+Accept: application/json
+
+### PB-06 intento bloqueado funcion exclusiva (HU1-PB6)
+POST {{Host}}/api/invitado/bloqueo
+Content-Type: application/json
+
+{
+  "funcion": "Historial emocional"
+}
+
+### PB-06 salida del modo invitado (HU1-PB6)
+POST {{Host}}/api/invitado/salida
+Content-Type: application/json
+
+{
+  "origen": "panel"
 }
