@@ -55,6 +55,44 @@ Content-Type: application/json
   "correo": "paciente.nuevo@test.com"
 }
 
+### PB-06 acceder en modo invitado (HU1-PB6)
+POST {{Host}}/api/invitado/acceso
+Content-Type: application/json
+
+{
+  "origen": "landing",
+  "resultado": "ok"
+}
+
+### PB-06 acceder modo invitado - error (HU1-PB6)
+POST {{Host}}/api/invitado/acceso
+Content-Type: application/json
+
+{
+  "origen": "landing",
+  "resultado": "error"
+}
+
+### PB-06 panel de invitado (HU1-PB6)
+GET {{Host}}/api/invitado/panel
+Accept: application/json
+
+### PB-06 intento bloqueado funcion exclusiva (HU1-PB6)
+POST {{Host}}/api/invitado/bloqueo
+Content-Type: application/json
+
+{
+  "funcion": "Historial emocional"
+}
+
+### PB-06 salida del modo invitado (HU1-PB6)
+POST {{Host}}/api/invitado/salida
+Content-Type: application/json
+
+{
+  "origen": "panel"
+}
+
 ### PB-04 contenido del mensaje aclaratorio (HU1-PB4)
 GET {{Host}}/api/aviso
 Accept: application/json

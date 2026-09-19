@@ -39,6 +39,14 @@ public static class LogAcciones
     public const string Mantenimiento = "MANTENIMIENTO";
     public const string VerRespaldos = "VIEW_BACKUPS";
     public const string PermisoDenegado = "PERMISO_DENEGADO";
+
+    // PB-04 HU1-PB4: mensaje aclaratorio (visualización / error de carga).
     public const string AvisoAclaratorio = "AVISO_ACLARATORIO";
     public const string AvisoAclaratorioError = "AVISO_ACLARATORIO_ERROR";
+
+    // PB-06 HU1-PB6: modo invitado (acceso, salida e intentos bloqueados sobre funciones exclusivas).
+    public const string InvitadoAcceso = "INVITADO_ACCESO";
+    public const string InvitadoAccesoError = "INVITADO_ACCESO_ERROR";
+    public const string InvitadoBloqueo = "INVITADO_BLOQUEO";
+    public const string InvitadoSalida = "INVITADO_SALIDA";
 }
