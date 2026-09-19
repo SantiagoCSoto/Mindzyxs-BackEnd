@@ -92,3 +92,25 @@ Content-Type: application/json
 {
   "origen": "panel"
 }
+
+### PB-04 contenido del mensaje aclaratorio (HU1-PB4)
+GET {{Host}}/api/aviso
+Accept: application/json
+
+### PB-04 registrar visualizacion (HU1-PB4, log en dbo.auth)
+POST {{Host}}/api/aviso/visualizacion
+Content-Type: application/json
+
+{
+  "origen": "enlace",
+  "resultado": "ok"
+}
+
+### PB-04 registrar error de carga del mensaje (HU1-PB4)
+POST {{Host}}/api/aviso/visualizacion
+Content-Type: application/json
+
+{
+  "origen": "auto:cuestionario",
+  "resultado": "error"
+}

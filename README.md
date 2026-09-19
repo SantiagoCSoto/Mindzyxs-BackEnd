@@ -1,4 +1,4 @@
-﻿# Mindzyxs-API — Guía Back-End (PB-01, PB-02, PB-03, PB-05, PB-06, PB-27)
+﻿# Mindzyxs-API — Guía Back-End (PB-01, PB-02, PB-03, PB-04, PB-05, PB-06, PB-27)
 
 API REST `Mindzyxs 1.1` — solo back-end. Front en `Mindzyxs-FrontEnd` (`develop`) nunca toca BD. Todo pasa por `Controllers/*` → `Services/*` → `Repositories/*` (EF Core a `SANTI/Mindzyxs`).
 
@@ -16,6 +16,7 @@ Mindzyxs-API/
 │
 ├── Controllers/                   # Capa HTTP: reciben peticiones y arman respuestas
 │   ├── AccountController.cs       # Registro, verificación, login, sesión, recuperación de contraseña
+│   ├── AvisoController.cs         # PB-04: mensaje aclaratorio (no diagnóstico clínico) y su log
 │   ├── AdminController.cs         # PB-27: respaldos (.bak), descarga y mantenimiento
 │   ├── InvitadoController.cs      # PB-06: modo invitado (acceso, panel, bloqueo de exclusivas, salida)
 │   └── WeatherForecastController.cs # Plantilla por defecto (no funcional)
@@ -26,6 +27,7 @@ Mindzyxs-API/
 │   ├── LoginService.cs            # Login, creación/validación de sesiones y logout
 │   ├── PasswordRecoveryService.cs # Flujo forgot/verify/reset/resend
 │   ├── CatalogService.cs          # Catálogos (tipos de cuenta, géneros)
+│   ├── AvisoService.cs            # PB-04: contenido del mensaje aclaratorio y log de visualización
 │   ├── InvitadoService.cs         # PB-06: panel de invitado y registro de acceso/salida/bloqueos
 │   └── AdminService.cs            # Respaldos nativos SQL (.bak), listado, descarga y mantenimiento
 │
@@ -38,6 +40,7 @@ Mindzyxs-API/
 │
 ├── Dtos/                          # Objetos de transferencia
 │   ├── AuthVm.cs                  # RegisterVm, LoginVm, VerifyCodeVm, ForgotVm, ResetPasswordVm
+│   ├── AvisoDto.cs                # PB-04: AvisoDto (contenido) y VisualizacionAvisoVm (log)
 │   ├── AdminDto.cs                # DTOs de administración / respaldos
 │   ├── CatalogDto.cs              # Catálogos (tipos de cuenta, géneros)
 │   ├── UserDto.cs                 # Datos de usuario expuestos por la API
@@ -634,3 +637,52 @@ await fetch("http://localhost:5015/api/invitado/salida", {
 * `"Este campo es obligatorio"` (400) si el body llega vacío/inválido (los 3 POST)
 
 * Rama actual `PB6`, BD `SANTI/Mindzyxs`; los logs quedan en `dbo.auth` con actor/target nulos (invitado no tiene cuenta). Si llega un `Bearer` válido de forma accidental, se asocia el `actorId` del usuario para trazabilidad.
+
+## 3. Endpoints PB-04 (Mensaje aclaratorio)
+
+PB-04 HU1-PB4: aviso obligatorio de que Mindzyx **no realiza diagnósticos clínicos** y no sustituye la atención profesional. Endpoints públicos (sin autenticación): accesibles para invitado, paciente y psicólogo.
+
+| Método | Endpoint | HU | Descripción | Autenticación |
+|--------|----------|----|-------------|---------------|
+| `GET` | `/api/aviso` | HU1-PB4 | Contenido del mensaje aclaratorio | no |
+| `POST` | `/api/aviso/visualizacion` | HU1-PB4 | Registra la visualización (o error de carga) en `dbo.auth` | no (asocia usuario si viene Bearer) |
+
+La lógica vive en `Services/AvisoService.cs`; los registros van a `dbo.auth` vía `IAuthLogRepository` con acciones `AVISO_ACLARATORIO` y `AVISO_ACLARATORIO_ERROR` (`Utilities/Constants.cs:LogAcciones`).
+
+### 3.1 `GET /api/aviso` — contenido del mensaje
+
+Devuelve el texto completo que el front muestra en la modal "Mensaje aclaratorio" (o "Aviso importante"). Si este endpoint falla o el back no responde, el front debe mostrar `No fue posible cargar el mensaje aclaratorio. Intente nuevamente`.
+
+```bash
+curl --location "http://localhost:5015/api/aviso"
+```
+
+Respuesta `200`:
+
+```json
+{
+  "titulo": "Mensaje aclaratorio",
+  "texto": "Mindzyx es una plataforma diseñada exclusivamente para el monitoreo y apoyo del bienestar emocional.\nEste sistema no realiza diagnósticos clínicos y no sustituye la atención de un profesional de la salud mental.\n\nAnte un riesgo alto o una situación de urgencia, busca ayuda profesional o utiliza las líneas de ayuda disponibles en tu país (por ejemplo, servicios de emergencia o líneas de crisis locales).\n\nMindzyx es solo una herramienta de apoyo y monitoreo emocional y no reemplaza la atención profesional."
+}
+```
+
+### 3.2 `POST /api/aviso/visualizacion` — registro de visualización
+
+El front lo invoca (sin bloquear la UI) cuando se muestra la modal: por el enlace "Aviso: no diagnóstico" de la barra inferior, por el aviso automático antes de una funcionalidad sensible, o cuando la carga del contenido falló (`resultado: "error"`). Si llega `Authorization: Bearer <token>`, el registro se asocia al usuario autenticado; si no, se registra como invitado/anónimo.
+
+```bash
+curl --location "http://localhost:5015/api/aviso/visualizacion" \
+  -H "Content-Type: application/json" \
+  -d "{\"origen\":\"enlace\",\"resultado\":\"ok\"}"
+```
+
+Respuestas:
+
+* `200` — `{ "mensaje": "Visualización registrada" }`
+* `400` — `{ "error": "Este campo es obligatorio" }` (body inválido/vacío)
+
+## Mensajes exactos PB-04
+
+* `"Mensaje aclaratorio"` (título de la modal)
+* `"No fue posible cargar el mensaje aclaratorio. Intente nuevamente"` (error de carga, se registra con `AVISO_ACLARATORIO_ERROR`)
+* `"Visualización registrada"` (200)

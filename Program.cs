@@ -45,6 +45,7 @@ builder.Services.AddScoped<VerificationService>();
 builder.Services.AddScoped<LoginService>();
 builder.Services.AddScoped<PasswordRecoveryService>();
 builder.Services.AddScoped<AdminService>();
+builder.Services.AddScoped<AvisoService>();
 builder.Services.AddScoped<InvitadoService>();
 
 // Swagger: documentación interactiva en /swagger (Swagger UI) y spec en /swagger/v1/swagger.json.
@@ -63,6 +64,7 @@ builder.Services.AddSwaggerGen(o =>
             - **PB-05**: Recuperación de contraseña.
             - **PB-06**: Modo invitado (acceso sin cuenta, panel de invitado, logs de acceso/salida/bloqueos).
             - **PB-27**: Administración de BD (respaldos `.bak`, descarga y mantenimiento).
+            - **PB-04**: Mensaje aclaratorio (aviso de que el sistema no realiza diagnósticos clínicos).
 
             **Autenticación**
             El `POST /api/account/login` devuelve un token de sesión. Envía ese token como
