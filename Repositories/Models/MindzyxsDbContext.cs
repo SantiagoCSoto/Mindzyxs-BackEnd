@@ -16,6 +16,7 @@ public class MindzyxsDbContext(DbContextOptions<MindzyxsDbContext> options) : Db
     public DbSet<CuestionarioRow> Cuestionarios => Set<CuestionarioRow>();
     public DbSet<PreguntaRow> Preguntas => Set<PreguntaRow>();
     public DbSet<OpcionPreguntaRow> OpcionesPregunta => Set<OpcionPreguntaRow>();
+    public DbSet<LineaAyudaRow> LineasAyuda => Set<LineaAyudaRow>();
 
     protected override void OnModelCreating(ModelBuilder b)
     {
@@ -123,6 +124,18 @@ public class MindzyxsDbContext(DbContextOptions<MindzyxsDbContext> options) : Db
             e.Property(x => x.Texto).HasColumnName("texto").HasMaxLength(255).IsUnicode(false);
             e.Property(x => x.Valor).HasColumnName("valor");
             e.Property(x => x.Orden).HasColumnName("orden");
+        });
+        b.Entity<LineaAyudaRow>(e =>
+        {
+            e.ToTable("lineas_ayuda", "dbo").HasKey(x => x.IdLinea);
+            e.Property(x => x.IdLinea).HasColumnName("id_linea");
+            e.Property(x => x.Nombre).HasColumnName("nombre").HasMaxLength(100).IsUnicode(false);
+            e.Property(x => x.Telefono).HasColumnName("telefono").HasMaxLength(20).IsUnicode(false);
+            e.Property(x => x.Url).HasColumnName("url").HasMaxLength(255).IsUnicode(false);
+            e.Property(x => x.Horario).HasColumnName("horario").HasMaxLength(100).IsUnicode(false);
+            e.Property(x => x.Cobertura).HasColumnName("cobertura").HasMaxLength(255).IsUnicode(false);
+            e.Property(x => x.Estado).HasColumnName("estado").HasMaxLength(20).IsUnicode(false);
+            e.Property(x => x.Descripcion).HasColumnName("descripcion").HasMaxLength(500).IsUnicode(false);
         });
     }
 }

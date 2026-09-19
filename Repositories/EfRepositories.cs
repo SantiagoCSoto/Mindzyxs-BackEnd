@@ -218,6 +218,16 @@ public class EfCuestionarioRepository(MindzyxsDbContext db) : ICuestionarioRepos
             .ToListAsync(ct);
 }
 
+// PB-08: líneas de ayuda en estado Activa.
+public class EfLineaAyudaRepository(MindzyxsDbContext db) : ILineaAyudaRepository
+{
+    public Task<List<LineaAyudaRow>> GetActivasAsync(CancellationToken ct = default)
+        => db.LineasAyuda.AsNoTracking()
+            .Where(l => l.Estado == "Activa")
+            .OrderBy(l => l.IdLinea)
+            .ToListAsync(ct);
+}
+
 public class EfAdminRepository(MindzyxsDbContext db, IOptions<AdminOptions> adminOptions) : IAdminRepository
 {
     public async Task<List<RespaldoDto>> ListRespaldosAsync(CancellationToken ct = default)
