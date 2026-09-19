@@ -74,3 +74,38 @@ public class RespaldoRow
     public DateTime FechaHora { get; set; }
     public int IdAdmin { get; set; }
 }
+
+// PB-07: dbo.cuestionarios (Predeterminado/Publicado para invitados y pacientes;
+// Personalizado + asignaciones_cuestionario para pacientes específicos).
+public class CuestionarioRow
+{
+    public int IdCuestionario { get; set; }
+    public string Titulo { get; set; } = string.Empty;
+    public string? Descripcion { get; set; }
+    public string Tipo { get; set; } = string.Empty;
+    public string Estado { get; set; } = string.Empty;
+    public int IdCreador { get; set; }
+    public DateTime FechaCreacion { get; set; }
+}
+
+// PB-07: dbo.preguntas. Todas son siempre obligatorias (sin flag).
+// tipo: 'escala' (entra al promedio de puntaje) u otros ('binaria', 'opcion_multiple').
+public class PreguntaRow
+{
+    public int IdPregunta { get; set; }
+    public int IdCuestionario { get; set; }
+    public string Texto { get; set; } = string.Empty;
+    public int Orden { get; set; }
+    public string? Tipo { get; set; }
+    public int? PuntajeMax { get; set; }
+}
+
+// PB-07: dbo.opciones_pregunta (texto, valor numérico para el puntaje, orden).
+public class OpcionPreguntaRow
+{
+    public int IdOpcion { get; set; }
+    public int IdPregunta { get; set; }
+    public string Texto { get; set; } = string.Empty;
+    public int Valor { get; set; }
+    public int Orden { get; set; }
+}

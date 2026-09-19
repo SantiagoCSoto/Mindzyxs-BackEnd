@@ -1,4 +1,5 @@
 using Mindzyxs_API.Dtos;
+using Mindzyxs_API.Repositories.Models;
 
 namespace Mindzyxs_API.Repositories;
 
@@ -45,6 +46,16 @@ public interface ISesionRepository
 public interface IAuthLogRepository
 {
     Task LogAsync(int? actorId, int? targetId, string accion, string detalle, string? ip, CancellationToken ct = default);
+}
+
+// PB-07: lectura de cuestionarios publicados para invitados (y pacientes).
+// Solo Predeterminado + Publicado; los Personalizado van por asignaciones (PB-22).
+public interface ICuestionarioRepository
+{
+    Task<List<CuestionarioRow>> GetPublicadosInvitadoAsync(CancellationToken ct = default);
+    Task<CuestionarioRow?> FindPublicadoInvitadoAsync(int idCuestionario, CancellationToken ct = default);
+    Task<List<PreguntaRow>> GetPreguntasAsync(int idCuestionario, CancellationToken ct = default);
+    Task<List<OpcionPreguntaRow>> GetOpcionesAsync(int idCuestionario, CancellationToken ct = default);
 }
 
 public interface IAdminRepository

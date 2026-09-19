@@ -191,6 +191,33 @@ public class EfAuthLogRepository(MindzyxsDbContext db) : IAuthLogRepository
     }
 }
 
+// PB-07: cuestionarios Predeterminado + Publicado (invitados y pacientes).
+public class EfCuestionarioRepository(MindzyxsDbContext db) : ICuestionarioRepository
+{
+    public Task<List<CuestionarioRow>> GetPublicadosInvitadoAsync(CancellationToken ct = default)
+        => db.Cuestionarios.AsNoTracking()
+            .Where(c => c.Tipo == "Predeterminado" && c.Estado == "Publicado")
+            .OrderBy(c => c.IdCuestionario)
+            .ToListAsync(ct);
+
+    public Task<CuestionarioRow?> FindPublicadoInvitadoAsync(int idCuestionario, CancellationToken ct = default)
+        => db.Cuestionarios.AsNoTracking()
+            .Where(c => c.IdCuestionario == idCuestionario && c.Tipo == "Predeterminado" && c.Estado == "Publicado")
+            .FirstOrDefaultAsync(ct);
+
+    public Task<List<PreguntaRow>> GetPreguntasAsync(int idCuestionario, CancellationToken ct = default)
+        => db.Preguntas.AsNoTracking()
+            .Where(p => p.IdCuestionario == idCuestionario)
+            .OrderBy(p => p.Orden)
+            .ToListAsync(ct);
+
+    public Task<List<OpcionPreguntaRow>> GetOpcionesAsync(int idCuestionario, CancellationToken ct = default)
+        => db.OpcionesPregunta.AsNoTracking()
+            .Where(o => db.Preguntas.Where(p => p.IdCuestionario == idCuestionario).Select(p => p.IdPregunta).Contains(o.IdPregunta))
+            .OrderBy(o => o.IdPregunta).ThenBy(o => o.Orden)
+            .ToListAsync(ct);
+}
+
 public class EfAdminRepository(MindzyxsDbContext db, IOptions<AdminOptions> adminOptions) : IAdminRepository
 {
     public async Task<List<RespaldoDto>> ListRespaldosAsync(CancellationToken ct = default)

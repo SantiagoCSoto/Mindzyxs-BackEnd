@@ -49,4 +49,8 @@ public static class LogAcciones
     public const string InvitadoAccesoError = "INVITADO_ACCESO_ERROR";
     public const string InvitadoBloqueo = "INVITADO_BLOQUEO";
     public const string InvitadoSalida = "INVITADO_SALIDA";
+
+    // PB-07 HU1-PB7: cuestionario emocional del invitado (inicio y finalización al 100%).
+    public const string CuestionarioInvitadoInicio = "CUESTIONARIO_INVITADO_INICIO";
+    public const string CuestionarioInvitadoFin = "CUESTIONARIO_INVITADO_FIN";
 }

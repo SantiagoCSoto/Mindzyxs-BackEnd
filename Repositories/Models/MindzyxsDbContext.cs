@@ -13,6 +13,9 @@ public class MindzyxsDbContext(DbContextOptions<MindzyxsDbContext> options) : Db
     public DbSet<SesionRow> Sesiones => Set<SesionRow>();
     public DbSet<AuthRow> AuthLogs => Set<AuthRow>();
     public DbSet<RespaldoRow> Respaldos => Set<RespaldoRow>();
+    public DbSet<CuestionarioRow> Cuestionarios => Set<CuestionarioRow>();
+    public DbSet<PreguntaRow> Preguntas => Set<PreguntaRow>();
+    public DbSet<OpcionPreguntaRow> OpcionesPregunta => Set<OpcionPreguntaRow>();
 
     protected override void OnModelCreating(ModelBuilder b)
     {
@@ -90,6 +93,36 @@ public class MindzyxsDbContext(DbContextOptions<MindzyxsDbContext> options) : Db
             e.Property(x => x.Tamano).HasColumnName("tamano").HasMaxLength(20).IsUnicode(false);
             e.Property(x => x.FechaHora).HasColumnName("fecha_hora").HasDefaultValueSql("SYSDATETIME()");
             e.Property(x => x.IdAdmin).HasColumnName("id_admin");
+        });
+        b.Entity<CuestionarioRow>(e =>
+        {
+            e.ToTable("cuestionarios", "dbo").HasKey(x => x.IdCuestionario);
+            e.Property(x => x.IdCuestionario).HasColumnName("id_cuestionario");
+            e.Property(x => x.Titulo).HasColumnName("titulo").HasMaxLength(100).IsUnicode(false);
+            e.Property(x => x.Descripcion).HasColumnName("descripcion").HasMaxLength(500).IsUnicode(false);
+            e.Property(x => x.Tipo).HasColumnName("tipo").HasMaxLength(20).IsUnicode(false);
+            e.Property(x => x.Estado).HasColumnName("estado").HasMaxLength(20).IsUnicode(false);
+            e.Property(x => x.IdCreador).HasColumnName("id_creador");
+            e.Property(x => x.FechaCreacion).HasColumnName("fecha_creacion");
+        });
+        b.Entity<PreguntaRow>(e =>
+        {
+            e.ToTable("preguntas", "dbo").HasKey(x => x.IdPregunta);
+            e.Property(x => x.IdPregunta).HasColumnName("id_pregunta");
+            e.Property(x => x.IdCuestionario).HasColumnName("id_cuestionario");
+            e.Property(x => x.Texto).HasColumnName("texto").HasMaxLength(500).IsUnicode(false);
+            e.Property(x => x.Orden).HasColumnName("orden");
+            e.Property(x => x.Tipo).HasColumnName("tipo").HasMaxLength(50).IsUnicode(false);
+            e.Property(x => x.PuntajeMax).HasColumnName("puntaje_max");
+        });
+        b.Entity<OpcionPreguntaRow>(e =>
+        {
+            e.ToTable("opciones_pregunta", "dbo").HasKey(x => x.IdOpcion);
+            e.Property(x => x.IdOpcion).HasColumnName("id_opcion");
+            e.Property(x => x.IdPregunta).HasColumnName("id_pregunta");
+            e.Property(x => x.Texto).HasColumnName("texto").HasMaxLength(255).IsUnicode(false);
+            e.Property(x => x.Valor).HasColumnName("valor");
+            e.Property(x => x.Orden).HasColumnName("orden");
         });
     }
 }
