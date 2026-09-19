@@ -1,4 +1,4 @@
-﻿# Mindzyxs-API — Guía Back-End (PB-01, PB-02, PB-03, PB-04, PB-05, PB-06, PB-07, PB-08, PB-27)
+﻿# Mindzyxs-API — Guía Back-End (PB-01, PB-02, PB-03, PB-04, PB-05, PB-06, PB-07, PB-08, PB-09, PB-27)
 
 API REST `Mindzyxs 1.1` — solo back-end. Front en `Mindzyxs-FrontEnd` (`develop`) nunca toca BD. Todo pasa por `Controllers/*` → `Services/*` → `Repositories/*` (EF Core a `SANTI/Mindzyxs`).
 
@@ -22,6 +22,7 @@ Mindzyxs-API/
 │   ├── CuestionarioController.cs    # PB-07: cuestionario del invitado (pendiente, inicio, finalizar al 100%)
 │   ├── RiesgoController.cs          # PB-08: cálculo del riesgo emocional del invitado
 │   ├── AyudaController.cs           # PB-08: líneas de ayuda activas
+│   ├── RecomendacionController.cs   # PB-09: recomendaciones básicas (lista priorizada, detalle)
 │   └── WeatherForecastController.cs # Plantilla por defecto (no funcional)
 │
 ├── Services/                      # Lógica de negocio (no conoce HTTP)
@@ -34,6 +35,7 @@ Mindzyxs-API/
 │   ├── InvitadoService.cs         # PB-06: panel de invitado y registro de acceso/salida/bloqueos
 │   ├── CuestionarioService.cs       # PB-07: cuestionario pendiente, validación 100% y puntaje/nivel
 │   ├── RiesgoService.cs             # PB-08: cálculo de riesgo y líneas de ayuda activas
+│   ├── RecomendacionService.cs      # PB-09: lista priorizada por nivel y detalle con pasos
 │   └── AdminService.cs            # Respaldos nativos SQL (.bak), listado, descarga y mantenimiento
 │
 ├── Repositories/                  # Acceso a datos (EF Core)
@@ -48,6 +50,7 @@ Mindzyxs-API/
 │   ├── AvisoDto.cs                # PB-04: AvisoDto (contenido) y VisualizacionAvisoVm (log)
 │   ├── CuestionarioDto.cs           # PB-07: catálogo, inicio/finalizar y resultado con puntaje/nivel
 │   ├── RiesgoDto.cs                 # PB-08: cálculo de riesgo, alerta y líneas de ayuda
+│   ├── RecomendacionDto.cs          # PB-09: lista priorizada y detalle con pasos/duración
 │   ├── AdminDto.cs                # DTOs de administración / respaldos
 │   ├── CatalogDto.cs              # Catálogos (tipos de cuenta, géneros)
 │   ├── UserDto.cs                 # Datos de usuario expuestos por la API
@@ -64,7 +67,7 @@ Mindzyxs-API/
     └── TokenHelper.cs             # Generación/hashing de tokens de sesión
 ```
 
-Dependencias principales registradas en `Program.cs`: repositorios EF (`IUserRepository`, `ICatalogRepository`, `ICodigoRepository`, `ISesionRepository`, `IAuthLogRepository`, `IAdminRepository`, `ICuestionarioRepository`, `ILineaAyudaRepository`), almacenamiento (`ITarjetaStorage`), correo (`IEmailSender`) y servicios de negocio.
+Dependencias principales registradas en `Program.cs`: repositorios EF (`IUserRepository`, `ICatalogRepository`, `ICodigoRepository`, `ISesionRepository`, `IAuthLogRepository`, `IAdminRepository`, `ICuestionarioRepository`, `ILineaAyudaRepository`, `IRecomendacionRepository`), almacenamiento (`ITarjetaStorage`), correo (`IEmailSender`) y servicios de negocio.
 
 ## Swagger (documentación interactiva)
 
@@ -777,3 +780,38 @@ curl http://localhost:5015/api/ayuda/lineas
 * `"La respuesta seleccionada no es válida"` (400) / `"Cuestionario no disponible."` (404) / `"Este campo es obligatorio"` (400)
 
 * Rama actual `PB8`, BD `SANTI/Mindzyxs` (seed `Mindzyxs-BD/sql/07_seed_recomendaciones_invitado.sql`: 1 recomendación por nivel para PB-09).
+
+# Mindzyxs-API — Guía PB-09 (Recomendaciones básicas del invitado)
+
+API REST `Mindzyxs 1.1` — solo back-end. Lista de autocuidado básico priorizada por el nivel de riesgo de la sesión (Bajo/Medio/Alto) + detalle con pasos, duración sugerida e instrucciones. Contenido administrable (el admin lo crea/edita/desactiva en PB-28). Todo vive en `Controllers/RecomendacionController.cs` → `Services/RecomendacionService.cs` → `IRecomendacionRepository` + `IAuthLogRepository` (log en `dbo.auth`).
+
+## Endpoints PB-09 (HU1-PB9)
+
+| Método | Ruta | Descripción | Auth |
+|--------|------|-------------|------|
+| `GET`  | `/api/recomendaciones/invitado?nivel=Medio` | Lista priorizada (nivel primero, luego transversales, luego resto) + log | no |
+| `GET`  | `/api/recomendaciones/invitado/{id}` | Detalle con pasos/duración/instrucciones + log | no |
+
+### 6.1 `GET /api/recomendaciones/invitado` — lista priorizada
+
+```bash
+curl "http://localhost:5015/api/recomendaciones/invitado?nivel=Medio"
+```
+
+`200`: `{ "disponible": true, "nivel": "Medio", "recomendaciones": [{ "id": 4, "titulo": "Relajación muscular", "intro": "...", "icono": "💆", "nivel": "Medio", "prioritaria": true }, ...] }`. Sin `nivel`, orden estándar por id. Sin contenido: `{ "disponible": false, "mensaje": "No hay recomendaciones disponibles en este momento" }` (el front muestra el estado vacío con Volver al inicio).
+
+### 6.2 `GET /api/recomendaciones/invitado/{id}` — detalle
+
+```bash
+curl http://localhost:5015/api/recomendaciones/invitado/4
+```
+
+`200`: `{ "id": 4, "titulo": "Relajación muscular", "duracion": "Duración sugerida: 10 minutos", "pasos": [...], "instrucciones": "...", "avisoObligatorio": true }` (inexistente → `404 "Recomendación no disponible."`). El front muestra el aviso de no diagnóstico junto al contenido y los botones "Volver a recomendaciones" / "Volver al inicio (Invitado)".
+
+## Mensajes exactos PB-09
+
+* `"No hay recomendaciones disponibles en este momento"` (200 con `disponible:false`)
+* `"Recomendación no disponible."` (404)
+* Consulta (lista y detalle) registrada como `RECOMENDACION_INVITADO_CONSULTA` en `dbo.auth`
+
+* Rama actual `PB9`, BD `SANTI/Mindzyxs` (DDL + seed `Mindzyxs-BD/sql/08_recomendaciones_detalle.sql`: 6 filas con detalle; `nivel_riesgo NULL` = transversal).

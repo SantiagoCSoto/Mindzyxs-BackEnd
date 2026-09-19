@@ -228,6 +228,20 @@ public class EfLineaAyudaRepository(MindzyxsDbContext db) : ILineaAyudaRepositor
             .ToListAsync(ct);
 }
 
+// PB-09: recomendaciones básicas (el admin las crea/edita/desactiva, PB-28).
+public class EfRecomendacionRepository(MindzyxsDbContext db) : IRecomendacionRepository
+{
+    public Task<List<RecomendacionRow>> GetTodasAsync(CancellationToken ct = default)
+        => db.Recomendaciones.AsNoTracking()
+            .OrderBy(r => r.IdRecomendacion)
+            .ToListAsync(ct);
+
+    public Task<RecomendacionRow?> FindByIdAsync(int idRecomendacion, CancellationToken ct = default)
+        => db.Recomendaciones.AsNoTracking()
+            .Where(r => r.IdRecomendacion == idRecomendacion)
+            .FirstOrDefaultAsync(ct);
+}
+
 public class EfAdminRepository(MindzyxsDbContext db, IOptions<AdminOptions> adminOptions) : IAdminRepository
 {
     public async Task<List<RespaldoDto>> ListRespaldosAsync(CancellationToken ct = default)

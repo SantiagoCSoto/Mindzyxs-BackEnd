@@ -122,3 +122,19 @@ public class LineaAyudaRow
     public string Estado { get; set; } = string.Empty;
     public string? Descripcion { get; set; }
 }
+
+// PB-09: dbo.recomendaciones (autocuidado básico; nivel_riesgo NULL = transversal).
+// Contenido administrable por el admin (PB-28). Detalle: intro, pasos (TEXT con
+// saltos de línea), duración, instrucciones e icono (NVARCHAR, emoji).
+public class RecomendacionRow
+{
+    public int IdRecomendacion { get; set; }
+    public string Titulo { get; set; } = string.Empty;
+    public string Contenido { get; set; } = string.Empty;
+    public string? NivelRiesgo { get; set; }
+    public string? Intro { get; set; }
+    public string? Pasos { get; set; }
+    public string? Duracion { get; set; }
+    public string? Instrucciones { get; set; }
+    public string? Icono { get; set; }
+}
