@@ -1,4 +1,4 @@
-@Host = http://localhost:5183
+@Host = http://localhost:5015
 
 ### PB-01 catálogos (HU1 tipos + HU2 géneros)
 GET {{Host}}/api/account/catalogos
@@ -21,9 +21,9 @@ Content-Disposition: form-data; name="Apellido"
 
 Rojas
 --pb01
-Content-Disposition: form-data; name="Edad"
+Content-Disposition: form-data; name="FechaNacimiento"
 
-22
+2004-05-10
 --pb01
 Content-Disposition: form-data; name="IdGenero"
 
@@ -53,4 +53,26 @@ Content-Type: application/json
 
 {
   "correo": "paciente.nuevo@test.com"
+}
+
+### PB-04 contenido del mensaje aclaratorio (HU1-PB4)
+GET {{Host}}/api/aviso
+Accept: application/json
+
+### PB-04 registrar visualizacion (HU1-PB4, log en dbo.auth)
+POST {{Host}}/api/aviso/visualizacion
+Content-Type: application/json
+
+{
+  "origen": "enlace",
+  "resultado": "ok"
+}
+
+### PB-04 registrar error de carga del mensaje (HU1-PB4)
+POST {{Host}}/api/aviso/visualizacion
+Content-Type: application/json
+
+{
+  "origen": "auto:cuestionario",
+  "resultado": "error"
 }

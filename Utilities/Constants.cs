@@ -39,4 +39,6 @@ public static class LogAcciones
     public const string Mantenimiento = "MANTENIMIENTO";
     public const string VerRespaldos = "VIEW_BACKUPS";
     public const string PermisoDenegado = "PERMISO_DENEGADO";
+    public const string AvisoAclaratorio = "AVISO_ACLARATORIO";
+    public const string AvisoAclaratorioError = "AVISO_ACLARATORIO_ERROR";
 }
