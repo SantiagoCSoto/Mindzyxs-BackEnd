@@ -58,6 +58,12 @@ public interface ICuestionarioRepository
     Task<List<OpcionPreguntaRow>> GetOpcionesAsync(int idCuestionario, CancellationToken ct = default);
 }
 
+// PB-08: líneas de ayuda activas para invitados y pacientes (las administra el admin, PB-29).
+public interface ILineaAyudaRepository
+{
+    Task<List<LineaAyudaRow>> GetActivasAsync(CancellationToken ct = default);
+}
+
 public interface IAdminRepository
 {
     Task<List<RespaldoDto>> ListRespaldosAsync(CancellationToken ct = default);

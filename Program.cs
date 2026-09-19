@@ -37,6 +37,7 @@ builder.Services.AddScoped<ICodigoRepository, EfCodigoRepository>();
 builder.Services.AddScoped<ISesionRepository, EfSesionRepository>();
 builder.Services.AddScoped<IAuthLogRepository, EfAuthLogRepository>();
 builder.Services.AddScoped<ICuestionarioRepository, EfCuestionarioRepository>();
+builder.Services.AddScoped<ILineaAyudaRepository, EfLineaAyudaRepository>();
 builder.Services.AddScoped<IAdminRepository, EfAdminRepository>();
 builder.Services.AddScoped<ITarjetaStorage, FileSystemTarjetaStorage>();
 builder.Services.AddScoped<IEmailSender, SmtpEmailSender>();
@@ -49,6 +50,7 @@ builder.Services.AddScoped<AdminService>();
 builder.Services.AddScoped<AvisoService>();
 builder.Services.AddScoped<InvitadoService>();
 builder.Services.AddScoped<CuestionarioService>();
+builder.Services.AddScoped<RiesgoService>();
 
 // Swagger: documentación interactiva en /swagger (Swagger UI) y spec en /swagger/v1/swagger.json.
 builder.Services.AddSwaggerGen(o =>
@@ -66,6 +68,7 @@ builder.Services.AddSwaggerGen(o =>
             - **PB-05**: Recuperación de contraseña.
             - **PB-06**: Modo invitado (acceso sin cuenta, panel de invitado, logs de acceso/salida/bloqueos).
             - **PB-07**: Cuestionario emocional del invitado (catálogo dinámico desde BD, inicio/fin al 100% con puntaje y nivel).
+            - **PB-08**: Riesgo emocional del invitado (cálculo Bajo/Medio/Alto, alerta si Alto, líneas de ayuda).
             - **PB-27**: Administración de BD (respaldos `.bak`, descarga y mantenimiento).
             - **PB-04**: Mensaje aclaratorio (aviso de que el sistema no realiza diagnósticos clínicos).
 

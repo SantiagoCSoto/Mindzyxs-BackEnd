@@ -53,4 +53,7 @@ public static class LogAcciones
     // PB-07 HU1-PB7: cuestionario emocional del invitado (inicio y finalización al 100%).
     public const string CuestionarioInvitadoInicio = "CUESTIONARIO_INVITADO_INICIO";
     public const string CuestionarioInvitadoFin = "CUESTIONARIO_INVITADO_FIN";
+
+    // PB-08 HU1-PB8: cálculo y visualización del riesgo emocional del invitado.
+    public const string RiesgoInvitadoCalculo = "RIESGO_INVITADO_CALCULO";
 }

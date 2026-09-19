@@ -109,3 +109,16 @@ public class OpcionPreguntaRow
     public int Valor { get; set; }
     public int Orden { get; set; }
 }
+
+// PB-08: dbo.lineas_ayuda (solo se sirven las Activas a invitados y pacientes).
+public class LineaAyudaRow
+{
+    public int IdLinea { get; set; }
+    public string Nombre { get; set; } = string.Empty;
+    public string? Telefono { get; set; }
+    public string? Url { get; set; }
+    public string? Horario { get; set; }
+    public string? Cobertura { get; set; }
+    public string Estado { get; set; } = string.Empty;
+    public string? Descripcion { get; set; }
+}
