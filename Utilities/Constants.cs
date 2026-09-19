@@ -56,4 +56,7 @@ public static class LogAcciones
 
     // PB-08 HU1-PB8: cálculo y visualización del riesgo emocional del invitado.
     public const string RiesgoInvitadoCalculo = "RIESGO_INVITADO_CALCULO";
+
+    // PB-09 HU1-PB9: consulta de recomendaciones básicas del invitado (lista y detalle).
+    public const string RecomendacionInvitadoConsulta = "RECOMENDACION_INVITADO_CONSULTA";
 }

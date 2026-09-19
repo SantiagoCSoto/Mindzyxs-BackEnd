@@ -17,6 +17,7 @@ public class MindzyxsDbContext(DbContextOptions<MindzyxsDbContext> options) : Db
     public DbSet<PreguntaRow> Preguntas => Set<PreguntaRow>();
     public DbSet<OpcionPreguntaRow> OpcionesPregunta => Set<OpcionPreguntaRow>();
     public DbSet<LineaAyudaRow> LineasAyuda => Set<LineaAyudaRow>();
+    public DbSet<RecomendacionRow> Recomendaciones => Set<RecomendacionRow>();
 
     protected override void OnModelCreating(ModelBuilder b)
     {
@@ -136,6 +137,19 @@ public class MindzyxsDbContext(DbContextOptions<MindzyxsDbContext> options) : Db
             e.Property(x => x.Cobertura).HasColumnName("cobertura").HasMaxLength(255).IsUnicode(false);
             e.Property(x => x.Estado).HasColumnName("estado").HasMaxLength(20).IsUnicode(false);
             e.Property(x => x.Descripcion).HasColumnName("descripcion").HasMaxLength(500).IsUnicode(false);
+        });
+        b.Entity<RecomendacionRow>(e =>
+        {
+            e.ToTable("recomendaciones", "dbo").HasKey(x => x.IdRecomendacion);
+            e.Property(x => x.IdRecomendacion).HasColumnName("id_recomendacion");
+            e.Property(x => x.Titulo).HasColumnName("titulo").HasMaxLength(200).IsUnicode(false);
+            e.Property(x => x.Contenido).HasColumnName("contenido").HasColumnType("text").IsUnicode(false);
+            e.Property(x => x.NivelRiesgo).HasColumnName("nivel_riesgo").HasMaxLength(20).IsUnicode(false);
+            e.Property(x => x.Intro).HasColumnName("intro").HasMaxLength(500).IsUnicode(false);
+            e.Property(x => x.Pasos).HasColumnName("pasos").HasColumnType("text").IsUnicode(false);
+            e.Property(x => x.Duracion).HasColumnName("duracion").HasMaxLength(100).IsUnicode(false);
+            e.Property(x => x.Instrucciones).HasColumnName("instrucciones").HasColumnType("text").IsUnicode(false);
+            e.Property(x => x.Icono).HasColumnName("icono").HasMaxLength(20);
         });
     }
 }

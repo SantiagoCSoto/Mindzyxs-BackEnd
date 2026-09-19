@@ -202,3 +202,19 @@ Content-Type: application/json
 ### PB-08 lineas de ayuda activas (HU1-PB8)
 GET {{Host}}/api/ayuda/lineas
 Accept: application/json
+
+### PB-09 recomendaciones priorizadas por nivel (HU1-PB9, log en dbo.auth)
+GET {{Host}}/api/recomendaciones/invitado?nivel=Medio
+Accept: application/json
+
+### PB-09 recomendaciones sin nivel (HU1-PB9, orden estandar)
+GET {{Host}}/api/recomendaciones/invitado
+Accept: application/json
+
+### PB-09 detalle de recomendacion (HU1-PB9, log en dbo.auth)
+GET {{Host}}/api/recomendaciones/invitado/4
+Accept: application/json
+
+### PB-09 detalle inexistente - 404 (HU1-PB9)
+GET {{Host}}/api/recomendaciones/invitado/99
+Accept: application/json

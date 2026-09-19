@@ -64,6 +64,13 @@ public interface ILineaAyudaRepository
     Task<List<LineaAyudaRow>> GetActivasAsync(CancellationToken ct = default);
 }
 
+// PB-09: recomendaciones básicas de autocuidado (contenido administrable, PB-28).
+public interface IRecomendacionRepository
+{
+    Task<List<RecomendacionRow>> GetTodasAsync(CancellationToken ct = default);
+    Task<RecomendacionRow?> FindByIdAsync(int idRecomendacion, CancellationToken ct = default);
+}
+
 public interface IAdminRepository
 {
     Task<List<RespaldoDto>> ListRespaldosAsync(CancellationToken ct = default);
