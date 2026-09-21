@@ -23,7 +23,6 @@ Mindzyxs-API/
 │   ├── RiesgoController.cs          # PB-08: cálculo del riesgo emocional del invitado
 │   ├── AyudaController.cs           # PB-08: líneas de ayuda activas
 │   ├── RecomendacionController.cs   # PB-09: recomendaciones básicas (lista priorizada, detalle)
-│   └── WeatherForecastController.cs # Plantilla por defecto (no funcional)
 │
 ├── Services/                      # Lógica de negocio (no conoce HTTP)
 │   ├── AuthService.cs             # Registro de usuario y envío de código de verificación
