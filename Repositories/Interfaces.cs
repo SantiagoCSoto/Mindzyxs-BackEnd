@@ -54,8 +54,7 @@ public interface ICuestionarioRepository
 {
     Task<List<CuestionarioRow>> GetPublicadosInvitadoAsync(CancellationToken ct = default);
     Task<CuestionarioRow?> FindPublicadoInvitadoAsync(int idCuestionario, CancellationToken ct = default);
-    Task<List<PreguntaRow>> GetPreguntasAsync(int idCuestionario, CancellationToken ct = default);
-    Task<List<OpcionPreguntaRow>> GetOpcionesAsync(int idCuestionario, CancellationToken ct = default);
+    Task<(List<PreguntaRow> Preguntas, List<OpcionPreguntaRow> Opciones)> GetCompletoAsync(int idCuestionario, CancellationToken ct = default);
 }
 
 // PB-08: líneas de ayuda activas para invitados y pacientes (las administra el admin, PB-29).
@@ -67,7 +66,7 @@ public interface ILineaAyudaRepository
 // PB-09: recomendaciones básicas de autocuidado (contenido administrable, PB-28).
 public interface IRecomendacionRepository
 {
-    Task<List<RecomendacionRow>> GetTodasAsync(CancellationToken ct = default);
+    Task<List<RecomendacionRow>> GetPriorizadasAsync(string? nivel, CancellationToken ct = default);
     Task<RecomendacionRow?> FindByIdAsync(int idRecomendacion, CancellationToken ct = default);
 }
 
@@ -76,12 +75,12 @@ public interface IAdminRepository
     Task<List<RespaldoDto>> ListRespaldosAsync(CancellationToken ct = default);
     Task<int> CrearRespaldoAsync(string nombreArchivo, string tamano, int idAdmin, CancellationToken ct = default);
     Task<RespaldoDto?> FindRespaldoByIdAsync(int idRespaldo, CancellationToken ct = default);
-    Task<int> LimpiarCodigosExpiradosAsync(CancellationToken ct = default);
-    Task<int> LimpiarSesionesExpiradasAsync(CancellationToken ct = default);
-    Task<int> LimpiarAuthAntiguosAsync(int dias, CancellationToken ct = default);
+    Task<MantenimientoLimpiezaResult> LimpiarTodoAsync(int dias, CancellationToken ct = default);
     Task<string> ExportSnapshotJsonAsync(CancellationToken ct = default);
     Task CreateSqlBackupAsync(string rutaArchivo, CancellationToken ct = default);
 }
+
+public record MantenimientoLimpiezaResult(int Codigos, int Sesiones, int Auth);
 
 public record RespaldoDto(int IdRespaldo, string NombreArchivo, string? Tamano, DateTime FechaHora, int IdAdmin);
 public record mindzyxsCode(int IdCodigo, string Codigo, DateTime ExpiraEn);

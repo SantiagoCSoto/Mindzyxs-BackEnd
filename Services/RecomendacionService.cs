@@ -14,7 +14,9 @@ public class RecomendacionService(
     public async Task<RecomendacionesInvitadoDto> ObtenerListaAsync(string? tokenRaw, string? nivel, string? ip, CancellationToken ct = default)
     {
         var actorId = await ResolveActorIdAsync(tokenRaw, ct);
-        var todas = await recomendaciones.GetTodasAsync(ct);
+        var n = NormalizarNivel(nivel);
+        // Corrección BD: el orden por nivel ya viene del SP (sp_recomendaciones_priorizadas).
+        var todas = await recomendaciones.GetPriorizadasAsync(n, ct);
         await authLogs.LogAsync(actorId, actorId, LogAcciones.RecomendacionInvitadoConsulta,
             $"{RolOrInvitado(actorId)} consultó la lista de recomendaciones básicas (nivel de sesión: {NivelToDisplay(nivel)})", ip, ct);
 
@@ -25,11 +27,7 @@ public class RecomendacionService(
                 Mensaje = "No hay recomendaciones disponibles en este momento"
             };
 
-        var n = NormalizarNivel(nivel);
         var items = todas
-            .OrderByDescending(r => n != null && string.Equals(r.NivelRiesgo, n, StringComparison.OrdinalIgnoreCase))
-            .ThenBy(r => r.NivelRiesgo is null ? 0 : 1)
-            .ThenBy(r => r.IdRecomendacion)
             .Select(r => new RecomendacionItemDto
             {
                 Id = r.IdRecomendacion,

@@ -813,4 +813,31 @@ curl http://localhost:5015/api/recomendaciones/invitado/4
 * `"Recomendación no disponible."` (404)
 * Consulta (lista y detalle) registrada como `RECOMENDACION_INVITADO_CONSULTA` en `dbo.auth`
 
-* Rama actual `PB9`, BD `SANTI/Mindzyxs` (DDL + seed `Mindzyxs-BD/sql/08_recomendaciones_detalle.sql`: 6 filas con detalle; `nivel_riesgo NULL` = transversal).
+* Rama actual `correccion-base-de-datos`, BD `SANTI/Mindzyxs`.
+
+# Corrección base de datos (triggers + SPs + purga)
+
+Rama `correccion-base-de-datos` (BD y back). Todo objeto SQL lleva encabezado-tabla (`Objeto | Fecha | Autor=Santiago Cortes | Cambio | Hace | Afecta`).
+
+## Purga (`Mindzyxs-BD/sql/09_purga_usuarios_prueba.sql`)
+Elimina usuarios de prueba sin hash PBKDF2 (seed 03: ids 1–5) y su rastro: reasigna `cuestionarios.id_creador` al admin real, borra eventos+respuestas, auth, sesiones y códigos. **Corre antes que los triggers** (si no, `TR_usuarios_BloqueoBorrado` la bloquearía).
+
+## Triggers (`Mindzyxs-BD/sql/10_triggers_auth.sql`)
+| Trigger | Hace |
+|---|---|
+| `TR_usuarios_AuditEstado` | UPDATE de estado → `auth.CAMBIO_ESTADO_CUENTA` |
+| `TR_sesiones_Limite3` | INSERT conserva las 3 sesiones más nuevas (la 4ta expulsa la más vieja) |
+| `TR_sesiones_AuditCreacion` | INSERT → `auth.SESION_CREADA` |
+| `TR_codigos_ConsumoUnico` | INSERT expira códigos previos del mismo usuario+tipo |
+| `TR_usuarios_PasswordSeguro` | INSTEAD OF: solo `password_hash` con formato `v1$…` (rechaza texto plano) |
+| `TR_usuarios_BloqueoBorrado` | INSTEAD OF DELETE: bloquea si tiene historial (sugiere suspender); si está limpio, borra hijas + usuario |
+
+## Store procedures (`Mindzyxs-BD/sql/11_store_procedures.sql`) y su uso en back
+| SP | Uso en back |
+|---|---|
+| `sp_mantenimiento_limpieza` | `EfAdminRepository.LimpiarTodoAsync` (3 limpiezas → 1 EXEC, devuelve conteos) |
+| `sp_sesion_crear` | `EfSesionRepository.CrearAsync` (devuelve `id_sesion`; triggers aplican límite+audit) |
+| `sp_auth_registrar` | `EfAuthLogRepository.LogAsync` vía `ExecuteSqlRaw` (fecha del servidor) |
+| `sp_cuestionario_completo` | `EfCuestionarioRepository.GetCompletoAsync` (preguntas+opciones en 1 round-trip, reader multi-set) |
+| `sp_dashboard_admin` | Sin consumidor aún: base de la consola admin (PB-25) |
+| `sp_recomendaciones_priorizadas` | `EfRecomendacionRepository.GetPriorizadasAsync` vía `FromSqlRaw` (el `OrderBy` salió del Service) |
