@@ -1,6 +1,220 @@
-@Mindzyxs_API_HostAddress = http://localhost:5015
+@Host = http://localhost:5015
 
-GET {{Mindzyxs_API_HostAddress}}/weatherforecast/
+### PB-01 catálogos (HU1 tipos + HU2 géneros)
+GET {{Host}}/api/account/catalogos
 Accept: application/json
 
-###
+### PB-01 registro paciente (HU1+HU2). multipart (HU3 sin tarjeta)
+POST {{Host}}/api/account/register
+Content-Type: multipart/form-data; boundary=pb01
+
+--pb01
+Content-Disposition: form-data; name="TipoUsuario"
+
+Paciente
+--pb01
+Content-Disposition: form-data; name="Nombre"
+
+Camila
+--pb01
+Content-Disposition: form-data; name="Apellido"
+
+Rojas
+--pb01
+Content-Disposition: form-data; name="FechaNacimiento"
+
+2004-05-10
+--pb01
+Content-Disposition: form-data; name="IdGenero"
+
+2
+--pb01
+Content-Disposition: form-data; name="Correo"
+
+paciente.nuevo@test.com
+--pb01
+Content-Disposition: form-data; name="Password"
+
+Abc12345
+--pb01--
+
+### PB-01 verificar (HU4)
+POST {{Host}}/api/account/verify
+Content-Type: application/json
+
+{
+  "correo": "paciente.nuevo@test.com",
+  "codigo": "123456"
+}
+
+### PB-01 reenviar código (HU4)
+POST {{Host}}/api/account/resend
+Content-Type: application/json
+
+{
+  "correo": "paciente.nuevo@test.com"
+}
+
+### PB-06 acceder en modo invitado (HU1-PB6)
+POST {{Host}}/api/invitado/acceso
+Content-Type: application/json
+
+{
+  "origen": "landing",
+  "resultado": "ok"
+}
+
+### PB-06 acceder modo invitado - error (HU1-PB6)
+POST {{Host}}/api/invitado/acceso
+Content-Type: application/json
+
+{
+  "origen": "landing",
+  "resultado": "error"
+}
+
+### PB-06 panel de invitado (HU1-PB6)
+GET {{Host}}/api/invitado/panel
+Accept: application/json
+
+### PB-06 intento bloqueado funcion exclusiva (HU1-PB6)
+POST {{Host}}/api/invitado/bloqueo
+Content-Type: application/json
+
+{
+  "funcion": "Historial emocional"
+}
+
+### PB-06 salida del modo invitado (HU1-PB6)
+POST {{Host}}/api/invitado/salida
+Content-Type: application/json
+
+{
+  "origen": "panel"
+}
+
+### PB-04 contenido del mensaje aclaratorio (HU1-PB4)
+GET {{Host}}/api/aviso
+Accept: application/json
+
+### PB-04 registrar visualizacion (HU1-PB4, log en dbo.auth)
+POST {{Host}}/api/aviso/visualizacion
+Content-Type: application/json
+
+{
+  "origen": "enlace",
+  "resultado": "ok"
+}
+
+### PB-04 registrar error de carga del mensaje (HU1-PB4)
+POST {{Host}}/api/aviso/visualizacion
+Content-Type: application/json
+
+{
+  "origen": "auto:cuestionario",
+  "resultado": "error"
+}
+
+### PB-07 cuestionario pendiente del invitado (HU1-PB7, rotación)
+GET {{Host}}/api/cuestionario/invitado
+Accept: application/json
+
+### PB-07 cuestionario pendiente excluyendo hechos (HU1-PB7, cookies cuest_*)
+GET {{Host}}/api/cuestionario/invitado?excluidos=1,2
+Accept: application/json
+
+### PB-07 registrar inicio del cuestionario (HU1-PB7, log en dbo.auth)
+POST {{Host}}/api/cuestionario/invitado/inicio
+Content-Type: application/json
+
+{
+  "cuestionarioId": 2
+}
+
+### PB-07 finalizar cuestionario al 100% (HU1-PB7, puntaje + nivel)
+POST {{Host}}/api/cuestionario/invitado/finalizar
+Content-Type: application/json
+
+{
+  "cuestionarioId": 2,
+  "respuestas": [
+    { "preguntaId": 4, "opcionId": 15 },
+    { "preguntaId": 5, "opcionId": 19 },
+    { "preguntaId": 6, "opcionId": 22 },
+    { "preguntaId": 7, "opcionId": 33 },
+    { "preguntaId": 8, "opcionId": 28 },
+    { "preguntaId": 9, "opcionId": 30 }
+  ]
+}
+
+### PB-07 finalizar incompleto - 400 (HU1-PB7)
+POST {{Host}}/api/cuestionario/invitado/finalizar
+Content-Type: application/json
+
+{
+  "cuestionarioId": 2,
+  "respuestas": [
+    { "preguntaId": 4, "opcionId": 13 }
+  ]
+}
+
+### PB-08 calcular riesgo del invitado (HU1-PB8, log en dbo.auth)
+POST {{Host}}/api/riesgo/invitado/calcular
+Content-Type: application/json
+
+{
+  "cuestionarioId": 2,
+  "respuestas": [
+    { "preguntaId": 4, "opcionId": 15 },
+    { "preguntaId": 5, "opcionId": 19 },
+    { "preguntaId": 6, "opcionId": 22 },
+    { "preguntaId": 7, "opcionId": 33 },
+    { "preguntaId": 8, "opcionId": 28 },
+    { "preguntaId": 9, "opcionId": 30 }
+  ]
+}
+
+### PB-08 calcular riesgo alto (HU1-PB8, alerta de urgencia)
+POST {{Host}}/api/riesgo/invitado/calcular
+Content-Type: application/json
+
+{
+  "cuestionarioId": 2,
+  "respuestas": [
+    { "preguntaId": 4, "opcionId": 16 },
+    { "preguntaId": 5, "opcionId": 20 },
+    { "preguntaId": 6, "opcionId": 24 },
+    { "preguntaId": 7, "opcionId": 33 },
+    { "preguntaId": 8, "opcionId": 28 },
+    { "preguntaId": 9, "opcionId": 32 }
+  ]
+}
+
+### PB-08 calcular sin respuestas - 400 (HU1-PB8)
+POST {{Host}}/api/riesgo/invitado/calcular
+Content-Type: application/json
+
+{
+  "cuestionarioId": 2,
+  "respuestas": []
+}
+
+### PB-08 lineas de ayuda activas (HU1-PB8)
+GET {{Host}}/api/ayuda/lineas
+Accept: application/json
+
+### PB-09 recomendaciones priorizadas por nivel (HU1-PB9, log en dbo.auth)
+GET {{Host}}/api/recomendaciones/invitado?nivel=Medio
+Accept: application/json
+
+### PB-09 recomendaciones sin nivel (HU1-PB9, orden estandar)
+GET {{Host}}/api/recomendaciones/invitado
+Accept: application/json
+
+### PB-09 detalle de recomendacion (HU1-PB9, log en dbo.auth)
+GET {{Host}}/api/recomendaciones/invitado/4
+Accept: application/json
+
+### PB-09 detalle inexistente - 404 (HU1-PB9)
+GET {{Host}}/api/recomendaciones/invitado/99
+Accept: application/json

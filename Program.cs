@@ -1,23 +1,135 @@
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.OpenApi.Models;
+using Mindzyxs_API.Repositories;
+using Mindzyxs_API.Repositories.Models;
+using Mindzyxs_API.Services;
+using Mindzyxs_API.Utilities;
+
 var builder = WebApplication.CreateBuilder(args);
 
-// Add services to the container.
+builder.Services.AddControllers()
+    .ConfigureApiBehaviorOptions(o =>
+    {
+        o.InvalidModelStateResponseFactory = ctx =>
+        {
+            var first = ctx.ModelState.Values.SelectMany(v => v.Errors).FirstOrDefault()?.ErrorMessage
+                ?? "Solicitud inválida.";
+            return new BadRequestObjectResult(new { error = first });
+        };
+    });
+builder.Services.AddProblemDetails();
+builder.Services.AddCors(o => o.AddDefaultPolicy(p => p.AllowAnyOrigin().AllowAnyHeader().AllowAnyMethod()));
 
-builder.Services.AddControllers();
-// Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
-builder.Services.AddOpenApi();
+// BD (todo el acceso vive en Repositories/Models + Ef*).
+builder.Services.AddDbContext<MindzyxsDbContext>(o =>
+    o.UseSqlServer(builder.Configuration.GetConnectionString("Mindzyxs")));
+
+builder.Services.Configure<SmtpOptions>(builder.Configuration.GetSection("Smtp"));
+builder.Services.Configure<StorageOptions>(builder.Configuration.GetSection("Storage"));
+builder.Services.Configure<RegistroOptions>(builder.Configuration.GetSection("Registro"));
+builder.Services.Configure<SesionOptions>(builder.Configuration.GetSection("Sesion"));
+builder.Services.Configure<AdminOptions>(builder.Configuration.GetSection("Admin"));
+
+builder.Services.AddScoped<IUserRepository, EfUserRepository>();
+builder.Services.AddScoped<ICatalogRepository, EfCatalogRepository>();
+builder.Services.AddScoped<ICodigoRepository, EfCodigoRepository>();
+builder.Services.AddScoped<ISesionRepository, EfSesionRepository>();
+builder.Services.AddScoped<IAuthLogRepository, EfAuthLogRepository>();
+builder.Services.AddScoped<ICuestionarioRepository, EfCuestionarioRepository>();
+builder.Services.AddScoped<ILineaAyudaRepository, EfLineaAyudaRepository>();
+builder.Services.AddScoped<IRecomendacionRepository, EfRecomendacionRepository>();
+builder.Services.AddScoped<IAdminRepository, EfAdminRepository>();
+builder.Services.AddScoped<ITarjetaStorage, FileSystemTarjetaStorage>();
+builder.Services.AddScoped<IEmailSender, SmtpEmailSender>();
+builder.Services.AddScoped<CatalogService>();
+builder.Services.AddScoped<AuthService>();
+builder.Services.AddScoped<VerificationService>();
+builder.Services.AddScoped<LoginService>();
+builder.Services.AddScoped<PasswordRecoveryService>();
+builder.Services.AddScoped<AdminService>();
+builder.Services.AddScoped<AvisoService>();
+builder.Services.AddScoped<InvitadoService>();
+builder.Services.AddScoped<CuestionarioService>();
+builder.Services.AddScoped<RiesgoService>();
+builder.Services.AddScoped<RecomendacionService>();
+
+// Swagger: documentación interactiva en /swagger (Swagger UI) y spec en /swagger/v1/swagger.json.
+builder.Services.AddSwaggerGen(o =>
+{
+    o.SwaggerDoc("v1", new OpenApiInfo
+    {
+        Title = "Mindzyxs API",
+        Version = "v1",
+        Description = """
+            API REST de Mindzyxs 1.1 — back-end (ASP.NET Core + EF Core + SQL Server `SANTI/Mindzyxs`).
+
+            Cubre:
+            - **PB-01**: Registro de usuario (Paciente/Psicólogo) con verificación de correo.
+            - **PB-02 / PB-03**: Autenticación (login, sesión, logout).
+            - **PB-05**: Recuperación de contraseña.
+            - **PB-06**: Modo invitado (acceso sin cuenta, panel de invitado, logs de acceso/salida/bloqueos).
+            - **PB-07**: Cuestionario emocional del invitado (catálogo dinámico desde BD, inicio/fin al 100% con puntaje y nivel).
+            - **PB-08**: Riesgo emocional del invitado (cálculo Bajo/Medio/Alto, alerta si Alto, líneas de ayuda).
+            - **PB-09**: Recomendaciones básicas del invitado (lista priorizada por nivel, detalle con pasos).
+            - **PB-27**: Administración de BD (respaldos `.bak`, descarga y mantenimiento).
+            - **PB-04**: Mensaje aclaratorio (aviso de que el sistema no realiza diagnósticos clínicos).
+
+            **Autenticación**
+            El `POST /api/account/login` devuelve un token de sesión. Envía ese token como
+            `Authorization: Bearer <token>` en los endpoints que lo requieren.
+            Usa el botón **Authorize** para pegarlo y poder probarlos aquí mismo.
+
+            **Ejemplo rápido de login**
+            ```
+            POST /api/account/login
+            { "correo": "admin@mindzyxs.com", "password": "..." }
+            ```
+            """,
+        Contact = new OpenApiContact { Name = "Equipo Mindzyxs" }
+    });
+
+    // Usa los comentarios XML de los controladores y DTOs en la documentación.
+    var xmlFile = $"{System.Reflection.Assembly.GetExecutingAssembly().GetName().Name}.xml";
+    var xmlPath = Path.Combine(AppContext.BaseDirectory, xmlFile);
+    if (File.Exists(xmlPath)) o.IncludeXmlComments(xmlPath);
+
+    // Esquema de seguridad: Authorization: Bearer <token>
+    o.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
+    {
+        Name = "Authorization",
+        Type = SecuritySchemeType.ApiKey,
+        Scheme = "Bearer",
+        BearerFormat = "Token de sesión",
+        In = ParameterLocation.Header,
+        Description = "Pega el token de sesión obtenido en POST /api/account/login. Ejemplo: `Bearer kpsLqCCh9-VnApQMlPIX9vIbkdY0oCC`"
+    });
+    o.AddSecurityRequirement(new OpenApiSecurityRequirement
+    {
+        {
+            new OpenApiSecurityScheme
+            {
+                Reference = new OpenApiReference { Type = ReferenceType.SecurityScheme, Id = "Bearer" }
+            },
+            []
+        }
+    });
+});
 
 var app = builder.Build();
 
-// Configure the HTTP request pipeline.
-if (app.Environment.IsDevelopment())
+// Swagger UI siempre disponible: http://localhost:5015/swagger
+app.UseSwagger();
+app.UseSwaggerUI(o =>
 {
-    app.MapOpenApi();
-}
+    o.SwaggerEndpoint("/swagger/v1/swagger.json", "Mindzyxs API v1");
+    o.DocumentTitle = "Mindzyxs API — Documentación";
+    o.DisplayRequestDuration();
+});
 
-app.UseHttpsRedirection();
-
+app.UseCors();
+// Desactivado en dev para que Postman Agent no pierda Authorization en redirect http->https
+// app.UseHttpsRedirection();
 app.UseAuthorization();
-
 app.MapControllers();
-
 app.Run();
