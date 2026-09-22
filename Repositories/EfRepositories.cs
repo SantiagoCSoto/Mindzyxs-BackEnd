@@ -175,16 +175,21 @@ public class EfSesionRepository(MindzyxsDbContext db) : ISesionRepository
 public class EfAuthLogRepository(MindzyxsDbContext db) : IAuthLogRepository
 {
     // Corrección BD: el INSERT vive en sp_auth_registrar (fecha del servidor).
+    // OJO: los parámetros van en array explícito; si `ct` cae en el params
+    // object[] EF intenta mapear CancellationToken y falla ("no store type mapping").
     public async Task LogAsync(int? actorId, int? targetId, string accion, string detalle, string? ip, CancellationToken ct = default)
     {
-        await db.Database.ExecuteSqlRawAsync(
-            "EXEC dbo.sp_auth_registrar @actor, @target, @accion, @detalle, @ip",
+        object?[] parameters =
+        [
             new SqlParameter("@actor", (object?)actorId ?? DBNull.Value),
             new SqlParameter("@target", (object?)targetId ?? DBNull.Value),
             new SqlParameter("@accion", accion),
             new SqlParameter("@detalle", (object?)detalle ?? DBNull.Value),
-            new SqlParameter("@ip", (object?)ip ?? DBNull.Value),
-            ct);
+            new SqlParameter("@ip", (object?)ip ?? DBNull.Value)
+        ];
+        await db.Database.ExecuteSqlRawAsync(
+            "EXEC dbo.sp_auth_registrar @actor, @target, @accion, @detalle, @ip",
+            parameters, ct);
     }
 }
 
