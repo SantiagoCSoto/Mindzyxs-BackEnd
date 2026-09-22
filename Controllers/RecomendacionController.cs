@@ -11,7 +11,7 @@ namespace Mindzyxs_API.Controllers;
 /// (no tratamiento clínico). Endpoints públicos (el invitado no tiene sesión).
 /// </summary>
 [ApiController]
-[Route("api/[controller]")]
+[Route("api/recomendaciones")] // plural explícito: coincide con front/.http/README (el [controller] daría singular)
 public class RecomendacionController(RecomendacionService recomendaciones) : ControllerBase
 {
     /// <summary>Devuelve la lista de recomendaciones, priorizada por nivel de la sesión.</summary>
