@@ -137,6 +137,16 @@ public class MindzyxsDbContext(DbContextOptions<MindzyxsDbContext> options) : Db
             e.Property(x => x.Cobertura).HasColumnName("cobertura").HasMaxLength(255).IsUnicode(false);
             e.Property(x => x.Estado).HasColumnName("estado").HasMaxLength(20).IsUnicode(false);
             e.Property(x => x.Descripcion).HasColumnName("descripcion").HasMaxLength(500).IsUnicode(false);
+            e.Property(x => x.Whatsapp).HasColumnName("whatsapp").HasMaxLength(30).IsUnicode(false);
+            e.Property(x => x.Email).HasColumnName("email").HasMaxLength(150).IsUnicode(false);
+            e.Property(x => x.ChatUrl).HasColumnName("chat_url").HasMaxLength(255).IsUnicode(false);
+            e.Property(x => x.Videollamada).HasColumnName("videollamada").HasMaxLength(255).IsUnicode(false);
+            e.Property(x => x.TipoAtencion).HasColumnName("tipo_atencion").HasMaxLength(40).IsUnicode(false);
+            e.Property(x => x.Departamento).HasColumnName("departamento").HasMaxLength(60).IsUnicode(false);
+            e.Property(x => x.Municipio).HasColumnName("municipio").HasMaxLength(60).IsUnicode(false);
+            e.Property(x => x.Poblacion).HasColumnName("poblacion").HasMaxLength(100).IsUnicode(false);
+            e.Property(x => x.Fuente).HasColumnName("fuente").HasMaxLength(255).IsUnicode(false);
+            e.Property(x => x.FechaVerificacion).HasColumnName("fecha_verificacion");
         });
         b.Entity<RecomendacionRow>(e =>
         {

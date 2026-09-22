@@ -73,7 +73,15 @@ public class RiesgoService(
             Url = l.Url,
             Horario = l.Horario,
             Cobertura = l.Cobertura,
-            Descripcion = l.Descripcion
+            Descripcion = l.Descripcion,
+            Whatsapp = l.Whatsapp,
+            Email = l.Email,
+            ChatUrl = l.ChatUrl,
+            Videollamada = l.Videollamada,
+            TipoAtencion = l.TipoAtencion,
+            Departamento = l.Departamento,
+            Municipio = l.Municipio,
+            Fuente = l.Fuente
         }).ToList();
     }
 

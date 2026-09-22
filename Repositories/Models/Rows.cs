@@ -111,6 +111,8 @@ public class OpcionPreguntaRow
 }
 
 // PB-08: dbo.lineas_ayuda (solo se sirven las Activas a invitados y pacientes).
+// Directorio nacional + territorial (Minsalud ago-2025): canales, tipo de
+// atención, territorio, fuente oficial y fecha de verificación.
 public class LineaAyudaRow
 {
     public int IdLinea { get; set; }
@@ -121,6 +123,16 @@ public class LineaAyudaRow
     public string? Cobertura { get; set; }
     public string Estado { get; set; } = string.Empty;
     public string? Descripcion { get; set; }
+    public string? Whatsapp { get; set; }
+    public string? Email { get; set; }
+    public string? ChatUrl { get; set; }
+    public string? Videollamada { get; set; }
+    public string? TipoAtencion { get; set; }
+    public string? Departamento { get; set; }
+    public string? Municipio { get; set; }
+    public string? Poblacion { get; set; }
+    public string? Fuente { get; set; }
+    public DateOnly? FechaVerificacion { get; set; }
 }
 
 // PB-09: dbo.recomendaciones (autocuidado básico; nivel_riesgo NULL = transversal).

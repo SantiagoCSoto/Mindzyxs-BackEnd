@@ -68,4 +68,28 @@ public class LineaAyudaDto
 
     /// <summary>Descripción corta.</summary>
     public string? Descripcion { get; set; }
+
+    /// <summary>WhatsApp de contacto.</summary>
+    public string? Whatsapp { get; set; }
+
+    /// <summary>Correo de contacto.</summary>
+    public string? Email { get; set; }
+
+    /// <summary>Chat en línea.</summary>
+    public string? ChatUrl { get; set; }
+
+    /// <summary>Videollamada (agendamiento).</summary>
+    public string? Videollamada { get; set; }
+
+    /// <summary>Tipo de atención (apoyo_emocional, intervencion_crisis, emergencia, violencia_genero, infancia_adolescencia, orientacion_institucional).</summary>
+    public string? TipoAtencion { get; set; }
+
+    /// <summary>Departamento (null = nacional).</summary>
+    public string? Departamento { get; set; }
+
+    /// <summary>Municipio (null = nacional/departamental).</summary>
+    public string? Municipio { get; set; }
+
+    /// <summary>Fuente oficial del contacto.</summary>
+    public string? Fuente { get; set; }
 }
