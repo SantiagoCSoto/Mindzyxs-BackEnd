@@ -147,18 +147,16 @@ public class EfCodigoRepository(MindzyxsDbContext db) : ICodigoRepository
 
 public class EfSesionRepository(MindzyxsDbContext db) : ISesionRepository
 {
+    // Corrección BD: sp_sesion_crear inserta; TR_sesiones_Limite3 y
+    // TR_sesiones_AuditCreacion aplican límite de 3 + audit. Devuelve id_sesion.
     public async Task<int> CrearAsync(int idUsuario, string tokenHash, DateTime expiraEn, CancellationToken ct = default)
     {
-        var row = new SesionRow
-        {
-            IdUsuario = idUsuario,
-            TokenHash = tokenHash,
-            ExpiraEn = expiraEn,
-            CreadaEn = DateTime.UtcNow
-        };
-        db.Sesiones.Add(row);
-        await db.SaveChangesAsync(ct);
-        return row.IdSesion;
+        var ids = await db.Database.SqlQueryRaw<int>(
+            "EXEC dbo.sp_sesion_crear @u, @h, @e",
+            new SqlParameter("@u", idUsuario),
+            new SqlParameter("@h", tokenHash),
+            new SqlParameter("@e", expiraEn)).ToListAsync(ct);
+        return ids.Single();
     }
 
     public async Task<SesionDto?> FindByTokenHashAsync(string tokenHash, CancellationToken ct = default)
@@ -176,18 +174,17 @@ public class EfSesionRepository(MindzyxsDbContext db) : ISesionRepository
 
 public class EfAuthLogRepository(MindzyxsDbContext db) : IAuthLogRepository
 {
+    // Corrección BD: el INSERT vive en sp_auth_registrar (fecha del servidor).
     public async Task LogAsync(int? actorId, int? targetId, string accion, string detalle, string? ip, CancellationToken ct = default)
     {
-        db.AuthLogs.Add(new AuthRow
-        {
-            ActorIdUsuario = actorId,
-            TargetIdUsuario = targetId,
-            Accion = accion,
-            Detalle = detalle,
-            Fecha = DateTime.UtcNow,
-            IpAddress = ip
-        });
-        await db.SaveChangesAsync(ct);
+        await db.Database.ExecuteSqlRawAsync(
+            "EXEC dbo.sp_auth_registrar @actor, @target, @accion, @detalle, @ip",
+            new SqlParameter("@actor", (object?)actorId ?? DBNull.Value),
+            new SqlParameter("@target", (object?)targetId ?? DBNull.Value),
+            new SqlParameter("@accion", accion),
+            new SqlParameter("@detalle", (object?)detalle ?? DBNull.Value),
+            new SqlParameter("@ip", (object?)ip ?? DBNull.Value),
+            ct);
     }
 }
 
@@ -205,17 +202,56 @@ public class EfCuestionarioRepository(MindzyxsDbContext db) : ICuestionarioRepos
             .Where(c => c.IdCuestionario == idCuestionario && c.Tipo == "Predeterminado" && c.Estado == "Publicado")
             .FirstOrDefaultAsync(ct);
 
-    public Task<List<PreguntaRow>> GetPreguntasAsync(int idCuestionario, CancellationToken ct = default)
-        => db.Preguntas.AsNoTracking()
-            .Where(p => p.IdCuestionario == idCuestionario)
-            .OrderBy(p => p.Orden)
-            .ToListAsync(ct);
-
-    public Task<List<OpcionPreguntaRow>> GetOpcionesAsync(int idCuestionario, CancellationToken ct = default)
-        => db.OpcionesPregunta.AsNoTracking()
-            .Where(o => db.Preguntas.Where(p => p.IdCuestionario == idCuestionario).Select(p => p.IdPregunta).Contains(o.IdPregunta))
-            .OrderBy(o => o.IdPregunta).ThenBy(o => o.Orden)
-            .ToListAsync(ct);
+    // Corrección BD: sp_cuestionario_completo trae preguntas+opciones en 1 round-trip
+    // (3 result sets; el 1ro es el cuestionario, ya validado por Find). Multi-result vía reader.
+    public async Task<(List<PreguntaRow> Preguntas, List<OpcionPreguntaRow> Opciones)> GetCompletoAsync(int idCuestionario, CancellationToken ct = default)
+    {
+        var preguntas = new List<PreguntaRow>();
+        var opciones = new List<OpcionPreguntaRow>();
+        var conn = db.Database.GetDbConnection();
+        var opened = false;
+        if (conn.State != System.Data.ConnectionState.Open)
+        {
+            await db.Database.OpenConnectionAsync(ct);
+            opened = true;
+        }
+        try
+        {
+            await using var cmd = conn.CreateCommand();
+            cmd.CommandText = "EXEC dbo.sp_cuestionario_completo @id";
+            var p = cmd.CreateParameter();
+            p.ParameterName = "@id";
+            p.Value = idCuestionario;
+            cmd.Parameters.Add(p);
+            await using var reader = await cmd.ExecuteReaderAsync(ct);
+            await reader.NextResultAsync(ct); // set 1: cuestionario (se omite)
+            while (await reader.ReadAsync(ct))
+                preguntas.Add(new PreguntaRow
+                {
+                    IdPregunta = reader.GetInt32(0),
+                    IdCuestionario = reader.GetInt32(1),
+                    Texto = reader.GetString(2),
+                    Orden = reader.GetInt32(3),
+                    Tipo = await reader.IsDBNullAsync(4, ct) ? null : reader.GetString(4),
+                    PuntajeMax = await reader.IsDBNullAsync(5, ct) ? null : reader.GetInt32(5)
+                });
+            await reader.NextResultAsync(ct); // set 3: opciones
+            while (await reader.ReadAsync(ct))
+                opciones.Add(new OpcionPreguntaRow
+                {
+                    IdOpcion = reader.GetInt32(0),
+                    IdPregunta = reader.GetInt32(1),
+                    Texto = reader.GetString(2),
+                    Valor = reader.GetInt32(3),
+                    Orden = reader.GetInt32(4)
+                });
+        }
+        finally
+        {
+            if (opened) await conn.CloseAsync();
+        }
+        return (preguntas, opciones);
+    }
 }
 
 // PB-08: líneas de ayuda en estado Activa.
@@ -231,10 +267,11 @@ public class EfLineaAyudaRepository(MindzyxsDbContext db) : ILineaAyudaRepositor
 // PB-09: recomendaciones básicas (el admin las crea/edita/desactiva, PB-28).
 public class EfRecomendacionRepository(MindzyxsDbContext db) : IRecomendacionRepository
 {
-    public Task<List<RecomendacionRow>> GetTodasAsync(CancellationToken ct = default)
-        => db.Recomendaciones.AsNoTracking()
-            .OrderBy(r => r.IdRecomendacion)
-            .ToListAsync(ct);
+    // Corrección BD: el orden por nivel vive en sp_recomendaciones_priorizadas.
+    public Task<List<RecomendacionRow>> GetPriorizadasAsync(string? nivel, CancellationToken ct = default)
+        => db.Recomendaciones.FromSqlRaw("EXEC dbo.sp_recomendaciones_priorizadas @nivel",
+            new SqlParameter("@nivel", (object?)nivel ?? DBNull.Value))
+            .AsNoTracking().ToListAsync(ct);
 
     public Task<RecomendacionRow?> FindByIdAsync(int idRecomendacion, CancellationToken ct = default)
         => db.Recomendaciones.AsNoTracking()
@@ -270,14 +307,14 @@ public class EfAdminRepository(MindzyxsDbContext db, IOptions<AdminOptions> admi
             .Select(r => new RespaldoDto(r.IdRespaldo, r.NombreArchivo, r.Tamano, r.FechaHora, r.IdAdmin))
             .FirstOrDefaultAsync(ct);
 
-    public async Task<int> LimpiarCodigosExpiradosAsync(CancellationToken ct = default)
-        => await db.Codigos.Where(c => c.ExpiraEn < DateTime.UtcNow).ExecuteDeleteAsync(ct);
-
-    public async Task<int> LimpiarSesionesExpiradasAsync(CancellationToken ct = default)
-        => await db.Sesiones.Where(s => s.ExpiraEn < DateTime.UtcNow).ExecuteDeleteAsync(ct);
-
-    public async Task<int> LimpiarAuthAntiguosAsync(int dias, CancellationToken ct = default)
-        => await db.AuthLogs.Where(a => a.Fecha < DateTime.UtcNow.AddDays(-dias)).ExecuteDeleteAsync(ct);
+    // Corrección BD: sp_mantenimiento_limpieza hace las 3 limpiezas en 1 llamada.
+    public async Task<MantenimientoLimpiezaResult> LimpiarTodoAsync(int dias, CancellationToken ct = default)
+    {
+        var r = await db.Database.SqlQueryRaw<MantenimientoLimpiezaResult>(
+            "EXEC dbo.sp_mantenimiento_limpieza @dias",
+            new SqlParameter("@dias", dias)).ToListAsync(ct);
+        return r.Single();
+    }
 
     // Snapshot JSON de datos (agnóstico SQL/NoSQL). Se usa como respaldo de contingencia
     // si BACKUP DATABASE nativo falla (permisos/carpeta). Nunca expone secrets.

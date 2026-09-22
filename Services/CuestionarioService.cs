@@ -23,8 +23,8 @@ public class CuestionarioService(
                 Mensaje = "No tienes cuestionarios pendientes por responder."
             };
 
-        var preguntas = await cuestionarios.GetPreguntasAsync(actual.IdCuestionario, ct);
-        var opciones = await cuestionarios.GetOpcionesAsync(actual.IdCuestionario, ct);
+        // Corrección BD: preguntas+opciones en 1 round-trip (sp_cuestionario_completo).
+        var (preguntas, opciones) = await cuestionarios.GetCompletoAsync(actual.IdCuestionario, ct);
 
         return new CuestionarioInvitadoDto
         {
@@ -66,8 +66,8 @@ public class CuestionarioService(
         var c = await cuestionarios.FindPublicadoInvitadoAsync(vm.CuestionarioId, ct);
         if (c is null) throw new InvalidOperationException("Cuestionario no disponible.");
 
-        var preguntas = await cuestionarios.GetPreguntasAsync(c.IdCuestionario, ct);
-        var opciones = await cuestionarios.GetOpcionesAsync(c.IdCuestionario, ct);
+        // Corrección BD: preguntas+opciones en 1 round-trip (sp_cuestionario_completo).
+        var (preguntas, opciones) = await cuestionarios.GetCompletoAsync(c.IdCuestionario, ct);
         var porPregunta = vm.Respuestas.GroupBy(r => r.PreguntaId).ToDictionary(g => g.Key, g => g.First().OpcionId);
 
         var valoresEscala = new List<int>();

@@ -105,19 +105,18 @@ public class AdminService(
     {
         try
         {
-            var cod = await admin.LimpiarCodigosExpiradosAsync(ct);
-            var ses = await admin.LimpiarSesionesExpiradasAsync(ct);
-            var logs = await admin.LimpiarAuthAntiguosAsync(options.Value.RetencionLogDias, ct);
+            // Corrección BD: sp_mantenimiento_limpieza hace las 3 limpiezas en 1 llamada.
+            var limpio = await admin.LimpiarTodoAsync(options.Value.RetencionLogDias, ct);
 
             var result = new MaintenanceResultDto
             {
-                CodigosExpiradosEliminados = cod,
-                SesionesExpiradasEliminadas = ses,
-                LogsAntiguosEliminados = logs
+                CodigosExpiradosEliminados = limpio.Codigos,
+                SesionesExpiradasEliminadas = limpio.Sesiones,
+                LogsAntiguosEliminados = limpio.Auth
             };
 
             await authLogs.LogAsync(adminId, adminId, LogAcciones.Mantenimiento,
-                $"Mantenimiento completado: {cod} códigos, {ses} sesiones, {logs} logs", ip, ct);
+                $"Mantenimiento completado: {limpio.Codigos} códigos, {limpio.Sesiones} sesiones, {limpio.Auth} logs", ip, ct);
 
             return OperationResult<MaintenanceResultDto>.Ok(result,
                 "Mantenimiento completado — registros temporales eliminados (0 datos de pacientes afectados)");
