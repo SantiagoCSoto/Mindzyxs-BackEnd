@@ -18,6 +18,12 @@
             ".read": "auth != null && (root.child('conversaciones/' + $convId + '/meta/pacienteUid').val() == auth.uid || root.child('conversaciones/' + $convId + '/meta/psicologoUid').val() == auth.uid)",
             ".write": "auth != null && auth.uid == $uid"
           }
+        },
+        "typing": {
+          "$uid": {
+            ".read": "auth != null && (root.child('conversaciones/' + $convId + '/meta/pacienteUid').val() == auth.uid || root.child('conversaciones/' + $convId + '/meta/psicologoUid').val() == auth.uid)",
+            ".write": "auth != null && auth.uid == $uid"
+          }
         }
       }
     }
