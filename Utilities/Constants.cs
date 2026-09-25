@@ -60,6 +60,14 @@ public static class LogAcciones
     // PB-09 HU1-PB9: consulta de recomendaciones básicas del invitado (lista y detalle).
     public const string RecomendacionInvitadoConsulta = "RECOMENDACION_INVITADO_CONSULTA";
 
+    // PB-31 HU1-PB31: ciclo de vida del chat (solicitudes, mensajes, bloqueos).
+    public const string ChatSolicitud = "CHAT_SOLICITUD";
+    public const string ChatAceptado = "CHAT_ACEPTADO";
+    public const string ChatRechazado = "CHAT_RECHAZADO";
+    public const string ChatBloqueo = "CHAT_BLOQUEO";
+    public const string ChatDesbloqueo = "CHAT_DESBLOQUEO";
+    public const string ChatMensaje = "CHAT_MENSAJE";
+
     // Corrección BD: acciones registradas por triggers (ver sql/10_triggers_auth.sql).
     public const string CambioEstadoCuenta = "CAMBIO_ESTADO_CUENTA";
     public const string SesionCreada = "SESION_CREADA";

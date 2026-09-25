@@ -44,6 +44,7 @@ builder.Services.AddScoped<IAuthLogRepository, EfAuthLogRepository>();
 builder.Services.AddScoped<ICuestionarioRepository, EfCuestionarioRepository>();
 builder.Services.AddScoped<ILineaAyudaRepository, EfLineaAyudaRepository>();
 builder.Services.AddScoped<IRecomendacionRepository, EfRecomendacionRepository>();
+builder.Services.AddScoped<IChatRepository, EfChatRepository>();
 builder.Services.AddScoped<IAdminRepository, EfAdminRepository>();
 builder.Services.AddScoped<ITarjetaStorage, FileSystemTarjetaStorage>();
 builder.Services.AddScoped<IEmailSender, SmtpEmailSender>();
@@ -58,6 +59,7 @@ builder.Services.AddScoped<InvitadoService>();
 builder.Services.AddScoped<CuestionarioService>();
 builder.Services.AddScoped<RiesgoService>();
 builder.Services.AddScoped<RecomendacionService>();
+builder.Services.AddScoped<ChatService>();
 
 // Swagger: documentación interactiva en /swagger (Swagger UI) y spec en /swagger/v1/swagger.json.
 builder.Services.AddSwaggerGen(o =>

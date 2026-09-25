@@ -284,6 +284,52 @@ public class EfRecomendacionRepository(MindzyxsDbContext db) : IRecomendacionRep
             .FirstOrDefaultAsync(ct);
 }
 
+// PB-31: conversaciones en SQL.
+public class EfChatRepository(MindzyxsDbContext db) : IChatRepository
+{
+    public Task<List<ConversacionRow>> GetDeUsuarioAsync(int idUsuario, CancellationToken ct = default)
+        => db.Conversaciones.AsNoTracking()
+            .Where(c => c.IdPaciente == idUsuario || c.IdPsicologo == idUsuario)
+            .OrderByDescending(c => c.FechaCreacion)
+            .ToListAsync(ct);
+
+    public Task<ConversacionRow?> FindAsync(int idConversacion, CancellationToken ct = default)
+        => db.Conversaciones.AsNoTracking()
+            .Where(c => c.IdConversacion == idConversacion)
+            .FirstOrDefaultAsync(ct);
+
+    public Task<ConversacionRow?> FindParejaAsync(int idPaciente, int idPsicologo, CancellationToken ct = default)
+        => db.Conversaciones
+            .Where(c => c.IdPaciente == idPaciente && c.IdPsicologo == idPsicologo)
+            .FirstOrDefaultAsync(ct);
+
+    public async Task<ConversacionRow> CrearAsync(int idPaciente, int idPsicologo, CancellationToken ct = default)
+    {
+        var row = new ConversacionRow
+        {
+            IdPaciente = idPaciente,
+            IdPsicologo = idPsicologo,
+            Estado = "Pendiente",
+            FechaCreacion = DateTime.UtcNow
+        };
+        db.Conversaciones.Add(row);
+        await db.SaveChangesAsync(ct);
+        return row;
+    }
+
+    public async Task SetEstadoAsync(int idConversacion, string estado, int? idBloqueador, CancellationToken ct = default)
+    {
+        var row = await db.Conversaciones
+            .Where(c => c.IdConversacion == idConversacion)
+            .FirstOrDefaultAsync(ct);
+        if (row is null) return;
+        row.Estado = estado;
+        row.IdBloqueador = idBloqueador;
+        row.FechaRespuesta = estado == "Pendiente" ? null : (DateTime?)DateTime.UtcNow;
+        await db.SaveChangesAsync(ct);
+    }
+}
+
 public class EfAdminRepository(MindzyxsDbContext db, IOptions<AdminOptions> adminOptions) : IAdminRepository
 {
     public async Task<List<RespaldoDto>> ListRespaldosAsync(CancellationToken ct = default)

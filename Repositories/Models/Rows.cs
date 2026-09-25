@@ -150,3 +150,17 @@ public class RecomendacionRow
     public string? Instrucciones { get; set; }
     public string? Icono { get; set; }
 }
+
+// PB-31: dbo.conversaciones (solicitud/aceptación/rechazo/bloqueo en SQL;
+// los mensajes en vivo van por Firebase RTDB). Una fila por pareja
+// (UQ_conv_pareja): rechazadas/cerradas se reactivan con UPDATE.
+public class ConversacionRow
+{
+    public int IdConversacion { get; set; }
+    public int IdPaciente { get; set; }
+    public int IdPsicologo { get; set; }
+    public string Estado { get; set; } = string.Empty;
+    public int? IdBloqueador { get; set; }
+    public DateTime FechaCreacion { get; set; }
+    public DateTime? FechaRespuesta { get; set; }
+}

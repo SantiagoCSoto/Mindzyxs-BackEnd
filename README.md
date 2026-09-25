@@ -66,7 +66,7 @@ Mindzyxs-API/
     └── TokenHelper.cs             # Generación/hashing de tokens de sesión
 ```
 
-Dependencias principales registradas en `Program.cs`: repositorios EF (`IUserRepository`, `ICatalogRepository`, `ICodigoRepository`, `ISesionRepository`, `IAuthLogRepository`, `IAdminRepository`, `ICuestionarioRepository`, `ILineaAyudaRepository`, `IRecomendacionRepository`), almacenamiento (`ITarjetaStorage`), correo (`IEmailSender`) y servicios de negocio.
+Dependencias principales registradas en `Program.cs`: repositorios EF (`IUserRepository`, `ICatalogRepository`, `ICodigoRepository`, `ISesionRepository`, `IAuthLogRepository`, `IAdminRepository`, `ICuestionarioRepository`, `ILineaAyudaRepository`, `IRecomendacionRepository`, `IChatRepository`), almacenamiento (`ITarjetaStorage`), correo (`IEmailSender`) y servicios de negocio.
 
 ## Swagger (documentación interactiva)
 
@@ -814,7 +814,6 @@ curl http://localhost:5015/api/recomendaciones/invitado/4
 * Consulta (lista y detalle) registrada como `RECOMENDACION_INVITADO_CONSULTA` en `dbo.auth`
 
 * Rama actual `correccion-base-de-datos`, BD `SANTI/Mindzyxs`.
-
 # Corrección base de datos (triggers + SPs + purga)
 
 Rama `correccion-base-de-datos` (BD y back). Todo objeto SQL lleva encabezado-tabla (`Objeto | Fecha | Autor=Santiago Cortes | Cambio | Hace | Afecta`).
@@ -841,3 +840,19 @@ Elimina usuarios de prueba sin hash PBKDF2 (seed 03: ids 1–5) y su rastro: rea
 | `sp_cuestionario_completo` | `EfCuestionarioRepository.GetCompletoAsync` (preguntas+opciones en 1 round-trip, reader multi-set) |
 | `sp_dashboard_admin` | Sin consumidor aún: base de la consola admin (PB-25) |
 | `sp_recomendaciones_priorizadas` | `EfRecomendacionRepository.GetPriorizadasAsync` vía `FromSqlRaw` (el `OrderBy` salió del Service) |
+
+# PB-31 Chat psicólogo-paciente (realtime Firebase + SQL)
+
+Híbrido: **RTDB** para mensajes en vivo (`/conversaciones/{id}/meta|mensajes|presencia`), **SQL** para ciclo de vida (`dbo.conversaciones`: solicitud/aceptación/rechazo/bloqueo) y auditoría en `dbo.auth`. Reglas en `Firebase/database.rules.json` (participantes + `Aceptada` + bloqueo + texto 1-1000). Clave serviceAccount **nunca** en el repo (`GOOGLE_APPLICATION_CREDENTIALS` + `.env` local).
+
+| Método | Ruta | Quién | Descripción |
+|--------|------|-------|-------------|
+| `POST` | `/api/chat/token` | sesión | Token Firebase (`uid`, claim `rol`, 1h) + `databaseUrl` |
+| `GET` | `/api/chat/conversaciones` | sesión | Propias (pendientes = notificaciones internas) |
+| `POST` | `/api/chat/solicitudes {idPaciente}` | psicólogo aprobado/activo | Ofrece chat (reactiva Rechazada/Cerrada) |
+| `POST` | `/api/chat/solicitudes/{id}/aceptar\|rechazar` | paciente dueño | Aceptar escribe `meta` Aceptada en RTDB |
+| `POST` | `/api/chat/conversaciones/{id}/bloqueo` | paciente dueño | Bloquea (meta Bloqueada); bloqueado → 403 + aviso |
+| `DELETE` | `/api/chat/conversaciones/{id}/bloqueo` | paciente que bloqueó | Desbloquea (vuelve a Aceptada) |
+| `POST` | `/api/chat/conversaciones/{id}/mensajes/aviso` | participante | Auditoría best-effort tras el `push()` a RTDB |
+
+Mensajes: 401 sin sesión; 403 bloqueado que no bloqueó; 404 inexistente; resto 400. Acciones `CHAT_SOLICITUD/ACEPTADO/RECHAZADO/BLOQUEO/DESBLOQUEO/MENSAJE`. Nota: el envío entre psicólogo y paciente presupone además la autorización PB-17 (se integra en Sprint 4).
