@@ -179,7 +179,7 @@ public class EfAuthLogRepository(MindzyxsDbContext db) : IAuthLogRepository
     // object[] EF intenta mapear CancellationToken y falla ("no store type mapping").
     public async Task LogAsync(int? actorId, int? targetId, string accion, string detalle, string? ip, CancellationToken ct = default)
     {
-        object?[] parameters =
+        object[] parameters =
         [
             new SqlParameter("@actor", (object?)actorId ?? DBNull.Value),
             new SqlParameter("@target", (object?)targetId ?? DBNull.Value),

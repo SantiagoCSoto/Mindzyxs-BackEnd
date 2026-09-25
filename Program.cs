@@ -31,6 +31,7 @@ builder.Services.Configure<RegistroOptions>(builder.Configuration.GetSection("Re
 builder.Services.Configure<SesionOptions>(builder.Configuration.GetSection("Sesion"));
 builder.Services.Configure<AdminOptions>(builder.Configuration.GetSection("Admin"));
 builder.Services.Configure<FirebaseOptions>(builder.Configuration.GetSection("Firebase"));
+builder.Services.AddHttpClient();
 builder.Services.AddSingleton<FirebaseService>();
 
 builder.Services.AddScoped<IUserRepository, EfUserRepository>();
