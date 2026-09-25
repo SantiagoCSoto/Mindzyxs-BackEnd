@@ -78,10 +78,10 @@ public interface IChatRepository
     Task<ConversacionRow?> FindParejaAsync(int idPaciente, int idPsicologo, CancellationToken ct = default);
     Task<ConversacionRow> CrearAsync(int idPaciente, int idPsicologo, CancellationToken ct = default);
     Task SetEstadoAsync(int idConversacion, string estado, int? idBloqueador, CancellationToken ct = default);
-    Task<List<PacienteBusquedaDto>> BuscarPacientesAsync(int idRolPaciente, int idEstadoActiva, string? q, CancellationToken ct = default);
+    Task<List<PacienteBusquedaDto>> BuscarPacientesAsync(int idRolPaciente, int idEstadoActiva, string? q, string? nivel, int? minCuestionarios, bool? tienePsicologo, CancellationToken ct = default);
 }
 
-public record PacienteBusquedaDto(int Id, string Nombre, string Correo, int? UltimoPuntaje, string? UltimoNivel, DateTime? UltimaFecha);
+public record PacienteBusquedaDto(int Id, string Nombre, string Correo, int? UltimoPuntaje, string? UltimoNivel, DateTime? UltimaFecha, int CuestionariosRespondidos, int Psicologos);
 
 public interface IAdminRepository
 {

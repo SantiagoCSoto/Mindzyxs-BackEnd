@@ -233,24 +233,32 @@ public class ChatController(
         }
     }
 
-    /// <summary>Buscador de pacientes activos con su último riesgo.</summary>
+    /// <summary>Buscador multifiltro de pacientes (nombre opcional, exige un filtro).</summary>
     /// <remarks>
-    /// PB-31. Solo psicólogo aprobado y activo. `q` filtra por nombre/apellido/correo
-    /// (máx. 20). Cada uno trae `ultimoPuntaje/ultimoNivel/ultimaFecha` (null = sin datos)
-    /// para decidir a quién ofrecerle chat.
+    /// PB-31. Solo psicólogo aprobado y activo. Filtros combinables: `q` (nombre/
+    /// apellido/correo, opcional), `nivel` (Bajo/Medio/Alto), `minCuestionarios`
+    /// (cuestionarios respondidos) y `tienePsicologo` (true/false). Sin ningún
+    /// filtro → 400 "Seleccione al menos un filtro antes de buscar."
+    /// Cada uno trae último riesgo + conteos para decidir a quién ofrecerle chat.
     ///
-    /// Respuestas: `200` — lista; `401` sin sesión; `403` sin rol.
+    /// Respuestas: `200` — lista; `400` sin filtros; `401` sin sesión; `403` sin rol.
     /// </remarks>
     /// <response code="200">Pacientes encontrados.</response>
+    /// <response code="400">Sin filtros.</response>
     /// <response code="401">Sesión requerida.</response>
     /// <response code="403">Solo psicólogos.</response>
     [HttpGet("pacientes")]
     [ProducesResponseType(typeof(List<PacienteChatDto>), StatusCodes.Status200OK)]
-    public async Task<IActionResult> BuscarPacientes([FromQuery] string? q, CancellationToken ct)
+    public async Task<IActionResult> BuscarPacientes(
+        [FromQuery] string? q,
+        [FromQuery] string? nivel,
+        [FromQuery] int? minCuestionarios,
+        [FromQuery] bool? tienePsicologo,
+        CancellationToken ct)
     {
         try
         {
-            return Ok(await chats.BuscarPacientesAsync(ReadOptionalBearerToken(), q, ct));
+            return Ok(await chats.BuscarPacientesAsync(ReadOptionalBearerToken(), q, nivel, minCuestionarios, tienePsicologo, ct));
         }
         catch (UnauthorizedAccessException ex)
         {

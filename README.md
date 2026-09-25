@@ -849,6 +849,7 @@ Híbrido: **RTDB** para mensajes en vivo (`/conversaciones/{id}/meta|mensajes|pr
 |--------|------|-------|-------------|
 | `POST` | `/api/chat/token` | sesión | Token Firebase (`uid`, claim `rol`, 1h) + `databaseUrl` |
 | `GET` | `/api/chat/conversaciones` | sesión | Propias (pendientes = notificaciones internas) |
+| `GET` | `/api/chat/pacientes?q=&nivel=&minCuestionarios=&tienePsicologo=` | psicólogo | Buscador multifiltro (nombre opcional, exige ≥1) con último riesgo + conteos |
 | `POST` | `/api/chat/solicitudes {idPaciente}` | psicólogo aprobado/activo | Ofrece chat (reactiva Rechazada/Cerrada) |
 | `POST` | `/api/chat/solicitudes/{id}/aceptar\|rechazar` | paciente dueño | Aceptar escribe `meta` Aceptada en RTDB |
 | `POST` | `/api/chat/conversaciones/{id}/bloqueo` | paciente dueño | Bloquea (meta Bloqueada); bloqueado → 403 + aviso |

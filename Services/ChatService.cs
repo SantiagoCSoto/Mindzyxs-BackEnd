@@ -146,18 +146,22 @@ public class ChatService(
             LogAcciones.ChatMensaje, $"Mensaje enviado en conversación {idConversacion} por usuario:{yo.IdUsuario}", ip, ct);
     }
 
-    // PB-31: buscador de pacientes activos con último riesgo (para ofrecer chat).
+    // PB-31: buscador multifiltro (nombre opcional; exige al menos un filtro).
     // Solo psicólogo aprobado y activo.
-    public async Task<List<PacienteChatDto>> BuscarPacientesAsync(string? tokenRaw, string? q, CancellationToken ct = default)
+    public async Task<List<PacienteChatDto>> BuscarPacientesAsync(string? tokenRaw, string? q, string? nivel, int? minCuestionarios, bool? tienePsicologo, CancellationToken ct = default)
     {
         var yo = await RequireSesionAsync(tokenRaw, ct);
         await RequireRolAsync(yo.IdUsuario, AppRoles.Psicologo, ct);
         await RequireAprobadoAsync(yo.IdUsuario, ct);
         await RequireActivaAsync(yo.IdUsuario, ct);
 
+        var n = NormalizarNivelChat(nivel);
+        if (string.IsNullOrWhiteSpace(q) && n is null && minCuestionarios is null && tienePsicologo is null)
+            throw new InvalidOperationException("Seleccione al menos un filtro antes de buscar.");
+
         var idRol = await catalogos.GetRolIdAsync(AppRoles.Paciente, ct);
         var idActiva = await catalogos.GetEstadoIdAsync(AccountStates.Activa, ct);
-        var rows = await chats.BuscarPacientesAsync(idRol, idActiva, q, ct);
+        var rows = await chats.BuscarPacientesAsync(idRol, idActiva, q, n, minCuestionarios, tienePsicologo, ct);
         return rows.Select(r => new PacienteChatDto
         {
             Id = r.Id,
@@ -165,8 +169,20 @@ public class ChatService(
             Correo = r.Correo,
             UltimoPuntaje = r.UltimoPuntaje,
             UltimoNivel = r.UltimoNivel,
-            UltimaFecha = r.UltimaFecha
+            UltimaFecha = r.UltimaFecha,
+            CuestionariosRespondidos = r.CuestionariosRespondidos,
+            Psicologos = r.Psicologos
         }).ToList();
+    }
+
+    private static string? NormalizarNivelChat(string? nivel)
+    {
+        if (string.IsNullOrWhiteSpace(nivel)) return null;
+        var n = nivel.Trim();
+        if (string.Equals(n, "bajo", StringComparison.OrdinalIgnoreCase)) return "Bajo";
+        if (string.Equals(n, "medio", StringComparison.OrdinalIgnoreCase)) return "Medio";
+        if (string.Equals(n, "alto", StringComparison.OrdinalIgnoreCase)) return "Alto";
+        return null;
     }
 
     private async Task<ConversacionDto> ToDtoAsync(int idConversacion, int yoId, CancellationToken ct)

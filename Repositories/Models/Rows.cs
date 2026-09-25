@@ -170,6 +170,7 @@ public class EventoRow
 {
     public int IdEvento { get; set; }
     public int IdPaciente { get; set; }
+    public int IdTipoEvento { get; set; }
     public int? IdNivelRiesgo { get; set; }
     public int? PuntajeTotal { get; set; }
     public DateTime FechaEvento { get; set; }
@@ -180,4 +181,20 @@ public class NivelRiesgoRow
 {
     public int IdNivelRiesgo { get; set; }
     public string Nombre { get; set; } = string.Empty;
+}
+
+// PB-31 (solo lectura): tipos de evento (RegistroEmocional, Cuestionario).
+public class TipoEventoRow
+{
+    public int IdTipoEvento { get; set; }
+    public string Nombre { get; set; } = string.Empty;
+}
+
+// PB-31 (solo lectura): autorizaciones paciente-psicólogo.
+public class AutorizacionRow
+{
+    public int IdAutorizacion { get; set; }
+    public int IdPaciente { get; set; }
+    public int IdPsicologo { get; set; }
+    public int IdEstado { get; set; }
 }

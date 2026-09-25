@@ -21,6 +21,8 @@ public class MindzyxsDbContext(DbContextOptions<MindzyxsDbContext> options) : Db
     public DbSet<ConversacionRow> Conversaciones => Set<ConversacionRow>();
     public DbSet<EventoRow> Eventos => Set<EventoRow>();
     public DbSet<NivelRiesgoRow> NivelesRiesgo => Set<NivelRiesgoRow>();
+    public DbSet<TipoEventoRow> TiposEvento => Set<TipoEventoRow>();
+    public DbSet<AutorizacionRow> Autorizaciones => Set<AutorizacionRow>();
 
     protected override void OnModelCreating(ModelBuilder b)
     {
@@ -180,6 +182,7 @@ public class MindzyxsDbContext(DbContextOptions<MindzyxsDbContext> options) : Db
             e.ToTable("eventos_bienestar", "dbo").HasKey(x => x.IdEvento);
             e.Property(x => x.IdEvento).HasColumnName("id_evento");
             e.Property(x => x.IdPaciente).HasColumnName("id_paciente");
+            e.Property(x => x.IdTipoEvento).HasColumnName("id_tipo_evento");
             e.Property(x => x.IdNivelRiesgo).HasColumnName("id_nivel_riesgo");
             e.Property(x => x.PuntajeTotal).HasColumnName("puntaje_total");
             e.Property(x => x.FechaEvento).HasColumnName("fecha_evento");
@@ -189,6 +192,20 @@ public class MindzyxsDbContext(DbContextOptions<MindzyxsDbContext> options) : Db
             e.ToTable("niveles_riesgo", "dbo").HasKey(x => x.IdNivelRiesgo);
             e.Property(x => x.IdNivelRiesgo).HasColumnName("id_nivel_riesgo");
             e.Property(x => x.Nombre).HasColumnName("nombre").HasMaxLength(50).IsUnicode(false);
+        });
+        b.Entity<TipoEventoRow>(e =>
+        {
+            e.ToTable("tipos_evento", "dbo").HasKey(x => x.IdTipoEvento);
+            e.Property(x => x.IdTipoEvento).HasColumnName("id_tipo_evento");
+            e.Property(x => x.Nombre).HasColumnName("nombre").HasMaxLength(50).IsUnicode(false);
+        });
+        b.Entity<AutorizacionRow>(e =>
+        {
+            e.ToTable("autorizaciones", "dbo").HasKey(x => x.IdAutorizacion);
+            e.Property(x => x.IdAutorizacion).HasColumnName("id_autorizacion");
+            e.Property(x => x.IdPaciente).HasColumnName("id_paciente");
+            e.Property(x => x.IdPsicologo).HasColumnName("id_psicologo");
+            e.Property(x => x.IdEstado).HasColumnName("id_estado");
         });
     }
 }

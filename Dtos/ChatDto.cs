@@ -26,6 +26,12 @@ public class PacienteChatDto
 
     /// <summary>Fecha del último registro.</summary>
     public DateTime? UltimaFecha { get; set; }
+
+    /// <summary>Cuestionarios respondidos (eventos tipo Cuestionario).</summary>
+    public int CuestionariosRespondidos { get; set; }
+
+    /// <summary>Psicólogos autorizados vinculados.</summary>
+    public int Psicologos { get; set; }
 }
 public class ChatContraparteDto
 {
