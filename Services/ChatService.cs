@@ -146,6 +146,29 @@ public class ChatService(
             LogAcciones.ChatMensaje, $"Mensaje enviado en conversación {idConversacion} por usuario:{yo.IdUsuario}", ip, ct);
     }
 
+    // PB-31: buscador de pacientes activos con último riesgo (para ofrecer chat).
+    // Solo psicólogo aprobado y activo.
+    public async Task<List<PacienteChatDto>> BuscarPacientesAsync(string? tokenRaw, string? q, CancellationToken ct = default)
+    {
+        var yo = await RequireSesionAsync(tokenRaw, ct);
+        await RequireRolAsync(yo.IdUsuario, AppRoles.Psicologo, ct);
+        await RequireAprobadoAsync(yo.IdUsuario, ct);
+        await RequireActivaAsync(yo.IdUsuario, ct);
+
+        var idRol = await catalogos.GetRolIdAsync(AppRoles.Paciente, ct);
+        var idActiva = await catalogos.GetEstadoIdAsync(AccountStates.Activa, ct);
+        var rows = await chats.BuscarPacientesAsync(idRol, idActiva, q, ct);
+        return rows.Select(r => new PacienteChatDto
+        {
+            Id = r.Id,
+            Nombre = r.Nombre,
+            Correo = r.Correo,
+            UltimoPuntaje = r.UltimoPuntaje,
+            UltimoNivel = r.UltimoNivel,
+            UltimaFecha = r.UltimaFecha
+        }).ToList();
+    }
+
     private async Task<ConversacionDto> ToDtoAsync(int idConversacion, int yoId, CancellationToken ct)
     {
         var c = (await chats.FindAsync(idConversacion, ct))!;

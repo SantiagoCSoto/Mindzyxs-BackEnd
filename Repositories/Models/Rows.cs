@@ -164,3 +164,20 @@ public class ConversacionRow
     public DateTime FechaCreacion { get; set; }
     public DateTime? FechaRespuesta { get; set; }
 }
+
+// PB-31 (solo lectura): último riesgo del paciente para el buscador.
+public class EventoRow
+{
+    public int IdEvento { get; set; }
+    public int IdPaciente { get; set; }
+    public int? IdNivelRiesgo { get; set; }
+    public int? PuntajeTotal { get; set; }
+    public DateTime FechaEvento { get; set; }
+}
+
+// PB-31 (solo lectura): catálogo Bajo/Medio/Alto.
+public class NivelRiesgoRow
+{
+    public int IdNivelRiesgo { get; set; }
+    public string Nombre { get; set; } = string.Empty;
+}

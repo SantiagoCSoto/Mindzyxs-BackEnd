@@ -233,6 +233,39 @@ public class ChatController(
         }
     }
 
+    /// <summary>Buscador de pacientes activos con su último riesgo.</summary>
+    /// <remarks>
+    /// PB-31. Solo psicólogo aprobado y activo. `q` filtra por nombre/apellido/correo
+    /// (máx. 20). Cada uno trae `ultimoPuntaje/ultimoNivel/ultimaFecha` (null = sin datos)
+    /// para decidir a quién ofrecerle chat.
+    ///
+    /// Respuestas: `200` — lista; `401` sin sesión; `403` sin rol.
+    /// </remarks>
+    /// <response code="200">Pacientes encontrados.</response>
+    /// <response code="401">Sesión requerida.</response>
+    /// <response code="403">Solo psicólogos.</response>
+    [HttpGet("pacientes")]
+    [ProducesResponseType(typeof(List<PacienteChatDto>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> BuscarPacientes([FromQuery] string? q, CancellationToken ct)
+    {
+        try
+        {
+            return Ok(await chats.BuscarPacientesAsync(ReadOptionalBearerToken(), q, ct));
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            return Unauthorized(new { error = ex.Message });
+        }
+        catch (InvalidOperationException ex) when (ex.Message.StartsWith("Se requiere rol"))
+        {
+            return StatusCode(StatusCodes.Status403Forbidden, new { error = ex.Message });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { error = ex.Message });
+        }
+    }
+
     private async Task<IActionResult> Responder(int id, bool aceptar, CancellationToken ct)
     {
         try

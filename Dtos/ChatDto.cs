@@ -7,7 +7,26 @@ public class SolicitudChatVm
     public int IdPaciente { get; set; }
 }
 
-/// <summary>Contraparte de una conversación.</summary>
+/// <summary>Paciente en el buscador: <c>GET /api/chat/pacientes?q=</c> (solo psicólogo).</summary>
+public class PacienteChatDto
+{    /// <summary>Id del paciente (para ofrecer chat).</summary>
+    public int Id { get; set; }
+
+    /// <summary>Nombre visible.</summary>
+    public string Nombre { get; set; } = "";
+
+    /// <summary>Correo (para distinguir homónimos).</summary>
+    public string Correo { get; set; } = "";
+
+    /// <summary>Último puntaje 1-5 (null = sin datos).</summary>
+    public int? UltimoPuntaje { get; set; }
+
+    /// <summary>Último nivel (Bajo/Medio/Alto, null = sin datos).</summary>
+    public string? UltimoNivel { get; set; }
+
+    /// <summary>Fecha del último registro.</summary>
+    public DateTime? UltimaFecha { get; set; }
+}
 public class ChatContraparteDto
 {
     /// <summary>Id del otro usuario.</summary>

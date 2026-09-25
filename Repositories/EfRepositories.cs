@@ -328,6 +328,36 @@ public class EfChatRepository(MindzyxsDbContext db) : IChatRepository
         row.FechaRespuesta = estado == "Pendiente" ? null : (DateTime?)DateTime.UtcNow;
         await db.SaveChangesAsync(ct);
     }
+
+    // PB-31: buscador de pacientes (activos) con su último riesgo registrado.
+    public async Task<List<PacienteBusquedaDto>> BuscarPacientesAsync(int idRolPaciente, int idEstadoActiva, string? q, CancellationToken ct = default)
+    {
+        var pacientes = await db.Usuarios.AsNoTracking()
+            .Where(u => u.IdRol == idRolPaciente && u.IdEstadoCuenta == idEstadoActiva
+                && (string.IsNullOrWhiteSpace(q)
+                    || u.Nombre.Contains(q) || u.Apellido.Contains(q) || u.Correo.Contains(q)))
+            .OrderBy(u => u.Nombre).ThenBy(u => u.Apellido)
+            .Take(20)
+            .ToListAsync(ct);
+        if (pacientes.Count == 0) return [];
+        var ids = pacientes.Select(u => u.IdUsuario).ToList();
+        var ultimos = await db.Eventos.AsNoTracking()
+            .Where(e => ids.Contains(e.IdPaciente))
+            .GroupBy(e => e.IdPaciente)
+            .Select(g => g.OrderByDescending(e => e.FechaEvento).First())
+            .ToListAsync(ct);
+        var niveles = await db.NivelesRiesgo.AsNoTracking().ToListAsync(ct);
+        return pacientes.Select(u =>
+        {
+            var ev = ultimos.FirstOrDefault(e => e.IdPaciente == u.IdUsuario);
+            var nivel = ev?.IdNivelRiesgo is null
+                ? null
+                : niveles.FirstOrDefault(n => n.IdNivelRiesgo == ev.IdNivelRiesgo)?.Nombre;
+            return new PacienteBusquedaDto(
+                u.IdUsuario, $"{u.Nombre} {u.Apellido}".Trim(), u.Correo,
+                ev?.PuntajeTotal, nivel, ev?.FechaEvento);
+        }).ToList();
+    }
 }
 
 public class EfAdminRepository(MindzyxsDbContext db, IOptions<AdminOptions> adminOptions) : IAdminRepository

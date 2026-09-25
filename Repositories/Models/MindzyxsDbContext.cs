@@ -19,6 +19,8 @@ public class MindzyxsDbContext(DbContextOptions<MindzyxsDbContext> options) : Db
     public DbSet<LineaAyudaRow> LineasAyuda => Set<LineaAyudaRow>();
     public DbSet<RecomendacionRow> Recomendaciones => Set<RecomendacionRow>();
     public DbSet<ConversacionRow> Conversaciones => Set<ConversacionRow>();
+    public DbSet<EventoRow> Eventos => Set<EventoRow>();
+    public DbSet<NivelRiesgoRow> NivelesRiesgo => Set<NivelRiesgoRow>();
 
     protected override void OnModelCreating(ModelBuilder b)
     {
@@ -172,6 +174,21 @@ public class MindzyxsDbContext(DbContextOptions<MindzyxsDbContext> options) : Db
             e.Property(x => x.IdBloqueador).HasColumnName("id_bloqueador");
             e.Property(x => x.FechaCreacion).HasColumnName("fecha_creacion");
             e.Property(x => x.FechaRespuesta).HasColumnName("fecha_respuesta");
+        });
+        b.Entity<EventoRow>(e =>
+        {
+            e.ToTable("eventos_bienestar", "dbo").HasKey(x => x.IdEvento);
+            e.Property(x => x.IdEvento).HasColumnName("id_evento");
+            e.Property(x => x.IdPaciente).HasColumnName("id_paciente");
+            e.Property(x => x.IdNivelRiesgo).HasColumnName("id_nivel_riesgo");
+            e.Property(x => x.PuntajeTotal).HasColumnName("puntaje_total");
+            e.Property(x => x.FechaEvento).HasColumnName("fecha_evento");
+        });
+        b.Entity<NivelRiesgoRow>(e =>
+        {
+            e.ToTable("niveles_riesgo", "dbo").HasKey(x => x.IdNivelRiesgo);
+            e.Property(x => x.IdNivelRiesgo).HasColumnName("id_nivel_riesgo");
+            e.Property(x => x.Nombre).HasColumnName("nombre").HasMaxLength(50).IsUnicode(false);
         });
     }
 }
