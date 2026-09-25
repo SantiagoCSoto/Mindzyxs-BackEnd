@@ -8,6 +8,8 @@ using Mindzyxs_API.Utilities;
 
 var builder = WebApplication.CreateBuilder(args);
 
+LoadDotEnv();
+
 builder.Services.AddControllers()
     .ConfigureApiBehaviorOptions(o =>
     {
@@ -137,3 +139,31 @@ app.UseCors();
 app.UseAuthorization();
 app.MapControllers();
 app.Run();
+
+// Carga .env local (desarrollo): GOOGLE_APPLICATION_CREDENTIALS, etc.
+// No pisa variables de entorno reales ya definidas. Las rutas relativas
+// (ej. la clave de Firebase) se resuelven contra la carpeta del .env.
+static void LoadDotEnv()
+{
+    var dir = Directory.GetCurrentDirectory();
+    var path = Path.Combine(dir, ".env");
+    if (!File.Exists(path))
+    {
+        dir = AppContext.BaseDirectory;
+        path = Path.Combine(dir, ".env");
+        if (!File.Exists(path)) return;
+    }
+    foreach (var raw in File.ReadAllLines(path))
+    {
+        var line = raw.Trim();
+        if (line.Length == 0 || line.StartsWith('#')) continue;
+        var idx = line.IndexOf('=');
+        if (idx <= 0) continue;
+        var key = line[..idx].Trim();
+        var val = line[(idx + 1)..].Trim().Trim('"').Trim('\'');
+        if (key == "GOOGLE_APPLICATION_CREDENTIALS" && !Path.IsPathRooted(val))
+            val = Path.GetFullPath(Path.Combine(dir, val));
+        if (string.IsNullOrEmpty(Environment.GetEnvironmentVariable(key)))
+            Environment.SetEnvironmentVariable(key, val);
+    }
+}

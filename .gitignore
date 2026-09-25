@@ -55,3 +55,7 @@ coverage.xml
 *-firebase-adminsdk-*.json
 serviceAccountKey.json
 Repositories/RealTime/*.json
+
+# Entorno local (secretos de desarrollo)
+.env
+
