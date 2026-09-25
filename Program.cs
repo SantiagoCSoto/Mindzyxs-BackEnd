@@ -30,6 +30,8 @@ builder.Services.Configure<StorageOptions>(builder.Configuration.GetSection("Sto
 builder.Services.Configure<RegistroOptions>(builder.Configuration.GetSection("Registro"));
 builder.Services.Configure<SesionOptions>(builder.Configuration.GetSection("Sesion"));
 builder.Services.Configure<AdminOptions>(builder.Configuration.GetSection("Admin"));
+builder.Services.Configure<FirebaseOptions>(builder.Configuration.GetSection("Firebase"));
+builder.Services.AddSingleton<FirebaseService>();
 
 builder.Services.AddScoped<IUserRepository, EfUserRepository>();
 builder.Services.AddScoped<ICatalogRepository, EfCatalogRepository>();
@@ -72,6 +74,7 @@ builder.Services.AddSwaggerGen(o =>
             - **PB-07**: Cuestionario emocional del invitado (catálogo dinámico desde BD, inicio/fin al 100% con puntaje y nivel).
             - **PB-08**: Riesgo emocional del invitado (cálculo Bajo/Medio/Alto, alerta si Alto, líneas de ayuda).
             - **PB-09**: Recomendaciones básicas del invitado (lista priorizada por nivel, detalle con pasos).
+            - **PB-31**: Chat realtime (token Firebase para el front; reglas en `Firebase/database.rules.json`).
             - **PB-27**: Administración de BD (respaldos `.bak`, descarga y mantenimiento).
             - **PB-04**: Mensaje aclaratorio (aviso de que el sistema no realiza diagnósticos clínicos).
 
