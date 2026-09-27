@@ -150,3 +150,47 @@ public class RecomendacionRow
     public string? Instrucciones { get; set; }
     public string? Icono { get; set; }
 }
+
+// PB-13: dbo.eventos_bienestar (registros y cuestionarios del paciente).
+// nota = descripción propia de cómo se sintió (máx. 200 palabras, igual que v1).
+public class EventoRow
+{
+    public int IdEvento { get; set; }
+    public int IdPaciente { get; set; }
+    public int IdTipoEvento { get; set; }
+    public int? IdCuestionario { get; set; }
+    public int? IdNivelRiesgo { get; set; }
+    public int? PuntajeTotal { get; set; }
+    public DateTime FechaEvento { get; set; }
+    public string? Nota { get; set; }
+}
+
+// PB-13: dbo.respuestas (valor + texto por pregunta de un evento).
+public class RespuestaRow
+{
+    public int IdRespuesta { get; set; }
+    public int IdEvento { get; set; }
+    public int IdPregunta { get; set; }
+    public int? Valor { get; set; }
+    public string? Texto { get; set; }
+    public DateTime FechaRespuesta { get; set; }
+}
+
+// PB-13/19: dbo.observaciones (apoyo del psicólogo sobre un evento/paciente).
+public class ObservacionRow
+{
+    public int IdObservacion { get; set; }
+    public int IdPsicologo { get; set; }
+    public int IdPaciente { get; set; }
+    public int? IdEvento { get; set; }
+    public string Contenido { get; set; } = string.Empty;
+    public string? Firma { get; set; }
+    public DateTime FechaObservacion { get; set; }
+}
+
+// PB-13: dbo.niveles_riesgo (Bajo/Medio/Alto).
+public class NivelRiesgoRow
+{
+    public int IdNivelRiesgo { get; set; }
+    public string Nombre { get; set; } = string.Empty;
+}
