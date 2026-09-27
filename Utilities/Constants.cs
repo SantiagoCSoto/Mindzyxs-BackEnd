@@ -71,4 +71,13 @@ public static class LogAcciones
     // Corrección BD: acciones registradas por triggers (ver sql/10_triggers_auth.sql).
     public const string CambioEstadoCuenta = "CAMBIO_ESTADO_CUENTA";
     public const string SesionCreada = "SESION_CREADA";
+
+    // PB-13 HU1-PB13: consulta del historial emocional (lista y detalle).
+    public const string HistorialConsulta = "HISTORIAL_CONSULTA";
+
+    // PB-14 HU1-PB14: consulta del progreso de pacientes autorizados.
+    public const string ProgresoConsulta = "PROGRESO_CONSULTA";
+
+    // PB-15 HU1-PB15: configuración de recordatorios.
+    public const string RecordatorioConfig = "RECORDATORIO_CONFIG";
 }

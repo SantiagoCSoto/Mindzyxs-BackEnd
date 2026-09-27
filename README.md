@@ -1,4 +1,4 @@
-﻿# Mindzyxs-API — Guía Back-End (PB-01, PB-02, PB-03, PB-04, PB-05, PB-06, PB-07, PB-08, PB-09, PB-27)
+﻿# Mindzyxs-API — Guía Back-End (PB-01 a PB-09, PB-13 a PB-15, PB-27)
 
 API REST `Mindzyxs 1.1` — solo back-end. Front en `Mindzyxs-FrontEnd` (`develop`) nunca toca BD. Todo pasa por `Controllers/*` → `Services/*` → `Repositories/*` (EF Core a `SANTI/Mindzyxs`).
 
@@ -21,6 +21,9 @@ Mindzyxs-API/
 │   ├── InvitadoController.cs      # PB-06: modo invitado (acceso, panel, bloqueo de exclusivas, salida)
 │   ├── CuestionarioController.cs    # PB-07: cuestionario del invitado (pendiente, inicio, finalizar al 100%)
 │   ├── RiesgoController.cs          # PB-08: cálculo del riesgo emocional del invitado
+│   ├── HistorialController.cs       # PB-13: historial emocional (lista con filtro, detalle)
+│   ├── ProgresoController.cs         # PB-14: progreso de autorizados (agregados + serie)
+│   ├── RecomendacionController.cs   # PB-09: recomendaciones básicas (lista priorizada, detalle)
 │   ├── AyudaController.cs           # PB-08: líneas de ayuda activas
 │   ├── RecomendacionController.cs   # PB-09: recomendaciones básicas (lista priorizada, detalle)
 │
@@ -33,6 +36,9 @@ Mindzyxs-API/
 │   ├── AvisoService.cs            # PB-04: contenido del mensaje aclaratorio y log de visualización
 │   ├── InvitadoService.cs         # PB-06: panel de invitado y registro de acceso/salida/bloqueos
 │   ├── CuestionarioService.cs       # PB-07: cuestionario pendiente, validación 100% y puntaje/nivel
+│   ├── HistorialService.cs          # PB-13: historial propio, detalle con nota/respuestas/apoyo
+│   ├── ProgresoService.cs           # PB-14: agregados de autorizados (promedio, tendencia, serie)
+│   ├── RecomendacionService.cs      # PB-09: lista priorizada por nivel y detalle con pasos
 │   ├── RiesgoService.cs             # PB-08: cálculo de riesgo y líneas de ayuda activas
 │   ├── RecomendacionService.cs      # PB-09: lista priorizada por nivel y detalle con pasos
 │   └── AdminService.cs            # Respaldos nativos SQL (.bak), listado, descarga y mantenimiento
@@ -50,6 +56,9 @@ Mindzyxs-API/
 │   ├── CuestionarioDto.cs           # PB-07: catálogo, inicio/finalizar y resultado con puntaje/nivel
 │   ├── RiesgoDto.cs                 # PB-08: cálculo de riesgo, alerta y líneas de ayuda
 │   ├── RecomendacionDto.cs          # PB-09: lista priorizada y detalle con pasos/duración
+│   ├── HistorialDto.cs              # PB-13: lista, detalle con nota/respuestas/apoyo
+│   ├── ProgresoDto.cs               # PB-14: agregados de autorizados y serie temporal
+│   ├── RecordatorioDto.cs           # PB-15: config, guardado y avisos de hoy
 │   ├── AdminDto.cs                # DTOs de administración / respaldos
 │   ├── CatalogDto.cs              # Catálogos (tipos de cuenta, géneros)
 │   ├── UserDto.cs                 # Datos de usuario expuestos por la API
@@ -66,7 +75,7 @@ Mindzyxs-API/
     └── TokenHelper.cs             # Generación/hashing de tokens de sesión
 ```
 
-Dependencias principales registradas en `Program.cs`: repositorios EF (`IUserRepository`, `ICatalogRepository`, `ICodigoRepository`, `ISesionRepository`, `IAuthLogRepository`, `IAdminRepository`, `ICuestionarioRepository`, `ILineaAyudaRepository`, `IRecomendacionRepository`, `IChatRepository`), almacenamiento (`ITarjetaStorage`), correo (`IEmailSender`) y servicios de negocio.
+Dependencias principales registradas en `Program.cs`: repositorios EF (`IUserRepository`, `ICatalogRepository`, `ICodigoRepository`, `ISesionRepository`, `IAuthLogRepository`, `IAdminRepository`, `ICuestionarioRepository`, `ILineaAyudaRepository`, `IRecomendacionRepository`, `IHistorialRepository`, `IChatRepository`), almacenamiento (`ITarjetaStorage`), correo (`IEmailSender`) y servicios de negocio.
 
 ## Swagger (documentación interactiva)
 
@@ -857,3 +866,91 @@ Híbrido: **RTDB** para mensajes en vivo (`/conversaciones/{id}/meta|mensajes|pr
 | `POST` | `/api/chat/conversaciones/{id}/mensajes/aviso` | participante | Auditoría best-effort tras el `push()` a RTDB |
 
 Mensajes: 401 sin sesión; 403 bloqueado que no bloqueó; 404 inexistente; resto 400. Acciones `CHAT_SOLICITUD/ACEPTADO/RECHAZADO/BLOQUEO/DESBLOQUEO/MENSAJE`. Nota: el envío entre psicólogo y paciente presupone además la autorización PB-17 (se integra en Sprint 4).
+# Mindzyxs-API - Guía PB-13 (Historial emocional del paciente)
+
+API REST `Mindzyxs 1.1` - solo back-end. Lista del paciente ordenada por fecha (recientes primero) con filtro por rango, y detalle con nota propia ("Cómo me sentí"), respuestas del cuestionario y apoyo del psicólogo. Todo vive en `Controllers/HistorialController.cs` → `Services/HistorialService.cs` → `IHistorialRepository` + `IAuthLogRepository` (log en `dbo.auth`). Solo el dueño ve lo suyo (ajeno = 404).
+
+## Endpoints PB-13 (HU1-PB13)
+
+| Método | Ruta | Descripción | Auth |
+|--------|------|-------------|------|
+| `GET` | `/api/historial?desde=aaaa-MM-dd&hasta=aaaa-MM-dd` | Mi historial (recientes primero) + log | Bearer paciente |
+| `GET` | `/api/historial/{id}` | Detalle: nota + respuestas + apoyo + log | Bearer paciente (dueño) |
+
+### 7.1 `GET /api/historial` - lista con filtro
+
+```bash
+curl "http://localhost:5015/api/historial?desde=2026-09-01&hasta=2026-09-30" -H "Authorization: Bearer <token>"
+```
+
+`200`: `[{ "id": 3, "fecha": ..., "tipo": "Cuestionario", "puntaje": 3, "nivel": "Medio", "cuestionario": "Cuestionario de bienestar emocional", "resumen": "..." }]`. Vacío (`[]`): el front muestra "Aún no tienes registros emocionales" con el botón Registrar estado emocional.
+
+### 7.2 `GET /api/historial/{id}` - detalle
+
+```bash
+curl http://localhost:5015/api/historial/3 -H "Authorization: Bearer <token>"
+```
+
+`200`: lista + `"nota": "Cómo me sentí…"`, `"respuestas": [{ "pregunta", "valor", "texto" }]`, `"observaciones": [{ "contenido", "firma", "fecha" }]` (apoyo del psicólogo, PB-19). Inexistente o ajeno → `404 "Registro no encontrado."`.
+
+## Mensajes exactos PB-13
+
+* `"Aún no tienes registros emocionales"` (front, lista vacía)
+* `"Registro no encontrado."` (404)
+* Consulta (lista y detalle) registrada como `HISTORIAL_CONSULTA` en `dbo.auth`
+
+* Rama actual `PB13`, BD `SANTI/Mindzyxs` (DDL + seed `Mindzyxs-BD/sql/16_historial_nota.sql`: `nota VARCHAR(MAX)` + 2 eventos demo con respuestas y apoyo).
+
+# Mindzyxs-API - Guía PB-14 (Progreso de pacientes autorizados)
+
+API REST `Mindzyxs 1.1` — solo back-end. Lista de pacientes que autorizaron al psicólogo + agregados (promedio, tendencia, semanas, distribución) y serie temporal para gráficos. Todo vive en `Controllers/ProgresoController.cs` → `Services/ProgresoService.cs` → `IHistorialRepository` + `IAuthLogRepository` (log en `dbo.auth`). Sin autorización → 403.
+
+## Endpoints PB-14 (HU1-PB14)
+
+| Método | Ruta | Descripción | Auth |
+|--------|------|-------------|------|
+| `GET` | `/api/progreso/pacientes` | Mis pacientes autorizados + log | Bearer psicólogo |
+| `GET` | `/api/progreso/{idPaciente}?desde=&hasta=` | Agregados + serie + log | Bearer psicólogo autorizado |
+
+`200`: `{ "promedio": 2.5, "tendencia": "Sube|Baja|Estable", "totalRegistros": 2, "distribucion": {"Medio":1}, "porSemana": [...], "serie": [...], "suficientes": false }`. Tendencia = 2da mitad vs 1ra (±0.5). `suficientes:false` (menos de 3) → el front muestra "No tienes registros suficientes para generar gráficos".
+
+## Mensajes exactos PB-14
+
+* `"No tienes pacientes autorizados en este momento"` (front, lista vacía)
+* `"No tienes registros suficientes para generar gráficos"` (front, `suficientes:false`)
+* `"No tienes autorización para ver los registros de este paciente."` (403)
+* Consulta registrada como `PROGRESO_CONSULTA` en `dbo.auth`
+
+* Rama actual `PB14` (apilada sobre `PB13`).
+
+# Mindzyxs-API - Guía PB-15 (Recordatorios del paciente)
+
+API REST `Mindzyxs 1.1` - solo back-end. Configuración de frecuencia y horario para el registro emocional (upsert por paciente), con activación/desactivación y endpoint de avisos vencidos-hoy para polling del front. Todo vive en `Controllers/RecordatorioController.cs` → `Services/RecordatorioService.cs` → `IRecordatorioRepository` + `IAuthLogRepository` (log en `dbo.auth`).
+
+## Endpoints PB-15 (HU1-PB15)
+
+| Método | Ruta | Descripción | Auth |
+|--------|------|-------------|------|
+| `GET` | `/api/recordatorios` | Mi configuración (204 si nunca configuré) | Bearer paciente |
+| `POST` | `/api/recordatorios` | Guarda/actualiza (upsert) + log | Bearer paciente |
+| `GET` | `/api/recordatorios/hoy` | Avisos vencidos hoy (activos, día aplica, hora pasada) | Bearer paciente |
+
+### 8.1 `POST /api/recordatorios` - guardar
+
+```bash
+curl --location "http://localhost:5015/api/recordatorios" -H "Authorization: Bearer <token>" -H "Content-Type: application/json" -d "{\"frecuencia\":\"Semanal\",\"hora\":\"08:00\",\"dias\":[1,3,5],\"activo\":true}"
+```
+
+`200 {mensaje:"Recordatorios configurados correctamente", ...}`. Sin frecuencia/hora (o Semanal sin días) → `400 "Debes seleccionar frecuencia y hora"`. Días 1=Lunes..7=Domingo; en Diaria se ignoran (todos implícitos). Desactivar guarda `activo:false`.
+
+### 8.2 `GET /api/recordatorios/hoy` - polling del front
+
+El front lo consulta cada minuto y dispara el aviso en el momento exacto programado. `200 [{titulo, mensaje, hora}]` (vacío si nada vence).
+
+## Mensajes exactos PB-15
+
+* `"Recordatorios configurados correctamente"` (200)
+* `"Debes seleccionar frecuencia y hora"` (400)
+* Guardado registrado como `RECORDATORIO_CONFIG` en `dbo.auth`
+
+* Rama actual `PB15`, BD `SANTI/Mindzyxs` (DDL `Mindzyxs-BD/sql/17_recordatorios_frecuencia.sql`: `frecuencia VARCHAR(20) DEFAULT Diaria`).

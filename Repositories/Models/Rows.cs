@@ -165,22 +165,81 @@ public class ConversacionRow
     public DateTime? FechaRespuesta { get; set; }
 }
 
-// PB-31 (solo lectura): último riesgo del paciente para el buscador.
+// PB-13: dbo.eventos_bienestar (registros y cuestionarios del paciente).
+// nota = descripción propia de cómo se sintió (máx. 200 palabras, igual que v1).
+// PB-31 la reutiliza para el último riesgo del buscador.
 public class EventoRow
 {
     public int IdEvento { get; set; }
     public int IdPaciente { get; set; }
     public int IdTipoEvento { get; set; }
+    public int? IdCuestionario { get; set; }
     public int? IdNivelRiesgo { get; set; }
     public int? PuntajeTotal { get; set; }
     public DateTime FechaEvento { get; set; }
+    public string? Nota { get; set; }
 }
 
-// PB-31 (solo lectura): catálogo Bajo/Medio/Alto.
+// PB-13: dbo.respuestas (valor + texto por pregunta de un evento).
+public class RespuestaRow
+{
+    public int IdRespuesta { get; set; }
+    public int IdEvento { get; set; }
+    public int IdPregunta { get; set; }
+    public int? Valor { get; set; }
+    public string? Texto { get; set; }
+    public DateTime FechaRespuesta { get; set; }
+}
+
+// PB-13/19: dbo.observaciones (apoyo del psicólogo sobre un evento/paciente).
+public class ObservacionRow
+{
+    public int IdObservacion { get; set; }
+    public int IdPsicologo { get; set; }
+    public int IdPaciente { get; set; }
+    public int? IdEvento { get; set; }
+    public string Contenido { get; set; } = string.Empty;
+    public string? Firma { get; set; }
+    public DateTime FechaObservacion { get; set; }
+}
+
+// PB-14: dbo.autorizaciones (paciente autoriza a psicólogo; Autorizado = id 8).
+// PB-31 la reutiliza para validar el chat.
+public class AutorizacionRow
+{
+    public int IdAutorizacion { get; set; }
+    public int IdPaciente { get; set; }
+    public int IdPsicologo { get; set; }
+    public int IdEstado { get; set; }
+    public DateTime FechaSolicitud { get; set; }
+    public DateTime? FechaRespuesta { get; set; }
+}
+
+// PB-13: dbo.niveles_riesgo (Bajo/Medio/Alto).
 public class NivelRiesgoRow
 {
     public int IdNivelRiesgo { get; set; }
     public string Nombre { get; set; } = string.Empty;
+}
+
+// PB-15: dbo.recordatorios (una config por paciente; Diaria = todos los días
+// implícitos, Semanal usa dbo.recordatorio_dias con id_dia 1=Lunes..7=Domingo).
+public class RecordatorioRow
+{
+    public int IdRecordatorio { get; set; }
+    public int IdPaciente { get; set; }
+    public string Titulo { get; set; } = string.Empty;
+    public string? Mensaje { get; set; }
+    public TimeSpan Hora { get; set; }
+    public bool Activo { get; set; }
+    public string Frecuencia { get; set; } = "Diaria";
+}
+
+// PB-15: dbo.recordatorio_dias (días 1=Lunes..7=Domingo para frecuencia Semanal).
+public class RecordatorioDiaRow
+{
+    public int IdRecordatorio { get; set; }
+    public int IdDia { get; set; }
 }
 
 // PB-31 (solo lectura): tipos de evento (RegistroEmocional, Cuestionario).
@@ -188,13 +247,4 @@ public class TipoEventoRow
 {
     public int IdTipoEvento { get; set; }
     public string Nombre { get; set; } = string.Empty;
-}
-
-// PB-31 (solo lectura): autorizaciones paciente-psicólogo.
-public class AutorizacionRow
-{
-    public int IdAutorizacion { get; set; }
-    public int IdPaciente { get; set; }
-    public int IdPsicologo { get; set; }
-    public int IdEstado { get; set; }
 }

@@ -20,10 +20,13 @@ public class MindzyxsDbContext(DbContextOptions<MindzyxsDbContext> options) : Db
     public DbSet<RecomendacionRow> Recomendaciones => Set<RecomendacionRow>();
     public DbSet<ConversacionRow> Conversaciones => Set<ConversacionRow>();
     public DbSet<EventoRow> Eventos => Set<EventoRow>();
+    public DbSet<RespuestaRow> Respuestas => Set<RespuestaRow>();
+    public DbSet<ObservacionRow> Observaciones => Set<ObservacionRow>();
     public DbSet<NivelRiesgoRow> NivelesRiesgo => Set<NivelRiesgoRow>();
     public DbSet<TipoEventoRow> TiposEvento => Set<TipoEventoRow>();
     public DbSet<AutorizacionRow> Autorizaciones => Set<AutorizacionRow>();
-
+    public DbSet<RecordatorioRow> Recordatorios => Set<RecordatorioRow>();
+    public DbSet<RecordatorioDiaRow> RecordatorioDias => Set<RecordatorioDiaRow>();
     protected override void OnModelCreating(ModelBuilder b)
     {
         b.Entity<RolRow>(e =>
@@ -183,9 +186,32 @@ public class MindzyxsDbContext(DbContextOptions<MindzyxsDbContext> options) : Db
             e.Property(x => x.IdEvento).HasColumnName("id_evento");
             e.Property(x => x.IdPaciente).HasColumnName("id_paciente");
             e.Property(x => x.IdTipoEvento).HasColumnName("id_tipo_evento");
+            e.Property(x => x.IdCuestionario).HasColumnName("id_cuestionario");
             e.Property(x => x.IdNivelRiesgo).HasColumnName("id_nivel_riesgo");
             e.Property(x => x.PuntajeTotal).HasColumnName("puntaje_total");
             e.Property(x => x.FechaEvento).HasColumnName("fecha_evento");
+            e.Property(x => x.Nota).HasColumnName("nota").HasColumnType("varchar(max)").IsUnicode(false);
+        });
+        b.Entity<RespuestaRow>(e =>
+        {
+            e.ToTable("respuestas", "dbo").HasKey(x => x.IdRespuesta);
+            e.Property(x => x.IdRespuesta).HasColumnName("id_respuesta");
+            e.Property(x => x.IdEvento).HasColumnName("id_evento");
+            e.Property(x => x.IdPregunta).HasColumnName("id_pregunta");
+            e.Property(x => x.Valor).HasColumnName("valor");
+            e.Property(x => x.Texto).HasColumnName("texto").HasMaxLength(500).IsUnicode(false);
+            e.Property(x => x.FechaRespuesta).HasColumnName("fecha_respuesta");
+        });
+        b.Entity<ObservacionRow>(e =>
+        {
+            e.ToTable("observaciones", "dbo").HasKey(x => x.IdObservacion);
+            e.Property(x => x.IdObservacion).HasColumnName("id_observacion");
+            e.Property(x => x.IdPsicologo).HasColumnName("id_psicologo");
+            e.Property(x => x.IdPaciente).HasColumnName("id_paciente");
+            e.Property(x => x.IdEvento).HasColumnName("id_evento");
+            e.Property(x => x.Contenido).HasColumnName("contenido").HasColumnType("text").IsUnicode(false);
+            e.Property(x => x.Firma).HasColumnName("firma").HasMaxLength(255).IsUnicode(false);
+            e.Property(x => x.FechaObservacion).HasColumnName("fecha_observacion");
         });
         b.Entity<NivelRiesgoRow>(e =>
         {
@@ -206,6 +232,25 @@ public class MindzyxsDbContext(DbContextOptions<MindzyxsDbContext> options) : Db
             e.Property(x => x.IdPaciente).HasColumnName("id_paciente");
             e.Property(x => x.IdPsicologo).HasColumnName("id_psicologo");
             e.Property(x => x.IdEstado).HasColumnName("id_estado");
+            e.Property(x => x.FechaSolicitud).HasColumnName("fecha_solicitud");
+            e.Property(x => x.FechaRespuesta).HasColumnName("fecha_respuesta");
+        });
+        b.Entity<RecordatorioRow>(e =>
+        {
+            e.ToTable("recordatorios", "dbo").HasKey(x => x.IdRecordatorio);
+            e.Property(x => x.IdRecordatorio).HasColumnName("id_recordatorio");
+            e.Property(x => x.IdPaciente).HasColumnName("id_paciente");
+            e.Property(x => x.Titulo).HasColumnName("titulo").HasMaxLength(100).IsUnicode(false);
+            e.Property(x => x.Mensaje).HasColumnName("mensaje").HasMaxLength(500).IsUnicode(false);
+            e.Property(x => x.Hora).HasColumnName("hora");
+            e.Property(x => x.Activo).HasColumnName("activo");
+            e.Property(x => x.Frecuencia).HasColumnName("frecuencia").HasMaxLength(20).IsUnicode(false);
+        });
+        b.Entity<RecordatorioDiaRow>(e =>
+        {
+            e.ToTable("recordatorio_dias", "dbo").HasKey(x => new { x.IdRecordatorio, x.IdDia });
+            e.Property(x => x.IdRecordatorio).HasColumnName("id_recordatorio");
+            e.Property(x => x.IdDia).HasColumnName("id_dia");
         });
     }
 }

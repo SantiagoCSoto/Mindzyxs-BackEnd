@@ -44,6 +44,8 @@ builder.Services.AddScoped<IAuthLogRepository, EfAuthLogRepository>();
 builder.Services.AddScoped<ICuestionarioRepository, EfCuestionarioRepository>();
 builder.Services.AddScoped<ILineaAyudaRepository, EfLineaAyudaRepository>();
 builder.Services.AddScoped<IRecomendacionRepository, EfRecomendacionRepository>();
+builder.Services.AddScoped<IHistorialRepository, EfHistorialRepository>();
+builder.Services.AddScoped<IRecordatorioRepository, EfRecordatorioRepository>();
 builder.Services.AddScoped<IChatRepository, EfChatRepository>();
 builder.Services.AddScoped<IAdminRepository, EfAdminRepository>();
 builder.Services.AddScoped<ITarjetaStorage, FileSystemTarjetaStorage>();
@@ -59,6 +61,9 @@ builder.Services.AddScoped<InvitadoService>();
 builder.Services.AddScoped<CuestionarioService>();
 builder.Services.AddScoped<RiesgoService>();
 builder.Services.AddScoped<RecomendacionService>();
+builder.Services.AddScoped<HistorialService>();
+builder.Services.AddScoped<ProgresoService>();
+builder.Services.AddScoped<RecordatorioService>();
 builder.Services.AddScoped<ChatService>();
 
 // Swagger: documentación interactiva en /swagger (Swagger UI) y spec en /swagger/v1/swagger.json.
@@ -79,6 +84,9 @@ builder.Services.AddSwaggerGen(o =>
             - **PB-07**: Cuestionario emocional del invitado (catálogo dinámico desde BD, inicio/fin al 100% con puntaje y nivel).
             - **PB-08**: Riesgo emocional del invitado (cálculo Bajo/Medio/Alto, alerta si Alto, líneas de ayuda).
             - **PB-09**: Recomendaciones básicas del invitado (lista priorizada por nivel, detalle con pasos).
+            - **PB-13**: Historial emocional del paciente (lista con filtro de fechas, detalle con nota/respuestas/apoyo).
+            - **PB-14**: Progreso de pacientes autorizados (promedio, tendencia, semanas, distribución, serie).
+            - **PB-15**: Recordatorios (frecuencia/horario/días, upsert, avisos de hoy para polling).
             - **PB-31**: Chat realtime (token Firebase para el front; reglas en `Firebase/database.rules.json`).
             - **PB-27**: Administración de BD (respaldos `.bak`, descarga y mantenimiento).
             - **PB-04**: Mensaje aclaratorio (aviso de que el sistema no realiza diagnósticos clínicos).

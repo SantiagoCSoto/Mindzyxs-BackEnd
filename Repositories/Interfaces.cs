@@ -48,6 +48,29 @@ public interface IAuthLogRepository
     Task LogAsync(int? actorId, int? targetId, string accion, string detalle, string? ip, CancellationToken ct = default);
 }
 
+// PB-13: historial emocional del paciente (eventos + respuestas + observaciones).
+public interface IHistorialRepository
+{
+    Task<List<EventoRow>> GetEventosAsync(int idPaciente, DateTime? desde, DateTime? hasta, CancellationToken ct = default);
+    Task<EventoRow?> FindEventoAsync(int idEvento, CancellationToken ct = default);
+    Task<List<RespuestaRow>> GetRespuestasAsync(int idEvento, CancellationToken ct = default);
+    Task<List<ObservacionRow>> GetObservacionesAsync(int idEvento, CancellationToken ct = default);
+    Task<Dictionary<int, string>> GetPreguntasTextoAsync(List<int> idsPregunta, CancellationToken ct = default);
+    Task<Dictionary<int, string>> GetNivelesAsync(CancellationToken ct = default);
+    Task<Dictionary<int, string>> GetCuestionariosTituloAsync(List<int> ids, CancellationToken ct = default);
+    Task<List<UsuarioDto>> GetPacientesAutorizadosAsync(int idPsicologo, int idEstadoAutorizado, CancellationToken ct = default);
+    Task<bool> EstaAutorizadoAsync(int idPaciente, int idPsicologo, int idEstadoAutorizado, CancellationToken ct = default);
+    Task<int?> GetEstadoIdAsync(string nombre, CancellationToken ct = default);
+}
+
+// PB-15: recordatorios del paciente (una config por paciente + días).
+public interface IRecordatorioRepository
+{
+    Task<RecordatorioRow?> GetDePacienteAsync(int idPaciente, CancellationToken ct = default);
+    Task<List<int>> GetDiasAsync(int idRecordatorio, CancellationToken ct = default);
+    Task<RecordatorioRow> GuardarAsync(int idPaciente, string titulo, string? mensaje, TimeSpan hora, string frecuencia, bool activo, List<int> dias, CancellationToken ct = default);
+}
+
 // PB-07: lectura de cuestionarios publicados para invitados (y pacientes).
 // Solo Predeterminado + Publicado; los Personalizado van por asignaciones (PB-22).
 public interface ICuestionarioRepository

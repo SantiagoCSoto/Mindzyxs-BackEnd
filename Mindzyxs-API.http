@@ -267,3 +267,72 @@ Accept: application/json
 POST {{Host}}/api/chat/conversaciones/1/mensajes/aviso
 Authorization: Bearer <token>
 Accept: application/json
+
+### PB-13 historial del paciente (HU1-PB13, requiere Bearer paciente)
+GET {{Host}}/api/historial
+Authorization: Bearer <token-paciente>
+Accept: application/json
+
+### PB-13 historial con filtro de fechas (HU1-PB13)
+GET {{Host}}/api/historial?desde=2026-09-01&hasta=2026-09-30
+Authorization: Bearer <token-paciente>
+Accept: application/json
+
+### PB-13 detalle de registro (HU1-PB13, nota + respuestas + apoyo)
+GET {{Host}}/api/historial/3
+Authorization: Bearer <token-paciente>
+Accept: application/json
+
+### PB-13 detalle inexistente/ajeno - 404 (HU1-PB13)
+GET {{Host}}/api/historial/99
+Authorization: Bearer <token-paciente>
+Accept: application/json
+
+### PB-14 pacientes autorizados (HU1-PB14, requiere Bearer psicólogo)
+GET {{Host}}/api/progreso/pacientes
+Authorization: Bearer <token-psicologo>
+Accept: application/json
+
+### PB-14 progreso del paciente (HU1-PB14, agregados + serie)
+GET {{Host}}/api/progreso/6?desde=2026-09-01&hasta=2026-09-30
+Authorization: Bearer <token-psicologo>
+Accept: application/json
+
+### PB-14 paciente no autorizado - 403 (HU1-PB14)
+GET {{Host}}/api/progreso/8
+Authorization: Bearer <token-psicologo>
+Accept: application/json
+
+### PB-15 mi configuracion - 204 si nunca configure (HU1-PB15, Bearer paciente)
+GET {{Host}}/api/recordatorios
+Authorization: Bearer <token-paciente>
+Accept: application/json
+
+### PB-15 guardar semanal (HU1-PB15, log en dbo.auth)
+POST {{Host}}/api/recordatorios
+Authorization: Bearer <token-paciente>
+Content-Type: application/json
+
+{
+  "frecuencia": "Semanal",
+  "hora": "08:00",
+  "dias": [1, 3, 5],
+  "titulo": "Registro emocional",
+  "mensaje": "Es hora de tu registro emocional",
+  "activo": true
+}
+
+### PB-15 guardar sin hora - 400 (HU1-PB15)
+POST {{Host}}/api/recordatorios
+Authorization: Bearer <token-paciente>
+Content-Type: application/json
+
+{
+  "frecuencia": "Diaria",
+  "dias": []
+}
+
+### PB-15 avisos vencidos hoy (HU1-PB15, polling del front)
+GET {{Host}}/api/recordatorios/hoy
+Authorization: Bearer <token-paciente>
+Accept: application/json
