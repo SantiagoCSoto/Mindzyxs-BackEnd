@@ -238,6 +238,41 @@ public class EfHistorialRepository(MindzyxsDbContext db) : IHistorialRepository
             : await db.Cuestionarios.AsNoTracking()
                 .Where(c => ids.Contains(c.IdCuestionario))
                 .ToDictionaryAsync(c => c.IdCuestionario, c => c.Titulo, ct);
+
+    // PB-14: pacientes que autorizaron al psicólogo (idEstadoAutorizado = Autorizado).
+    public async Task<List<UsuarioDto>> GetPacientesAutorizadosAsync(int idPsicologo, int idEstadoAutorizado, CancellationToken ct = default)
+    {
+        var ids = await db.Autorizaciones.AsNoTracking()
+            .Where(a => a.IdPsicologo == idPsicologo && a.IdEstado == idEstadoAutorizado)
+            .Select(a => a.IdPaciente)
+            .Distinct()
+            .ToListAsync(ct);
+        if (ids.Count == 0) return [];
+        return await db.Usuarios.AsNoTracking()
+            .Where(u => ids.Contains(u.IdUsuario))
+            .OrderBy(u => u.Nombre).ThenBy(u => u.Apellido)
+            .Select(u => new UsuarioDto
+            {
+                IdUsuario = u.IdUsuario,
+                Nombre = u.Nombre,
+                Apellido = u.Apellido,
+                Correo = u.Correo,
+                IdRol = u.IdRol,
+                IdEstadoCuenta = u.IdEstadoCuenta
+            })
+            .ToListAsync(ct);
+    }
+
+    public Task<bool> EstaAutorizadoAsync(int idPaciente, int idPsicologo, int idEstadoAutorizado, CancellationToken ct = default)
+        => db.Autorizaciones.AsNoTracking()
+            .Where(a => a.IdPaciente == idPaciente && a.IdPsicologo == idPsicologo && a.IdEstado == idEstadoAutorizado)
+            .AnyAsync(ct);
+
+    public async Task<int?> GetEstadoIdAsync(string nombre, CancellationToken ct = default)
+        => await db.Estados.AsNoTracking()
+            .Where(e => e.Nombre == nombre)
+            .Select(e => (int?)e.IdEstado)
+            .FirstOrDefaultAsync(ct);
 }
 
 // PB-07: cuestionarios Predeterminado + Publicado (invitados y pacientes).

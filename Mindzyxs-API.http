@@ -238,3 +238,18 @@ Accept: application/json
 GET {{Host}}/api/historial/99
 Authorization: Bearer <token-paciente>
 Accept: application/json
+
+### PB-14 pacientes autorizados (HU1-PB14, requiere Bearer psicólogo)
+GET {{Host}}/api/progreso/pacientes
+Authorization: Bearer <token-psicologo>
+Accept: application/json
+
+### PB-14 progreso del paciente (HU1-PB14, agregados + serie)
+GET {{Host}}/api/progreso/6?desde=2026-09-01&hasta=2026-09-30
+Authorization: Bearer <token-psicologo>
+Accept: application/json
+
+### PB-14 paciente no autorizado - 403 (HU1-PB14)
+GET {{Host}}/api/progreso/8
+Authorization: Bearer <token-psicologo>
+Accept: application/json

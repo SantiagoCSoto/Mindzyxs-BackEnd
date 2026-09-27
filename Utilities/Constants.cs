@@ -66,4 +66,7 @@ public static class LogAcciones
 
     // PB-13 HU1-PB13: consulta del historial emocional (lista y detalle).
     public const string HistorialConsulta = "HISTORIAL_CONSULTA";
+
+    // PB-14 HU1-PB14: consulta del progreso de pacientes autorizados.
+    public const string ProgresoConsulta = "PROGRESO_CONSULTA";
 }
