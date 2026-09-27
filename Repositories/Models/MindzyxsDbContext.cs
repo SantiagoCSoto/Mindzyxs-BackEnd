@@ -23,6 +23,7 @@ Set<RecomendacionRow>();
     public DbSet<RespuestaRow> Respuestas => Set<RespuestaRow>();
     public DbSet<ObservacionRow> Observaciones => Set<ObservacionRow>();
     public DbSet<NivelRiesgoRow> NivelesRiesgo => Set<NivelRiesgoRow>();
+    public DbSet<AutorizacionRow> Autorizaciones => Set<AutorizacionRow>();
     protected override void OnModelCreating(ModelBuilder b)
     {
         b.Entity<RolRow>(e =>
@@ -203,6 +204,16 @@ Set<RecomendacionRow>();
             e.ToTable("niveles_riesgo", "dbo").HasKey(x => x.IdNivelRiesgo);
             e.Property(x => x.IdNivelRiesgo).HasColumnName("id_nivel_riesgo");
             e.Property(x => x.Nombre).HasColumnName("nombre").HasMaxLength(50).IsUnicode(false);
+        });
+        b.Entity<AutorizacionRow>(e =>
+        {
+            e.ToTable("autorizaciones", "dbo").HasKey(x => x.IdAutorizacion);
+            e.Property(x => x.IdAutorizacion).HasColumnName("id_autorizacion");
+            e.Property(x => x.IdPaciente).HasColumnName("id_paciente");
+            e.Property(x => x.IdPsicologo).HasColumnName("id_psicologo");
+            e.Property(x => x.IdEstado).HasColumnName("id_estado");
+            e.Property(x => x.FechaSolicitud).HasColumnName("fecha_solicitud");
+            e.Property(x => x.FechaRespuesta).HasColumnName("fecha_respuesta");
         });
     }
 }

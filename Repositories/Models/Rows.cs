@@ -188,6 +188,17 @@ public class ObservacionRow
     public DateTime FechaObservacion { get; set; }
 }
 
+// PB-14: dbo.autorizaciones (paciente autoriza a psicólogo; Autorizado = id 8).
+public class AutorizacionRow
+{
+    public int IdAutorizacion { get; set; }
+    public int IdPaciente { get; set; }
+    public int IdPsicologo { get; set; }
+    public int IdEstado { get; set; }
+    public DateTime FechaSolicitud { get; set; }
+    public DateTime? FechaRespuesta { get; set; }
+}
+
 // PB-13: dbo.niveles_riesgo (Bajo/Medio/Alto).
 public class NivelRiesgoRow
 {
