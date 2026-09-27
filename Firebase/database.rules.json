@@ -26,6 +26,7 @@
           }
         },
         "visto": {
+          ".read": "auth != null && (root.child('conversaciones/' + $convId + '/meta/pacienteUid').val() == auth.uid || root.child('conversaciones/' + $convId + '/meta/psicologoUid').val() == auth.uid)",
           "$msgId": {
             "$uid": {
               ".read": "auth != null && (root.child('conversaciones/' + $convId + '/meta/pacienteUid').val() == auth.uid || root.child('conversaciones/' + $convId + '/meta/psicologoUid').val() == auth.uid)",
