@@ -39,6 +39,7 @@ builder.Services.AddScoped<IAuthLogRepository, EfAuthLogRepository>();
 builder.Services.AddScoped<ICuestionarioRepository, EfCuestionarioRepository>();
 builder.Services.AddScoped<ILineaAyudaRepository, EfLineaAyudaRepository>();
 builder.Services.AddScoped<IRecomendacionRepository, EfRecomendacionRepository>();
+builder.Services.AddScoped<IHistorialRepository, EfHistorialRepository>();
 builder.Services.AddScoped<IAdminRepository, EfAdminRepository>();
 builder.Services.AddScoped<ITarjetaStorage, FileSystemTarjetaStorage>();
 builder.Services.AddScoped<IEmailSender, SmtpEmailSender>();
@@ -53,6 +54,7 @@ builder.Services.AddScoped<InvitadoService>();
 builder.Services.AddScoped<CuestionarioService>();
 builder.Services.AddScoped<RiesgoService>();
 builder.Services.AddScoped<RecomendacionService>();
+builder.Services.AddScoped<HistorialService>();
 
 // Swagger: documentación interactiva en /swagger (Swagger UI) y spec en /swagger/v1/swagger.json.
 builder.Services.AddSwaggerGen(o =>
@@ -72,6 +74,7 @@ builder.Services.AddSwaggerGen(o =>
             - **PB-07**: Cuestionario emocional del invitado (catálogo dinámico desde BD, inicio/fin al 100% con puntaje y nivel).
             - **PB-08**: Riesgo emocional del invitado (cálculo Bajo/Medio/Alto, alerta si Alto, líneas de ayuda).
             - **PB-09**: Recomendaciones básicas del invitado (lista priorizada por nivel, detalle con pasos).
+            - **PB-13**: Historial emocional del paciente (lista con filtro de fechas, detalle con nota/respuestas/apoyo).
             - **PB-27**: Administración de BD (respaldos `.bak`, descarga y mantenimiento).
             - **PB-04**: Mensaje aclaratorio (aviso de que el sistema no realiza diagnósticos clínicos).
 

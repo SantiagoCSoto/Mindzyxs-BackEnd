@@ -218,3 +218,23 @@ Accept: application/json
 ### PB-09 detalle inexistente - 404 (HU1-PB9)
 GET {{Host}}/api/recomendaciones/invitado/99
 Accept: application/json
+
+### PB-13 historial del paciente (HU1-PB13, requiere Bearer paciente)
+GET {{Host}}/api/historial
+Authorization: Bearer <token-paciente>
+Accept: application/json
+
+### PB-13 historial con filtro de fechas (HU1-PB13)
+GET {{Host}}/api/historial?desde=2026-09-01&hasta=2026-09-30
+Authorization: Bearer <token-paciente>
+Accept: application/json
+
+### PB-13 detalle de registro (HU1-PB13, nota + respuestas + apoyo)
+GET {{Host}}/api/historial/3
+Authorization: Bearer <token-paciente>
+Accept: application/json
+
+### PB-13 detalle inexistente/ajeno - 404 (HU1-PB13)
+GET {{Host}}/api/historial/99
+Authorization: Bearer <token-paciente>
+Accept: application/json

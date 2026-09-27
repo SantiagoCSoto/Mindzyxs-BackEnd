@@ -193,6 +193,53 @@ public class EfAuthLogRepository(MindzyxsDbContext db) : IAuthLogRepository
     }
 }
 
+// PB-13: historial emocional (lectura; el paciente solo ve lo suyo, lo valida el service).
+public class EfHistorialRepository(MindzyxsDbContext db) : IHistorialRepository
+{
+    public Task<List<EventoRow>> GetEventosAsync(int idPaciente, DateTime? desde, DateTime? hasta, CancellationToken ct = default)
+        => db.Eventos.AsNoTracking()
+            .Where(e => e.IdPaciente == idPaciente
+                && (!desde.HasValue || e.FechaEvento >= desde.Value)
+                && (!hasta.HasValue || e.FechaEvento <= hasta.Value))
+            .OrderByDescending(e => e.FechaEvento)
+            .ToListAsync(ct);
+
+    public Task<EventoRow?> FindEventoAsync(int idEvento, CancellationToken ct = default)
+        => db.Eventos.AsNoTracking()
+            .Where(e => e.IdEvento == idEvento)
+            .FirstOrDefaultAsync(ct);
+
+    public Task<List<RespuestaRow>> GetRespuestasAsync(int idEvento, CancellationToken ct = default)
+        => db.Respuestas.AsNoTracking()
+            .Where(r => r.IdEvento == idEvento)
+            .OrderBy(r => r.IdRespuesta)
+            .ToListAsync(ct);
+
+    public Task<List<ObservacionRow>> GetObservacionesAsync(int idEvento, CancellationToken ct = default)
+        => db.Observaciones.AsNoTracking()
+            .Where(o => o.IdEvento == idEvento)
+            .OrderBy(o => o.FechaObservacion)
+            .ToListAsync(ct);
+
+    public async Task<Dictionary<int, string>> GetPreguntasTextoAsync(List<int> idsPregunta, CancellationToken ct = default)
+        => idsPregunta.Count == 0
+            ? new()
+            : await db.Preguntas.AsNoTracking()
+                .Where(p => idsPregunta.Contains(p.IdPregunta))
+                .ToDictionaryAsync(p => p.IdPregunta, p => p.Texto, ct);
+
+    public async Task<Dictionary<int, string>> GetNivelesAsync(CancellationToken ct = default)
+        => await db.NivelesRiesgo.AsNoTracking()
+            .ToDictionaryAsync(n => n.IdNivelRiesgo, n => n.Nombre, ct);
+
+    public async Task<Dictionary<int, string>> GetCuestionariosTituloAsync(List<int> ids, CancellationToken ct = default)
+        => ids.Count == 0
+            ? new()
+            : await db.Cuestionarios.AsNoTracking()
+                .Where(c => ids.Contains(c.IdCuestionario))
+                .ToDictionaryAsync(c => c.IdCuestionario, c => c.Titulo, ct);
+}
+
 // PB-07: cuestionarios Predeterminado + Publicado (invitados y pacientes).
 public class EfCuestionarioRepository(MindzyxsDbContext db) : ICuestionarioRepository
 {
