@@ -275,6 +275,49 @@ public class EfHistorialRepository(MindzyxsDbContext db) : IHistorialRepository
             .FirstOrDefaultAsync(ct);
 }
 
+// PB-15: recordatorios (upsert por paciente + reemplazo de días).
+public class EfRecordatorioRepository(MindzyxsDbContext db) : IRecordatorioRepository
+{
+    public Task<RecordatorioRow?> GetDePacienteAsync(int idPaciente, CancellationToken ct = default)
+        => db.Recordatorios.AsNoTracking()
+            .Where(r => r.IdPaciente == idPaciente)
+            .FirstOrDefaultAsync(ct);
+
+    public async Task<List<int>> GetDiasAsync(int idRecordatorio, CancellationToken ct = default)
+        => await db.RecordatorioDias.AsNoTracking()
+            .Where(d => d.IdRecordatorio == idRecordatorio)
+            .OrderBy(d => d.IdDia)
+            .Select(d => d.IdDia)
+            .ToListAsync(ct);
+
+    public async Task<RecordatorioRow> GuardarAsync(int idPaciente, string titulo, string? mensaje, TimeSpan hora, string frecuencia, bool activo, List<int> dias, CancellationToken ct = default)
+    {
+        var row = await db.Recordatorios
+            .Where(r => r.IdPaciente == idPaciente)
+            .FirstOrDefaultAsync(ct);
+        if (row is null)
+        {
+            row = new RecordatorioRow { IdPaciente = idPaciente };
+            db.Recordatorios.Add(row);
+        }
+        row.Titulo = titulo;
+        row.Mensaje = mensaje;
+        row.Hora = hora;
+        row.Frecuencia = frecuencia;
+        row.Activo = activo;
+        await db.SaveChangesAsync(ct);
+
+        var viejos = await db.RecordatorioDias
+            .Where(d => d.IdRecordatorio == row.IdRecordatorio)
+            .ToListAsync(ct);
+        db.RecordatorioDias.RemoveRange(viejos);
+        foreach (var dia in dias.Distinct().Where(d => d is >= 1 and <= 7))
+            db.RecordatorioDias.Add(new RecordatorioDiaRow { IdRecordatorio = row.IdRecordatorio, IdDia = dia });
+        await db.SaveChangesAsync(ct);
+        return row;
+    }
+}
+
 // PB-07: cuestionarios Predeterminado + Publicado (invitados y pacientes).
 public class EfCuestionarioRepository(MindzyxsDbContext db) : ICuestionarioRepository
 {

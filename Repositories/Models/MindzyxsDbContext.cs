@@ -24,6 +24,8 @@ Set<RecomendacionRow>();
     public DbSet<ObservacionRow> Observaciones => Set<ObservacionRow>();
     public DbSet<NivelRiesgoRow> NivelesRiesgo => Set<NivelRiesgoRow>();
     public DbSet<AutorizacionRow> Autorizaciones => Set<AutorizacionRow>();
+    public DbSet<RecordatorioRow> Recordatorios => Set<RecordatorioRow>();
+    public DbSet<RecordatorioDiaRow> RecordatorioDias => Set<RecordatorioDiaRow>();
     protected override void OnModelCreating(ModelBuilder b)
     {
         b.Entity<RolRow>(e =>
@@ -214,6 +216,23 @@ Set<RecomendacionRow>();
             e.Property(x => x.IdEstado).HasColumnName("id_estado");
             e.Property(x => x.FechaSolicitud).HasColumnName("fecha_solicitud");
             e.Property(x => x.FechaRespuesta).HasColumnName("fecha_respuesta");
+        });
+        b.Entity<RecordatorioRow>(e =>
+        {
+            e.ToTable("recordatorios", "dbo").HasKey(x => x.IdRecordatorio);
+            e.Property(x => x.IdRecordatorio).HasColumnName("id_recordatorio");
+            e.Property(x => x.IdPaciente).HasColumnName("id_paciente");
+            e.Property(x => x.Titulo).HasColumnName("titulo").HasMaxLength(100).IsUnicode(false);
+            e.Property(x => x.Mensaje).HasColumnName("mensaje").HasMaxLength(500).IsUnicode(false);
+            e.Property(x => x.Hora).HasColumnName("hora");
+            e.Property(x => x.Activo).HasColumnName("activo");
+            e.Property(x => x.Frecuencia).HasColumnName("frecuencia").HasMaxLength(20).IsUnicode(false);
+        });
+        b.Entity<RecordatorioDiaRow>(e =>
+        {
+            e.ToTable("recordatorio_dias", "dbo").HasKey(x => new { x.IdRecordatorio, x.IdDia });
+            e.Property(x => x.IdRecordatorio).HasColumnName("id_recordatorio");
+            e.Property(x => x.IdDia).HasColumnName("id_dia");
         });
     }
 }

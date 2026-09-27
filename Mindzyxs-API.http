@@ -253,3 +253,37 @@ Accept: application/json
 GET {{Host}}/api/progreso/8
 Authorization: Bearer <token-psicologo>
 Accept: application/json
+
+### PB-15 mi configuracion - 204 si nunca configure (HU1-PB15, Bearer paciente)
+GET {{Host}}/api/recordatorios
+Authorization: Bearer <token-paciente>
+Accept: application/json
+
+### PB-15 guardar semanal (HU1-PB15, log en dbo.auth)
+POST {{Host}}/api/recordatorios
+Authorization: Bearer <token-paciente>
+Content-Type: application/json
+
+{
+  "frecuencia": "Semanal",
+  "hora": "08:00",
+  "dias": [1, 3, 5],
+  "titulo": "Registro emocional",
+  "mensaje": "Es hora de tu registro emocional",
+  "activo": true
+}
+
+### PB-15 guardar sin hora - 400 (HU1-PB15)
+POST {{Host}}/api/recordatorios
+Authorization: Bearer <token-paciente>
+Content-Type: application/json
+
+{
+  "frecuencia": "Diaria",
+  "dias": []
+}
+
+### PB-15 avisos vencidos hoy (HU1-PB15, polling del front)
+GET {{Host}}/api/recordatorios/hoy
+Authorization: Bearer <token-paciente>
+Accept: application/json

@@ -63,6 +63,14 @@ public interface IHistorialRepository
     Task<int?> GetEstadoIdAsync(string nombre, CancellationToken ct = default);
 }
 
+// PB-15: recordatorios del paciente (una config por paciente + días).
+public interface IRecordatorioRepository
+{
+    Task<RecordatorioRow?> GetDePacienteAsync(int idPaciente, CancellationToken ct = default);
+    Task<List<int>> GetDiasAsync(int idRecordatorio, CancellationToken ct = default);
+    Task<RecordatorioRow> GuardarAsync(int idPaciente, string titulo, string? mensaje, TimeSpan hora, string frecuencia, bool activo, List<int> dias, CancellationToken ct = default);
+}
+
 // PB-07: lectura de cuestionarios publicados para invitados (y pacientes).
 // Solo Predeterminado + Publicado; los Personalizado van por asignaciones (PB-22).
 public interface ICuestionarioRepository
