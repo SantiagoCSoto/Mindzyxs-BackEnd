@@ -205,3 +205,23 @@ public class NivelRiesgoRow
     public int IdNivelRiesgo { get; set; }
     public string Nombre { get; set; } = string.Empty;
 }
+
+// PB-15: dbo.recordatorios (una config por paciente; Diaria = todos los días
+// implícitos, Semanal usa dbo.recordatorio_dias con id_dia 1=Lunes..7=Domingo).
+public class RecordatorioRow
+{
+    public int IdRecordatorio { get; set; }
+    public int IdPaciente { get; set; }
+    public string Titulo { get; set; } = string.Empty;
+    public string? Mensaje { get; set; }
+    public TimeSpan Hora { get; set; }
+    public bool Activo { get; set; }
+    public string Frecuencia { get; set; } = "Diaria";
+}
+
+// PB-15: dbo.recordatorio_dias (días 1=Lunes..7=Domingo para frecuencia Semanal).
+public class RecordatorioDiaRow
+{
+    public int IdRecordatorio { get; set; }
+    public int IdDia { get; set; }
+}
