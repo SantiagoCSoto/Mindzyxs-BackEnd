@@ -151,8 +151,23 @@ public class RecomendacionRow
     public string? Icono { get; set; }
 }
 
+// PB-31: dbo.conversaciones (solicitud/aceptación/rechazo/bloqueo en SQL;
+// los mensajes en vivo van por Firebase RTDB). Una fila por pareja
+// (UQ_conv_pareja): rechazadas/cerradas se reactivan con UPDATE.
+public class ConversacionRow
+{
+    public int IdConversacion { get; set; }
+    public int IdPaciente { get; set; }
+    public int IdPsicologo { get; set; }
+    public string Estado { get; set; } = string.Empty;
+    public int? IdBloqueador { get; set; }
+    public DateTime FechaCreacion { get; set; }
+    public DateTime? FechaRespuesta { get; set; }
+}
+
 // PB-13: dbo.eventos_bienestar (registros y cuestionarios del paciente).
 // nota = descripción propia de cómo se sintió (máx. 200 palabras, igual que v1).
+// PB-31 la reutiliza para el último riesgo del buscador.
 public class EventoRow
 {
     public int IdEvento { get; set; }
@@ -189,6 +204,7 @@ public class ObservacionRow
 }
 
 // PB-14: dbo.autorizaciones (paciente autoriza a psicólogo; Autorizado = id 8).
+// PB-31 la reutiliza para validar el chat.
 public class AutorizacionRow
 {
     public int IdAutorizacion { get; set; }
@@ -224,4 +240,11 @@ public class RecordatorioDiaRow
 {
     public int IdRecordatorio { get; set; }
     public int IdDia { get; set; }
+}
+
+// PB-31 (solo lectura): tipos de evento (RegistroEmocional, Cuestionario).
+public class TipoEventoRow
+{
+    public int IdTipoEvento { get; set; }
+    public string Nombre { get; set; } = string.Empty;
 }

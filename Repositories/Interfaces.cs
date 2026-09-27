@@ -93,6 +93,19 @@ public interface IRecomendacionRepository
     Task<RecomendacionRow?> FindByIdAsync(int idRecomendacion, CancellationToken ct = default);
 }
 
+// PB-31: ciclo de vida de conversaciones en SQL (los mensajes van por RTDB).
+public interface IChatRepository
+{
+    Task<List<ConversacionRow>> GetDeUsuarioAsync(int idUsuario, CancellationToken ct = default);
+    Task<ConversacionRow?> FindAsync(int idConversacion, CancellationToken ct = default);
+    Task<ConversacionRow?> FindParejaAsync(int idPaciente, int idPsicologo, CancellationToken ct = default);
+    Task<ConversacionRow> CrearAsync(int idPaciente, int idPsicologo, CancellationToken ct = default);
+    Task SetEstadoAsync(int idConversacion, string estado, int? idBloqueador, CancellationToken ct = default);
+    Task<List<PacienteBusquedaDto>> BuscarPacientesAsync(int idRolPaciente, int idEstadoActiva, string? q, string? nivel, int? minCuestionarios, bool? tienePsicologo, CancellationToken ct = default);
+}
+
+public record PacienteBusquedaDto(int Id, string Nombre, string Correo, int? UltimoPuntaje, string? UltimoNivel, DateTime? UltimaFecha, int CuestionariosRespondidos, int Psicologos);
+
 public interface IAdminRepository
 {
     Task<List<RespaldoDto>> ListRespaldosAsync(CancellationToken ct = default);

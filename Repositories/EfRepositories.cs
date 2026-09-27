@@ -179,7 +179,7 @@ public class EfAuthLogRepository(MindzyxsDbContext db) : IAuthLogRepository
     // object[] EF intenta mapear CancellationToken y falla ("no store type mapping").
     public async Task LogAsync(int? actorId, int? targetId, string accion, string detalle, string? ip, CancellationToken ct = default)
     {
-        object?[] parameters =
+        object[] parameters =
         [
             new SqlParameter("@actor", (object?)actorId ?? DBNull.Value),
             new SqlParameter("@target", (object?)targetId ?? DBNull.Value),
@@ -407,6 +407,107 @@ public class EfRecomendacionRepository(MindzyxsDbContext db) : IRecomendacionRep
         => db.Recomendaciones.AsNoTracking()
             .Where(r => r.IdRecomendacion == idRecomendacion)
             .FirstOrDefaultAsync(ct);
+}
+
+// PB-31: conversaciones en SQL.
+public class EfChatRepository(MindzyxsDbContext db) : IChatRepository
+{
+    public Task<List<ConversacionRow>> GetDeUsuarioAsync(int idUsuario, CancellationToken ct = default)
+        => db.Conversaciones.AsNoTracking()
+            .Where(c => c.IdPaciente == idUsuario || c.IdPsicologo == idUsuario)
+            .OrderByDescending(c => c.FechaCreacion)
+            .ToListAsync(ct);
+
+    public Task<ConversacionRow?> FindAsync(int idConversacion, CancellationToken ct = default)
+        => db.Conversaciones.AsNoTracking()
+            .Where(c => c.IdConversacion == idConversacion)
+            .FirstOrDefaultAsync(ct);
+
+    public Task<ConversacionRow?> FindParejaAsync(int idPaciente, int idPsicologo, CancellationToken ct = default)
+        => db.Conversaciones
+            .Where(c => c.IdPaciente == idPaciente && c.IdPsicologo == idPsicologo)
+            .FirstOrDefaultAsync(ct);
+
+    public async Task<ConversacionRow> CrearAsync(int idPaciente, int idPsicologo, CancellationToken ct = default)
+    {
+        var row = new ConversacionRow
+        {
+            IdPaciente = idPaciente,
+            IdPsicologo = idPsicologo,
+            Estado = "Pendiente",
+            FechaCreacion = DateTime.UtcNow
+        };
+        db.Conversaciones.Add(row);
+        await db.SaveChangesAsync(ct);
+        return row;
+    }
+
+    public async Task SetEstadoAsync(int idConversacion, string estado, int? idBloqueador, CancellationToken ct = default)
+    {
+        var row = await db.Conversaciones
+            .Where(c => c.IdConversacion == idConversacion)
+            .FirstOrDefaultAsync(ct);
+        if (row is null) return;
+        row.Estado = estado;
+        row.IdBloqueador = idBloqueador;
+        row.FechaRespuesta = estado == "Pendiente" ? null : (DateTime?)DateTime.UtcNow;
+        await db.SaveChangesAsync(ct);
+    }
+
+    // PB-31: buscador de pacientes (activos) con último riesgo, conteo de
+    // cuestionarios respondidos (eventos tipo Cuestionario) y de psicólogos
+    // autorizados. Filtros opcionales combinables (al menos uno lo valida el service).
+    public async Task<List<PacienteBusquedaDto>> BuscarPacientesAsync(int idRolPaciente, int idEstadoActiva, string? q, string? nivel, int? minCuestionarios, bool? tienePsicologo, CancellationToken ct = default)
+    {
+        var idTipoCuestionario = await db.Set<TipoEventoRow>().AsNoTracking()
+            .Where(t => t.Nombre == "Cuestionario").Select(t => t.IdTipoEvento)
+            .FirstOrDefaultAsync(ct);
+        var idAutorizado = await db.Estados.AsNoTracking()
+            .Where(e => e.Nombre == "Autorizado").Select(e => e.IdEstado)
+            .FirstOrDefaultAsync(ct);
+
+        var pacientes = await db.Usuarios.AsNoTracking()
+            .Where(u => u.IdRol == idRolPaciente && u.IdEstadoCuenta == idEstadoActiva
+                && (string.IsNullOrWhiteSpace(q)
+                    || u.Nombre.Contains(q) || u.Apellido.Contains(q) || u.Correo.Contains(q)))
+            .OrderBy(u => u.Nombre).ThenBy(u => u.Apellido)
+            .Take(50)
+            .ToListAsync(ct);
+        if (pacientes.Count == 0) return [];
+        var ids = pacientes.Select(u => u.IdUsuario).ToList();
+
+        var eventos = await db.Eventos.AsNoTracking()
+            .Where(e => ids.Contains(e.IdPaciente) && e.IdTipoEvento == idTipoCuestionario)
+            .ToListAsync(ct);
+        var niveles = await db.NivelesRiesgo.AsNoTracking().ToListAsync(ct);
+        var auts = await db.Set<AutorizacionRow>().AsNoTracking()
+            .Where(a => ids.Contains(a.IdPaciente) && a.IdEstado == idAutorizado)
+            .ToListAsync(ct);
+
+        var lista = pacientes.Select(u =>
+        {
+            var evs = eventos.Where(e => e.IdPaciente == u.IdUsuario)
+                .OrderByDescending(e => e.FechaEvento).ToList();
+            var ultimo = evs.FirstOrDefault();
+            var nivelNombre = ultimo?.IdNivelRiesgo is null
+                ? null
+                : niveles.FirstOrDefault(n => n.IdNivelRiesgo == ultimo.IdNivelRiesgo)?.Nombre;
+            return new PacienteBusquedaDto(
+                u.IdUsuario, $"{u.Nombre} {u.Apellido}".Trim(), u.Correo,
+                ultimo?.PuntajeTotal, nivelNombre,
+                ultimo?.FechaEvento, evs.Count,
+                auts.Count(a => a.IdPaciente == u.IdUsuario));
+        });
+
+        if (!string.IsNullOrWhiteSpace(nivel))
+            lista = lista.Where(r => string.Equals(r.UltimoNivel, nivel, StringComparison.OrdinalIgnoreCase));
+        if (minCuestionarios is > 0)
+            lista = lista.Where(r => r.CuestionariosRespondidos >= minCuestionarios.Value);
+        if (tienePsicologo is not null)
+            lista = lista.Where(r => tienePsicologo.Value ? r.Psicologos > 0 : r.Psicologos == 0);
+
+        return lista.OrderBy(r => r.Nombre).Take(20).ToList();
+    }
 }
 
 public class EfAdminRepository(MindzyxsDbContext db, IOptions<AdminOptions> adminOptions) : IAdminRepository

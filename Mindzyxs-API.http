@@ -219,6 +219,55 @@ Accept: application/json
 GET {{Host}}/api/recomendaciones/invitado/99
 Accept: application/json
 
+### PB-31 token Firebase (HU1-PB31, requiere Bearer de sesión)
+POST {{Host}}/api/chat/token
+Authorization: Bearer <token>
+Accept: application/json
+
+### PB-31 buscar pacientes multifiltro (HU1-PB31, Bearer psicólogo aprobado)
+GET {{Host}}/api/chat/pacientes?nivel=Alto&minCuestionarios=1&tienePsicologo=false
+Authorization: Bearer <token-psicologo>
+Accept: application/json
+
+### PB-31 mis conversaciones (HU1-PB31, requiere Bearer)
+GET {{Host}}/api/chat/conversaciones
+Authorization: Bearer <token>
+Accept: application/json
+
+### PB-31 psicologo ofrece chat (HU1-PB31, Bearer psicólogo aprobado)
+POST {{Host}}/api/chat/solicitudes
+Authorization: Bearer <token-psicologo>
+Content-Type: application/json
+
+{
+  "idPaciente": 6
+}
+
+### PB-31 paciente acepta solicitud (HU1-PB31, Bearer paciente dueño, escribe meta RTDB)
+POST {{Host}}/api/chat/solicitudes/1/aceptar
+Authorization: Bearer <token-paciente>
+Accept: application/json
+
+### PB-31 paciente rechaza solicitud (HU1-PB31, Bearer paciente dueño)
+POST {{Host}}/api/chat/solicitudes/1/rechazar
+Authorization: Bearer <token-paciente>
+Accept: application/json
+
+### PB-31 paciente bloquea chat (HU1-PB31, Bearer paciente dueño, meta Bloqueada)
+POST {{Host}}/api/chat/conversaciones/1/bloqueo
+Authorization: Bearer <token-paciente>
+Accept: application/json
+
+### PB-31 paciente desbloquea chat (HU1-PB31, Bearer paciente que bloqueó)
+DELETE {{Host}}/api/chat/conversaciones/1/bloqueo
+Authorization: Bearer <token-paciente>
+Accept: application/json
+
+### PB-31 aviso de mensaje enviado (HU1-PB31, best-effort tras push RTDB)
+POST {{Host}}/api/chat/conversaciones/1/mensajes/aviso
+Authorization: Bearer <token>
+Accept: application/json
+
 ### PB-13 historial del paciente (HU1-PB13, requiere Bearer paciente)
 GET {{Host}}/api/historial
 Authorization: Bearer <token-paciente>

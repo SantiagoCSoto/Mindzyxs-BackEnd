@@ -17,12 +17,13 @@ public class MindzyxsDbContext(DbContextOptions<MindzyxsDbContext> options) : Db
     public DbSet<PreguntaRow> Preguntas => Set<PreguntaRow>();
     public DbSet<OpcionPreguntaRow> OpcionesPregunta => Set<OpcionPreguntaRow>();
     public DbSet<LineaAyudaRow> LineasAyuda => Set<LineaAyudaRow>();
-    public DbSet<RecomendacionRow> Recomendaciones =>
-Set<RecomendacionRow>();
+    public DbSet<RecomendacionRow> Recomendaciones => Set<RecomendacionRow>();
+    public DbSet<ConversacionRow> Conversaciones => Set<ConversacionRow>();
     public DbSet<EventoRow> Eventos => Set<EventoRow>();
     public DbSet<RespuestaRow> Respuestas => Set<RespuestaRow>();
     public DbSet<ObservacionRow> Observaciones => Set<ObservacionRow>();
     public DbSet<NivelRiesgoRow> NivelesRiesgo => Set<NivelRiesgoRow>();
+    public DbSet<TipoEventoRow> TiposEvento => Set<TipoEventoRow>();
     public DbSet<AutorizacionRow> Autorizaciones => Set<AutorizacionRow>();
     public DbSet<RecordatorioRow> Recordatorios => Set<RecordatorioRow>();
     public DbSet<RecordatorioDiaRow> RecordatorioDias => Set<RecordatorioDiaRow>();
@@ -168,6 +169,17 @@ Set<RecomendacionRow>();
             e.Property(x => x.Instrucciones).HasColumnName("instrucciones").HasColumnType("text").IsUnicode(false);
             e.Property(x => x.Icono).HasColumnName("icono").HasMaxLength(20);
         });
+        b.Entity<ConversacionRow>(e =>
+        {
+            e.ToTable("conversaciones", "dbo").HasKey(x => x.IdConversacion);
+            e.Property(x => x.IdConversacion).HasColumnName("id_conversacion");
+            e.Property(x => x.IdPaciente).HasColumnName("id_paciente");
+            e.Property(x => x.IdPsicologo).HasColumnName("id_psicologo");
+            e.Property(x => x.Estado).HasColumnName("estado").HasMaxLength(20).IsUnicode(false);
+            e.Property(x => x.IdBloqueador).HasColumnName("id_bloqueador");
+            e.Property(x => x.FechaCreacion).HasColumnName("fecha_creacion");
+            e.Property(x => x.FechaRespuesta).HasColumnName("fecha_respuesta");
+        });
         b.Entity<EventoRow>(e =>
         {
             e.ToTable("eventos_bienestar", "dbo").HasKey(x => x.IdEvento);
@@ -205,6 +217,12 @@ Set<RecomendacionRow>();
         {
             e.ToTable("niveles_riesgo", "dbo").HasKey(x => x.IdNivelRiesgo);
             e.Property(x => x.IdNivelRiesgo).HasColumnName("id_nivel_riesgo");
+            e.Property(x => x.Nombre).HasColumnName("nombre").HasMaxLength(50).IsUnicode(false);
+        });
+        b.Entity<TipoEventoRow>(e =>
+        {
+            e.ToTable("tipos_evento", "dbo").HasKey(x => x.IdTipoEvento);
+            e.Property(x => x.IdTipoEvento).HasColumnName("id_tipo_evento");
             e.Property(x => x.Nombre).HasColumnName("nombre").HasMaxLength(50).IsUnicode(false);
         });
         b.Entity<AutorizacionRow>(e =>
