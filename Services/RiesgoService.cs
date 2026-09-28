@@ -8,7 +8,8 @@ public class RiesgoService(
     ICuestionarioRepository cuestionarios,
     ILineaAyudaRepository lineas,
     ISesionRepository sesiones,
-    IAuthLogRepository authLogs)
+    IAuthLogRepository authLogs,
+    IUserRepository usuarios)
 {
     // PB-08 HU1-PB8: procesa las respuestas completas y calcula el nivel de riesgo.
     // Puntaje = promedio de escala (reusa CuestionarioService.CalcularPuntaje).
@@ -95,6 +96,62 @@ public class RiesgoService(
         "Alto" => "Se observan síntomas emocionales relevantes en tus respuestas. Es muy importante que busques ayuda profesional o te comuniques con una línea de ayuda de tu país.",
         _ => "No se observan síntomas emocionales significativos en tus respuestas. Te invitamos a continuar con tu monitoreo habitual y registrar cómo te sientes periódicamente."
     };
+
+    // PB-16 HU1-PB16: registra en dbo.auth la alerta de riesgo alto del paciente.
+    // "vista" cubre la generación y la visualización del modal; lineas/recomendaciones/
+    // entendido registran la acción elegida. Exige sesión de paciente (401 si no).
+    // Lanza InvalidOperationException con el mensaje exacto para el 400.
+    public async Task<string> RegistrarAlertaAsync(string? tokenRaw, RegistrarAlertaRiesgoVm vm, string? ip, CancellationToken ct = default)
+    {
+        var yo = await RequirePacienteAsync(tokenRaw, ct);
+
+        var accion = vm.Accion?.Trim() ?? "";
+        if (string.IsNullOrEmpty(accion))
+            throw new InvalidOperationException("Debes seleccionar una opción de la alerta de riesgo");
+        if (!EsAccionValida(accion))
+            throw new InvalidOperationException("Acción de la alerta no válida");
+
+        var origen = string.IsNullOrWhiteSpace(vm.Origen) ? "" : vm.Origen.Trim();
+        var detalleOrigen = string.IsNullOrEmpty(origen) ? "" : $" (origen: {origen})";
+
+        if (string.Equals(accion, "vista", StringComparison.OrdinalIgnoreCase))
+            await authLogs.LogAsync(yo.IdUsuario, yo.IdUsuario, LogAcciones.AlertaRiesgoVista,
+                $"Se generó y visualizó la alerta de riesgo alto del paciente {yo.IdUsuario}{detalleOrigen}", ip, ct);
+        else
+            await authLogs.LogAsync(yo.IdUsuario, yo.IdUsuario, LogAcciones.AlertaRiesgoAccion,
+                $"Paciente {yo.IdUsuario} eligió \"{EtiquetaAccion(accion)}\" en la alerta de riesgo alto{detalleOrigen}", ip, ct);
+
+        return "Alerta registrada";
+    }
+
+    // Acciones válidas de la alerta (HU1-PB16: Líneas de ayuda, Ver recomendaciones, Entendido + vista).
+    private static bool EsAccionValida(string accion) => accion switch
+    {
+        "vista" or "lineas" or "recomendaciones" or "entendido" => true,
+        _ => false
+    };
+
+    // Etiqueta legible de cada acción para el detalle del log.
+    private static string EtiquetaAccion(string accion) => accion switch
+    {
+        "lineas" => "Líneas de ayuda",
+        "recomendaciones" => "Ver recomendaciones",
+        "entendido" => "Entendido",
+        _ => accion
+    };
+
+    // PB-16 HU1-PB16: exige sesión activa de paciente (mismo criterio que HistorialService PB-12/13).
+    private async Task<UsuarioDto> RequirePacienteAsync(string? tokenRaw, CancellationToken ct)
+    {
+        if (string.IsNullOrWhiteSpace(tokenRaw))
+            throw new UnauthorizedAccessException("Sesión requerida");
+        var sesion = await sesiones.FindByTokenHashAsync(TokenHelper.Hash(tokenRaw.Trim()), ct);
+        if (sesion is null || sesion.ExpiraEn < DateTime.UtcNow)
+            throw new UnauthorizedAccessException("Sesión requerida");
+        var user = await usuarios.FindByIdAsync(sesion.IdUsuario, ct)
+            ?? throw new UnauthorizedAccessException("Sesión requerida");
+        return user;
+    }
 
     private async Task<int?> ResolveActorIdAsync(string? tokenRaw, CancellationToken ct)
     {

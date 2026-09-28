@@ -1063,3 +1063,39 @@ curl --location "http://localhost:5015/api/historial" -H "Authorization: Bearer 
 * Log `REGISTRO_EMOCIONAL_CREADO` en `dbo.auth`
 
 * Rama actual `PB12` (apilada sobre `PB11`), BD `SANTI/Mindzyxs`. Sin DDL nuevo: la columna `nota` de `eventos_bienestar` ya existe (PB-13).
+
+# Mindzyxs-API - Guía PB-16 (Alerta de riesgo alto)
+
+API REST `Mindzyxs 1.1` - solo back-end. Cuando un paciente finaliza un cuestionario emocional (PB-11) o registra un estado emocional (PB-12), el back ya determina su nivel de riesgo (`nivel` en la respuesta). Si es **Alto**, el front muestra una alerta visible (modal/banner) con el mensaje fijo de la HU — "Riesgo alto detectado. Busca ayuda profesional. Si te sientes en peligro, contacta una línea de ayuda" — y los botones **Líneas de ayuda**, **Ver recomendaciones** y **Entendido**. El back aporta aquí el **registro en logs** de la **generación y visualización** de la alerta y de la **acción** que eligió el paciente. Con nivel Bajo o Medio la alerta no se muestra (el front solo invoca el endpoint cuando `nivel == "Alto"`). Todo vive en `Controllers/RiesgoController.cs` → `Services/RiesgoService.cs` → `IAuthLogRepository` + `IUserRepository`.
+
+Líneas de ayuda y recomendaciones ya tienen sus endpoints: `GET /api/ayuda/lineas` (público, PB-08) y `GET /api/recomendaciones/invitado...` (PB-09). La redirección a esas secciones es del front: "Líneas de ayuda" y "Ver recomendaciones" navegan, "Entendido" cierra el modal y el paciente continúa.
+
+## Endpoints PB-16 (HU1-PB16)
+
+| Método | Ruta | Descripción | Auth |
+|--------|------|-------------|------|
+| `POST` | `/api/riesgo/paciente/alerta` | Registra la alerta: `"vista"` (se generó y visualizó) o la acción elegida (`lineas`, `recomendaciones`, `entendido`) + log en `dbo.auth` | Bearer paciente |
+
+### 11.1 `POST /api/riesgo/paciente/alerta` - registro de la alerta en logs
+
+```bash
+# Generación + visualización del modal (nivel Alto)
+curl --location "http://localhost:5015/api/riesgo/paciente/alerta" -H "Authorization: Bearer <token-paciente>" -H "Content-Type: application/json" -d "{\"accion\":\"vista\",\"origen\":\"cuestionario\"}"
+
+# Acción: botón Líneas de ayuda / Ver recomendaciones / Entendido
+curl --location "http://localhost:5015/api/riesgo/paciente/alerta" -H "Authorization: Bearer <token-paciente>" -H "Content-Type: application/json" -d "{\"accion\":\"lineas\",\"origen\":\"cuestionario\"}"
+curl --location "http://localhost:5015/api/riesgo/paciente/alerta" -H "Authorization: Bearer <token-paciente>" -H "Content-Type: application/json" -d "{\"accion\":\"recomendaciones\",\"origen\":\"registro\"}"
+curl --location "http://localhost:5015/api/riesgo/paciente/alerta" -H "Authorization: Bearer <token-paciente>" -H "Content-Type: application/json" -d "{\"accion\":\"entendido\",\"origen\":\"cuestionario\"}"
+```
+
+`origen` es opcional (solo describe qué disparó la alerta: `cuestionario` o `registro`) y va en el detalle del log. Respuesta `200 {mensaje:"Alerta registrada"}`. Guarda en `dbo.auth`: `ALERTA_RIESGO_ALTO_VISTA` (cuando `accion = "vista"`) o `ALERTA_RIESGO_ALTO_ACCION` (para `lineas`/`recomendaciones`/`entendido`).
+
+## Mensajes exactos PB-16
+
+* `"Alerta registrada"` (200)
+* `"Debes seleccionar una opción de la alerta de riesgo"` (400, falta `accion`)
+* `"Acción de la alerta no válida"` (400, `accion` fuera de `vista|lineas|recomendaciones|entendido`)
+* `"Sesión requerida"` (401)
+* Logs `ALERTA_RIESGO_ALTO_VISTA` y `ALERTA_RIESGO_ALTO_ACCION` en `dbo.auth`
+
+* Rama actual `PB16`, BD `SANTI/Mindzyxs`. Sin DDL nuevo (el nivel de riesgo ya se guarda en el evento con PB-11/PB-12).

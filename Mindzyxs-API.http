@@ -437,3 +437,61 @@ Content-Type: application/json
 {
   "nota": "Sin estado seleccionado"
 }
+
+### PB-16 alerta riesgo alto: generación + visualización (HU1-PB16, log en dbo.auth, Bearer paciente)
+### El front lo llama tras finalizar (PB-11) o registrar (PB-12) solo si nivel == "Alto".
+POST {{Host}}/api/riesgo/paciente/alerta
+Authorization: Bearer <token-paciente>
+Content-Type: application/json
+
+{
+  "accion": "vista",
+  "origen": "cuestionario"
+}
+
+### PB-16 alerta riesgo alto: acción Líneas de ayuda (HU1-PB16, log ALERTA_RIESGO_ALTO_ACCION)
+POST {{Host}}/api/riesgo/paciente/alerta
+Authorization: Bearer <token-paciente>
+Content-Type: application/json
+
+{
+  "accion": "lineas",
+  "origen": "cuestionario"
+}
+
+### PB-16 alerta riesgo alto: acción Ver recomendaciones (HU1-PB16)
+POST {{Host}}/api/riesgo/paciente/alerta
+Authorization: Bearer <token-paciente>
+Content-Type: application/json
+
+{
+  "accion": "recomendaciones",
+  "origen": "registro"
+}
+
+### PB-16 alerta riesgo alto: acción Entendido (HU1-PB16, cierra alerta y continúa)
+POST {{Host}}/api/riesgo/paciente/alerta
+Authorization: Bearer <token-paciente>
+Content-Type: application/json
+
+{
+  "accion": "entendido",
+  "origen": "cuestionario"
+}
+
+### PB-16 alerta riesgo alto - 400 sin acción (HU1-PB16)
+POST {{Host}}/api/riesgo/paciente/alerta
+Authorization: Bearer <token-paciente>
+Content-Type: application/json
+
+{
+  "origen": "cuestionario"
+}
+
+### PB-16 alerta riesgo alto - 401 sin sesión (HU1-PB16)
+POST {{Host}}/api/riesgo/paciente/alerta
+Content-Type: application/json
+
+{
+  "accion": "vista"
+}
