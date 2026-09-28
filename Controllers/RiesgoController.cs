@@ -64,7 +64,7 @@ public class RiesgoController(RiesgoService riesgo) : ControllerBase
     /// finalizar (PB-11) o registrar estado (PB-12): si `nivel == "Alto"` el front
     /// muestra el modal (mensaje fijo del HU + botones Líneas de ayuda, Ver
     /// recomendaciones y Entendido) y registra aquí la generación/visualización
-    /// ("vista") y la acción elegida (lineas/recomendaciones/entendido). Con reset
+    /// ("vista") y la acción elegida (lineas/recomendaciones/entendido). Con riesgo
     /// Bajo/Medio no se invoca (el HU no muestra la alerta). Guarda
     /// `ALERTA_RIESGO_ALTO_VISTA` / `ALERTA_RIESGO_ALTO_ACCION` en `dbo.auth`.
     ///
