@@ -350,6 +350,24 @@ public class EfHistorialRepository(MindzyxsDbContext db) : IHistorialRepository
 
         return evento.IdEvento;
     }
+
+    // PB-12 HU1-PB12: guarda el registro del estado emocional (escala 1-5 + nota opcional)
+    // en dbo.eventos_bienestar. La fecha/hora la asigna el service (automática).
+    public async Task<int> GuardarEstadoEmocionalAsync(int idPaciente, int idTipoEvento, int idNivelRiesgo, int puntaje, string? nota, DateTime fechaEvento, CancellationToken ct = default)
+    {
+        var evento = new EventoRow
+        {
+            IdPaciente = idPaciente,
+            IdTipoEvento = idTipoEvento,
+            IdNivelRiesgo = idNivelRiesgo,
+            PuntajeTotal = puntaje,
+            Nota = nota,
+            FechaEvento = fechaEvento
+        };
+        db.Eventos.Add(evento);
+        await db.SaveChangesAsync(ct);
+        return evento.IdEvento;
+    }
 }
 
 // PB-15: recordatorios (upsert por paciente + reemplazo de días).

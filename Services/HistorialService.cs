@@ -81,6 +81,34 @@ public class HistorialService(
         return detalle;
     }
 
+    // PB-12 HU1-PB12: guarda el registro del estado emocional (escala 1-5 + nota opcional).
+    // Valida que exista escala con el mensaje exacto de la HU, deriva el nivel con la
+    // misma regla que el cuestionario (1-2 bajo, 3 medio, 4-5 alto), asigna fecha/hora
+    // automática y registra REGISTRO_EMOCIONAL_CREADO en dbo.auth.
+    public async Task<RegistroEmocionalCreadoResult> RegistrarEstadoEmocionalAsync(string? tokenRaw, RegistrarEstadoEmocionalVm vm, string? ip, CancellationToken ct = default)
+    {
+        var yo = await RequirePacienteAsync(tokenRaw, ct);
+        if (vm.Puntaje is null or < 1 or > 5)
+            throw new InvalidOperationException("Debes seleccionar un estado emocional para guardar");
+
+        var (_, nivel) = CuestionarioService.CalcularPuntaje([vm.Puntaje.Value]);
+        var idNivel = await historial.GetNivelIdAsync(nivel, ct);
+        if (idNivel is null) throw new InvalidOperationException("Nivel de riesgo no configurado.");
+
+        var idTipo = await historial.GetTipoEventoIdAsync("RegistroEmocional", ct);
+        if (idTipo is null) throw new InvalidOperationException("Tipo de evento RegistroEmocional no configurado.");
+
+        var nota = string.IsNullOrWhiteSpace(vm.Nota) ? null : vm.Nota.Trim();
+        var fecha = DateTime.UtcNow;
+
+        var idEvento = await historial.GuardarEstadoEmocionalAsync(yo.IdUsuario, idTipo.Value, idNivel.Value, vm.Puntaje.Value, nota, fecha, ct);
+
+        await authLogs.LogAsync(yo.IdUsuario, yo.IdUsuario, LogAcciones.RegistroEmocionalCreado,
+            $"Paciente:{yo.IdUsuario} registró su estado emocional ({vm.Puntaje}/5, nivel {nivel}){(nota is null ? "" : " con nota")} (evento {idEvento})", ip, ct);
+
+        return new RegistroEmocionalCreadoResult(idEvento, fecha, vm.Puntaje.Value, nivel, nota);
+    }
+
     private static HistorialItemDto ArmarItem(
         EventoRow e, Dictionary<int, string> niveles, Dictionary<int, string> cuestionarios)
     {

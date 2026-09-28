@@ -8,6 +8,8 @@ namespace Mindzyxs_API.Controllers;
 /// Historial emocional del paciente (PB-13 HU1-PB13): lista ordenada por fecha
 /// (recientes primero) con filtro por rango, y detalle con nota propia,
 /// respuestas del cuestionario y apoyo del psicólogo. Solo el dueño ve lo suyo.
+/// Registro del estado emocional (PB-12 HU1-PB12): guarda escala 1-5 + nota
+/// opcional con fecha/hora automática, actualizando el historial (log en dbo.auth).
 /// </summary>
 [ApiController]
 [Route("api/[controller]")]
@@ -70,6 +72,53 @@ public class HistorialController(HistorialService historial) : ControllerBase
         catch (InvalidOperationException ex)
         {
             return NotFound(new { error = ex.Message });
+        }
+    }
+
+    /// <summary>Guarda el registro del estado emocional del paciente (escala 1-5 + nota opcional).</summary>
+    /// <remarks>
+    /// PB-12 HU1-PB12. Requiere sesión de paciente. La fecha y hora se asignan
+    /// automáticamente al guardar; el registro queda visible en el historial
+    /// (`GET /api/historial`) y se registra `REGISTRO_EMOCIONAL_CREADO` en `dbo.auth`.
+    ///
+    /// Respuestas:
+    /// - `200` — `{ "mensaje": "Registro guardado correctamente", "idEvento": ..., "fecha": ..., "puntaje": ..., "nivel": ..., "nota": ... }`
+    /// - `400` — `{ "error": "Debes seleccionar un estado emocional para guardar" }` (falta o inválida la escala)
+    /// - `400` — `{ "error": "Este campo es obligatorio" }` (body inválido/vacío)
+    /// - `401` — sin sesión.
+    /// </remarks>
+    /// <response code="200">Registro guardado.</response>
+    /// <response code="400">Falta el estado emocional o body inválido.</response>
+    /// <response code="401">Sesión requerida.</response>
+    [HttpPost]
+    [ProducesResponseType(typeof(RegistroEmocionalCreadoResult), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ErrorResult), StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> Registrar([FromBody] RegistrarEstadoEmocionalVm vm, CancellationToken ct)
+    {
+        if (!ModelState.IsValid)
+            return BadRequest(new { error = "Este campo es obligatorio" });
+
+        var ip = HttpContext.Connection.RemoteIpAddress?.ToString();
+        try
+        {
+            var r = await historial.RegistrarEstadoEmocionalAsync(ReadOptionalBearerToken(), vm, ip, ct);
+            return Ok(new
+            {
+                mensaje = "Registro guardado correctamente",
+                idEvento = r.IdEvento,
+                fecha = r.Fecha,
+                puntaje = r.Puntaje,
+                nivel = r.Nivel,
+                nota = r.Nota
+            });
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            return Unauthorized(new { error = ex.Message });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { error = ex.Message });
         }
     }
 

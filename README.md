@@ -1033,3 +1033,33 @@ curl --location "http://localhost:5015/api/cuestionario/paciente/finalizar" -H "
 * Logs `CUESTIONARIO_PACIENTE_INICIO` y `CUESTIONARIO_PACIENTE_FIN` en `dbo.auth`
 
 * Rama actual `PB11`, BD `SANTI/Mindzyxs` (seed `Minzyxs-DB/sql/03_seed_datos_prueba.sql`: cuestionario `Cuestionario Base Prueba`, Predeterminado/Publicado, 3 preguntas `opcion_multiple` 0-3). El resultado persiste con el seed de pruebas; el aviso aclaratorio (configurable) se sirve desde `GET /api/aviso` (PB-04) con `avisoObligatorio:true`.
+
+# Mindzyxs-API - Guía PB-12 (Registrar estado emocional)
+
+API REST `Mindzyxs 1.1` - solo back-end. El paciente autenticado presiona **Registrar estado emocional** (panel del paciente), el back recibe la escala seleccionada (1-5) y una nota opcional, valida que exista la escala, guarda el registro con fecha y hora **automáticas** en `eventos_bienestar` (visible luego en `GET /api/historial`, PB-13) y registra la creación en `dbo.auth`. Todo vive en `Controllers/HistorialController.cs` → `Services/HistorialService.cs` → `IHistorialRepository` + `IAuthLogRepository`.
+
+El formulario (según mockup del PB) es una escala 1-5 con etiquetas: `1 Muy mal`, `2 Mal`, `3 Regular`, `4 Bien`, `5 Excelente`, un campo **Notas** opcional y los botones **Guardar** y **Cancelar / Volver** (cancelar es front y no guarda nada).
+
+## Endpoints PB-12 (HU1-PB12)
+
+| Método | Ruta | Descripción | Auth |
+|--------|------|-------------|------|
+| `POST` | `/api/historial` | Guarda el estado emocional (escala 1-5 + nota opcional) con fecha/hora automática + log | Bearer paciente |
+
+### 10.1 `POST /api/historial` - guardar registro emocional
+
+```bash
+curl --location "http://localhost:5015/api/historial" -H "Authorization: Bearer <token-paciente>" -H "Content-Type: application/json" -d "{\"puntaje\":4,\"nota\":\"Me sentí bien hoy\"}"
+```
+
+`200 {mensaje:"Registro guardado correctamente", idEvento, fecha, puntaje, nivel, nota}`. `nivel` se deriva igual que el cuestionario (1-2 Bajo, 3 Medio, 4-5 Alto) y se guarda con el riesgo en el evento (lo usan PB-14 y PB-31). Sin escala o con escala inválida → `400 "Debes seleccionar un estado emocional para guardar"` y **no guarda**. El registro aparece al instante en `GET /api/historial`.
+
+## Mensajes exactos PB-12
+
+* `"Registro guardado correctamente"` (200)
+* `"Debes seleccionar un estado emocional para guardar"` (400, si falta o es inválida; no guarda)
+* `"Este campo es obligatorio"` (400, body vacío/inválido)
+* `"Sesión requerida"` (401)
+* Log `REGISTRO_EMOCIONAL_CREADO` en `dbo.auth`
+
+* Rama actual `PB12` (apilada sobre `PB11`), BD `SANTI/Mindzyxs`. Sin DDL nuevo: la columna `nota` de `eventos_bienestar` ya existe (PB-13).

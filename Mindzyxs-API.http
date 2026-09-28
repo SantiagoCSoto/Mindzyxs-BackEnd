@@ -418,3 +418,22 @@ Content-Type: application/json
     { "preguntaId": 4, "opcionId": 13 }
   ]
 }
+
+### PB-12 registrar estado emocional (HU1-PB12, escala 1-5 + nota opcional, Bearer paciente)
+POST {{Host}}/api/historial
+Authorization: Bearer <token-paciente>
+Content-Type: application/json
+
+{
+  "puntaje": 4,
+  "nota": "Me sentí bien hoy"
+}
+
+### PB-12 registrar estado emocional - 400 sin escala (HU1-PB12)
+POST {{Host}}/api/historial
+Authorization: Bearer <token-paciente>
+Content-Type: application/json
+
+{
+  "nota": "Sin estado seleccionado"
+}
