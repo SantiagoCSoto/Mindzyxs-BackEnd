@@ -288,6 +288,68 @@ public class EfHistorialRepository(MindzyxsDbContext db) : IHistorialRepository
             .Where(e => e.Nombre == nombre)
             .Select(e => (int?)e.IdEstado)
             .FirstOrDefaultAsync(ct);
+
+    // PB-11 HU1-PB11: ids de los cuestionarios que el paciente ya respondió (eventos
+    // tipo Cuestionario), para armar el pendiente con rotación igual que el invitado.
+    public async Task<List<int>> GetCuestionariosRespondidosAsync(int idPaciente, CancellationToken ct = default)
+    {
+        var idTipoCuestionario = await GetTipoEventoIdAsync("Cuestionario", ct);
+        return await db.Eventos.AsNoTracking()
+            .Where(e => e.IdPaciente == idPaciente && e.IdTipoEvento == (idTipoCuestionario ?? -1) && e.IdCuestionario.HasValue)
+            .Select(e => e.IdCuestionario!.Value)
+            .Distinct()
+            .ToListAsync(ct);
+    }
+
+    public async Task<int?> GetNivelIdAsync(string nombre, CancellationToken ct = default)
+        => await db.NivelesRiesgo.AsNoTracking()
+            .Where(n => n.Nombre == nombre)
+            .Select(n => (int?)n.IdNivelRiesgo)
+            .FirstOrDefaultAsync(ct);
+
+    public async Task<int?> GetTipoEventoIdAsync(string nombre, CancellationToken ct = default)
+        => await db.TiposEvento.AsNoTracking()
+            .Where(t => t.Nombre == nombre)
+            .Select(t => (int?)t.IdTipoEvento)
+            .FirstOrDefaultAsync(ct);
+
+    // PB-11 HU1-PB11: guarda el evento del cuestionario con sus respuestas en una sola
+    // transacción (eventos_bienestar + respuestas). Devuelve id_evento.
+    public async Task<int> GuardarEventoCuestionarioAsync(int idPaciente, int idCuestionario, int idNivelRiesgo, int puntajeTotal, List<RespuestaRow> respuestas, CancellationToken ct = default)
+    {
+        var idTipoCuestionario = await GetTipoEventoIdAsync("Cuestionario", ct);
+        if (idTipoCuestionario is null)
+            throw new InvalidOperationException("Tipo de evento Cuestionario no configurado.");
+
+        await using var tx = await db.Database.BeginTransactionAsync(ct);
+        var evento = new EventoRow
+        {
+            IdPaciente = idPaciente,
+            IdTipoEvento = idTipoCuestionario.Value,
+            IdCuestionario = idCuestionario,
+            IdNivelRiesgo = idNivelRiesgo,
+            PuntajeTotal = puntajeTotal,
+            FechaEvento = DateTime.UtcNow
+        };
+        db.Eventos.Add(evento);
+        await db.SaveChangesAsync(ct);
+
+        foreach (var r in respuestas)
+        {
+            db.Respuestas.Add(new RespuestaRow
+            {
+                IdEvento = evento.IdEvento,
+                IdPregunta = r.IdPregunta,
+                Valor = r.Valor,
+                Texto = r.Texto,
+                FechaRespuesta = evento.FechaEvento
+            });
+        }
+        await db.SaveChangesAsync(ct);
+        await tx.CommitAsync(ct);
+
+        return evento.IdEvento;
+    }
 }
 
 // PB-15: recordatorios (upsert por paciente + reemplazo de días).

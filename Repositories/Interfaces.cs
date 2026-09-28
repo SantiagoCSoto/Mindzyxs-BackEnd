@@ -64,6 +64,13 @@ public interface IHistorialRepository
     Task<List<UsuarioDto>> GetPacientesAutorizadosAsync(int idPsicologo, int idEstadoAutorizado, CancellationToken ct = default);
     Task<bool> EstaAutorizadoAsync(int idPaciente, int idPsicologo, int idEstadoAutorizado, CancellationToken ct = default);
     Task<int?> GetEstadoIdAsync(string nombre, CancellationToken ct = default);
+
+    // PB-11 HU1-PB11: escritura del resultado de un cuestionario en el historial del
+    // paciente (eventos_bienestar + respuestas, en una sola transacción).
+    Task<List<int>> GetCuestionariosRespondidosAsync(int idPaciente, CancellationToken ct = default);
+    Task<int?> GetNivelIdAsync(string nombre, CancellationToken ct = default);
+    Task<int?> GetTipoEventoIdAsync(string nombre, CancellationToken ct = default);
+    Task<int> GuardarEventoCuestionarioAsync(int idPaciente, int idCuestionario, int idNivelRiesgo, int puntajeTotal, List<RespuestaRow> respuestas, CancellationToken ct = default);
 }
 
 // PB-15: recordatorios del paciente (una config por paciente + días).

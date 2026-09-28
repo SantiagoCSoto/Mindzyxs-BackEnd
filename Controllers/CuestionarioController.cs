@@ -11,6 +11,10 @@ namespace Mindzyxs_API.Controllers;
 /// Endpoints públicos (no requieren autenticación): el invitado no tiene sesión.
 /// Las respuestas NO se persisten (respuestas→evento→paciente NOT NULL): el front
 /// las guarda en su sesión (cookies) y las reusa en PB-08.
+///
+/// Cuestionario emocional del paciente (PB-11 HU1-PB11): mismos catálogo y validaciones,
+/// pero requiere sesión de paciente y al finalizar PERSISTE las respuestas y el resultado
+/// en el historial del paciente (`eventos_bienestar` + `respuestas`, reutilizados por PB-13).
 /// </summary>
 [ApiController]
 [Route("api/[controller]")]
@@ -93,6 +97,124 @@ public class CuestionarioController(CuestionarioService cuestionario) : Controll
                 totalPreguntas = r.TotalPreguntas,
                 respondidas = r.Respondidas
             });
+        }
+        catch (InvalidOperationException ex) when (ex.Message == "Cuestionario no disponible.")
+        {
+            return NotFound(new { error = ex.Message });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { error = ex.Message });
+        }
+    }
+
+    /// <summary>Devuelve el siguiente cuestionario pendiente del paciente (sin repetir los ya respondidos).</summary>
+    /// <remarks>
+    /// PB-11 HU1-PB11. Requiere sesión de paciente. Mismo catálogo que el invitado
+    /// (Predeterminado + Publicado) menos los que el paciente ya respondió (guardados
+    /// en su historial). El front muestra la pantalla Cuestionario emocional con las
+    /// preguntas una por una (Siguiente / Cancelar-Volver / Finalizar).
+    ///
+    /// Respuestas:
+    /// - `200` — `{ "disponible": true, "id": ..., "titulo": ..., "avisoObligatorio": true, "preguntas": [...] }`
+    /// - `200` — `{ "disponible": false, "mensaje": "No tienes cuestionarios pendientes por responder." }`
+    /// - `401` — sin sesión.
+    /// </remarks>
+    /// <response code="200">Cuestionario pendiente o estado sin pendientes.</response>
+    /// <response code="401">Sesión requerida.</response>
+    [HttpGet("paciente/pendiente")]
+    [ProducesResponseType(typeof(CuestionarioPacienteDto), StatusCodes.Status200OK)]
+    public async Task<IActionResult> PendientePaciente(CancellationToken ct)
+    {
+        try
+        {
+            return Ok(await cuestionario.ObtenerPendientePacienteAsync(ReadOptionalBearerToken(), ct));
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            return Unauthorized(new { error = ex.Message });
+        }
+    }
+
+    /// <summary>Registra el inicio del cuestionario del paciente en `dbo.auth`.</summary>
+    /// <remarks>
+    /// PB-11 HU1-PB11. Requiere sesión de paciente. Se invoca al iniciar (tras el aviso
+    /// con Entendido). Guarda `CUESTIONARIO_PACIENTE_INICIO` en `dbo.auth`. No bloquea la UI.
+    ///
+    /// Respuestas:
+    /// - `200` — `{ "mensaje": "Inicio registrado" }`
+    /// - `400` — `{ "error": "Este campo es obligatorio" }` (body inválido/vacío)
+    /// - `401` — sin sesión.
+    /// </remarks>
+    /// <response code="200">Inicio del cuestionario registrado.</response>
+    /// <response code="400">Body inválido.</response>
+    /// <response code="401">Sesión requerida.</response>
+    [HttpPost("paciente/inicio")]
+    [ProducesResponseType(typeof(MessageResult), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ErrorResult), StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> InicioPaciente([FromBody] InicioCuestionarioVm vm, CancellationToken ct)
+    {
+        if (!ModelState.IsValid || vm.CuestionarioId <= 0)
+            return BadRequest(new { error = "Este campo es obligatorio" });
+
+        var ip = HttpContext.Connection.RemoteIpAddress?.ToString();
+        try
+        {
+            await cuestionario.RegistrarInicioPacienteAsync(ReadOptionalBearerToken(), vm.CuestionarioId, ip, ct);
+            return Ok(new { mensaje = "Inicio registrado" });
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            return Unauthorized(new { error = ex.Message });
+        }
+    }
+
+    /// <summary>Valida el 100%, calcula puntaje/nivel y guarda respuestas + resultado en el historial del paciente.</summary>
+    /// <remarks>
+    /// PB-11 HU1-PB11. Requiere sesión de paciente. El front envía TODAS las respuestas
+    /// (avance secuencial con Siguiente). Valida que cada pregunta tenga respuesta
+    /// ("Debes seleccionar una respuesta para continuar") y que cada opción pertenezca
+    /// a su pregunta. Puntaje = promedio de escala redondeado (1-2 bajo, 3 medio, 4-5 alto).
+    /// Persiste el evento en `eventos_bienestar` y cada respuesta en `respuestas` (historial,
+    /// reutilizado por PB-13) y guarda `CUESTIONARIO_PACIENTE_FIN` en `dbo.auth`.
+    ///
+    /// Respuestas:
+    /// - `200` — `{ "mensaje": "Cuestionario completado", "idEvento": ..., "cuestionarioId": ..., "puntaje": ..., "nivel": ..., "totalPreguntas": ..., "respondidas": ... }`
+    /// - `400` — `{ "error": "Debes seleccionar una respuesta para continuar" }` (falta alguna)
+    /// - `400` — `{ "error": "Este campo es obligatorio" }` (body inválido/vacío)
+    /// - `401` — sin sesión.
+    /// - `404` — `{ "error": "Cuestionario no disponible." }`
+    /// </remarks>
+    /// <response code="200">Cuestionario completado y guardado en historial.</response>
+    /// <response code="400">Faltan respuestas o body inválido.</response>
+    /// <response code="401">Sesión requerida.</response>
+    /// <response code="404">Cuestionario no publicado.</response>
+    [HttpPost("paciente/finalizar")]
+    [ProducesResponseType(typeof(FinalizarCuestionarioPacienteResult), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ErrorResult), StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> FinalizarPaciente([FromBody] FinalizarCuestionarioPacienteVm vm, CancellationToken ct)
+    {
+        if (!ModelState.IsValid || vm.CuestionarioId <= 0 || vm.Respuestas is null)
+            return BadRequest(new { error = "Este campo es obligatorio" });
+
+        var ip = HttpContext.Connection.RemoteIpAddress?.ToString();
+        try
+        {
+            var r = await cuestionario.FinalizarPacienteAsync(ReadOptionalBearerToken(), vm, ip, ct);
+            return Ok(new
+            {
+                mensaje = "Cuestionario completado",
+                idEvento = r.IdEvento,
+                cuestionarioId = r.CuestionarioId,
+                puntaje = r.Puntaje,
+                nivel = r.Nivel,
+                totalPreguntas = r.TotalPreguntas,
+                respondidas = r.Respondidas
+            });
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            return Unauthorized(new { error = ex.Message });
         }
         catch (InvalidOperationException ex) when (ex.Message == "Cuestionario no disponible.")
         {

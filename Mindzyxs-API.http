@@ -375,3 +375,46 @@ Content-Type: application/json
 {
   "correo": "paciente2@test.com"
 }
+
+### PB-11 cuestionario pendiente del paciente (HU1-PB11, rotación: excluye ya respondidos)
+GET {{Host}}/api/cuestionario/paciente/pendiente
+Authorization: Bearer <token-paciente>
+Accept: application/json
+
+### PB-11 registrar inicio del cuestionario del paciente (HU1-PB11, log en dbo.auth)
+POST {{Host}}/api/cuestionario/paciente/inicio
+Authorization: Bearer <token-paciente>
+Content-Type: application/json
+
+{
+  "cuestionarioId": 2
+}
+
+### PB-11 finalizar cuestionario del paciente al 100% (HU1-PB11, persiste respuestas + resultado en historial)
+POST {{Host}}/api/cuestionario/paciente/finalizar
+Authorization: Bearer <token-paciente>
+Content-Type: application/json
+
+{
+  "cuestionarioId": 2,
+  "respuestas": [
+    { "preguntaId": 4, "opcionId": 15 },
+    { "preguntaId": 5, "opcionId": 19 },
+    { "preguntaId": 6, "opcionId": 22 },
+    { "preguntaId": 7, "opcionId": 33 },
+    { "preguntaId": 8, "opcionId": 28 },
+    { "preguntaId": 9, "opcionId": 30 }
+  ]
+}
+
+### PB-11 finalizar incompleto - 400 (HU1-PB11)
+POST {{Host}}/api/cuestionario/paciente/finalizar
+Authorization: Bearer <token-paciente>
+Content-Type: application/json
+
+{
+  "cuestionarioId": 2,
+  "respuestas": [
+    { "preguntaId": 4, "opcionId": 13 }
+  ]
+}
