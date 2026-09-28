@@ -954,3 +954,32 @@ El front lo consulta cada minuto y dispara el aviso en el momento exacto program
 * Guardado registrado como `RECORDATORIO_CONFIG` en `dbo.auth`
 
 * Rama actual `PB15`, BD `SANTI/Mindzyxs` (DDL `Mindzyxs-BD/sql/17_recordatorios_frecuencia.sql`: `frecuencia VARCHAR(20) DEFAULT Diaria`).
+
+# Mindzyxs-API - Guía PB-10 (Editar perfil) + reanudar verificación
+
+Solo back-end. Edición de perfil con validaciones, cambio de correo con código y reanudación de registros inconclusos. Todo vive en `Controllers/AccountController.cs` (4 endpoints nuevos) → `Services/PerfilService.cs` + `Services/VerificationService.cs` → repositorios existentes (sin DDL) + `IAuthLogRepository`.
+
+## Endpoints PB-10 (HU1-PB10)
+
+| Método | Ruta | Descripción | Auth |
+|--------|------|-------------|------|
+| `PUT` | `/api/account/perfil` | Actualiza nombres/apellidos/fecha/género + log | Bearer |
+| `POST` | `/api/account/correo/solicitar` | Código al nuevo correo (409 si existe) | Bearer |
+| `POST` | `/api/account/correo/confirmar` | Valida código y cambia el correo + log | Bearer |
+| `POST` | `/api/account/verificacion/reanudar` | Si sigue pendiente, reenvía y avisa continuar | no |
+
+Validaciones perfil: obligatorios (`"Este campo es obligatorio"`), fecha no futura y mayor de 14 (`"Ingresa una fecha válida"` / `"Ingresa una edad válida"`), género existente (`"Selecciona un género válido"`). Correo: formato (`"Ingresa un correo válido"`), duplicado → 409 `"El correo ya se encuentra registrado"`, código con expiración de 15 min (410 `"El código expiró. Reenvía el código"`).
+
+Reanudar: `200 {"mensaje", "requiereVerificacion": true}` solo si sigue en `PendienteVerificacion`; si no, mensaje genérico sin revelar estados.
+
+## Mensajes exactos PB-10
+
+* `"Perfil actualizado correctamente"` (200) / `"Correo actualizado correctamente"` (200) / `"Código enviado"` (200)
+* `"El correo ya se encuentra registrado"` (409)
+* Logs `PERFIL_ACTUALIZADO`, `CORREO_SOLICITADO`, `CORREO_ACTUALIZADO` en `dbo.auth`
+
+## Nota: cookie de riesgo del invitado
+
+Sin cambios de back: `POST /api/cuestionario/invitado/finalizar` ya devuelve `{mensaje, cuestionarioId, puntaje, nivel, totalPreguntas, respondidas}` — el front guarda `puntaje/nivel` en la cookie de sesión del invitado y la reusa en PB-08. Si al reentrar no hay riesgo previo, es que el front no persistió esa respuesta.
+
+* Rama actual `PB10` (sin DDL).

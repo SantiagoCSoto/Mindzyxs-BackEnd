@@ -31,22 +31,20 @@ public class EfUserRepository(MindzyxsDbContext db) : IUserRepository
 
     public async Task<int> AddAsync(UsuarioDto user, CancellationToken ct = default)
     {
-        var row = new UsuarioRow
-        {
-            Nombre = user.Nombre.Trim(),
-            Apellido = user.Apellido.Trim(),
-            Correo = ContactHelper.Normalize(user.Correo),
-            PasswordHash = user.PasswordHash,
-            FechaNacimiento = user.FechaNacimiento,
-            IdRol = user.IdRol,
-            IdEstadoCuenta = user.IdEstadoCuenta,
-            IdEstadoAprobacion = user.IdEstadoAprobacion,
-            IdGenero = user.IdGenero,
-            FechaRegistro = DateTime.UtcNow
-        };
-        db.Usuarios.Add(row);
-        await db.SaveChangesAsync(ct);
-        return row.IdUsuario;
+        // Sin OUTPUT: dbo.usuarios tiene INSTEAD OF INSERT (TR_usuarios_PasswordSeguro)
+        // y SQL Server rechaza INSERT...OUTPUT con triggers (error 334).
+        var ids = await db.Database.SqlQueryRaw<int>(
+            "INSERT INTO dbo.usuarios (nombre, apellido, correo, password_hash, fecha_nacimiento, id_rol, id_estado_cuenta, id_estado_aprobacion, id_genero, fecha_registro) VALUES (@n, @a, @c, @p, @fn, @r, @ec, @ea, @g, SYSDATETIME()); SELECT CAST(SCOPE_IDENTITY() AS INT)",
+            new SqlParameter("@n", user.Nombre.Trim()),
+            new SqlParameter("@a", user.Apellido.Trim()),
+            new SqlParameter("@c", ContactHelper.Normalize(user.Correo)),
+            new SqlParameter("@p", user.PasswordHash),
+            new SqlParameter("@fn", (object?)user.FechaNacimiento ?? DBNull.Value),
+            new SqlParameter("@r", user.IdRol),
+            new SqlParameter("@ec", user.IdEstadoCuenta),
+            new SqlParameter("@ea", (object?)user.IdEstadoAprobacion ?? DBNull.Value),
+            new SqlParameter("@g", (object?)user.IdGenero ?? DBNull.Value)).ToListAsync(ct);
+        return ids.Single();
     }
 
     public async Task SetFilePathAsync(int idUsuario, string path, CancellationToken ct = default)
@@ -65,6 +63,20 @@ public class EfUserRepository(MindzyxsDbContext db) : IUserRepository
     public async Task UpdateUltimoAccesoAsync(int idUsuario, CancellationToken ct = default)
         => await db.Usuarios.Where(x => x.IdUsuario == idUsuario)
             .ExecuteUpdateAsync(s => s.SetProperty(x => x.UltimoAcceso, DateTime.UtcNow), ct);
+
+    // PB-10 HU1-PB10: actualiza nombres, apellidos, fecha de nacimiento y género.
+    public async Task ActualizarPerfilAsync(int idUsuario, string nombres, string apellidos, DateTime? fechaNacimiento, int? idGenero, CancellationToken ct = default)
+        => await db.Usuarios.Where(x => x.IdUsuario == idUsuario)
+            .ExecuteUpdateAsync(s => s
+                .SetProperty(x => x.Nombre, nombres)
+                .SetProperty(x => x.Apellido, apellidos)
+                .SetProperty(x => x.FechaNacimiento, fechaNacimiento)
+                .SetProperty(x => x.IdGenero, idGenero), ct);
+
+    // PB-10 HU1-PB10: cambia el correo (ya verificado por código).
+    public async Task ActualizarCorreoAsync(int idUsuario, string nuevoCorreo, CancellationToken ct = default)
+        => await db.Usuarios.Where(x => x.IdUsuario == idUsuario)
+            .ExecuteUpdateAsync(s => s.SetProperty(x => x.Correo, nuevoCorreo), ct);
 
     // Intento actualizar ultimo_acceso si existe; si no, no falla.
     public async Task<string?> GetRolNombreAsync(int idRol, CancellationToken ct = default)
@@ -121,17 +133,20 @@ public class EfCatalogRepository(MindzyxsDbContext db) : ICatalogRepository
 
 public class EfCodigoRepository(MindzyxsDbContext db) : ICodigoRepository
 {
+    // Sin OUTPUT: dbo.codigos_verificacion tiene AFTER INSERT (TR_codigos_ConsumoUnico)
+    // y SQL Server rechaza INSERT...OUTPUT con triggers (error 334).
     public async Task CrearAsync(int idUsuario, string codigo, string tipo, DateTime expiraEn, CancellationToken ct = default)
     {
-        db.Codigos.Add(new CodigoRow
-        {
-            IdUsuario = idUsuario,
-            Codigo = codigo,
-            Tipo = tipo,
-            ExpiraEn = expiraEn,
-            CreadoEn = DateTime.UtcNow
-        });
-        await db.SaveChangesAsync(ct);
+        await db.Database.ExecuteSqlRawAsync(
+            "INSERT INTO dbo.codigos_verificacion (id_usuario, codigo, tipo, expira_en, creado_en) VALUES (@u, @c, @t, @e, SYSDATETIME())",
+            new object[]
+            {
+                new SqlParameter("@u", idUsuario),
+                new SqlParameter("@c", codigo),
+                new SqlParameter("@t", tipo),
+                new SqlParameter("@e", expiraEn)
+            },
+            ct);
     }
 
     public async Task<mindzyxsCode?> UltimoAsync(int idUsuario, string tipo, CancellationToken ct = default)

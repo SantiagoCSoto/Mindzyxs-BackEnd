@@ -64,6 +64,7 @@ builder.Services.AddScoped<RecomendacionService>();
 builder.Services.AddScoped<HistorialService>();
 builder.Services.AddScoped<ProgresoService>();
 builder.Services.AddScoped<RecordatorioService>();
+builder.Services.AddScoped<PerfilService>();
 builder.Services.AddScoped<ChatService>();
 
 // Swagger: documentación interactiva en /swagger (Swagger UI) y spec en /swagger/v1/swagger.json.

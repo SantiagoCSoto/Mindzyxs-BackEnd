@@ -22,6 +22,7 @@ public static class VerificationTypes
 {
     public const string Registro = "Registro";
     public const string Recuperar = "Recuperar";
+    public const string CambioCorreo = "CambioCorreo";
 }
 
 public static class LogAcciones
@@ -80,4 +81,9 @@ public static class LogAcciones
 
     // PB-15 HU1-PB15: configuración de recordatorios.
     public const string RecordatorioConfig = "RECORDATORIO_CONFIG";
+
+    // PB-10 HU1-PB10: edición de perfil y cambio de correo.
+    public const string PerfilActualizado = "PERFIL_ACTUALIZADO";
+    public const string CorreoSolicitado = "CORREO_SOLICITADO";
+    public const string CorreoActualizado = "CORREO_ACTUALIZADO";
 }
