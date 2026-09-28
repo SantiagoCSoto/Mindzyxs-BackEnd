@@ -66,6 +66,11 @@ public static class LogAcciones
     // PB-08 HU1-PB8: cálculo y visualización del riesgo emocional del invitado.
     public const string RiesgoInvitadoCalculo = "RIESGO_INVITADO_CALCULO";
 
+    // PB-16 HU1-PB16: alerta de riesgo alto del paciente. Vista = generación y
+    // visualización del modal; Accion = lo elegido: líneas de ayuda, recomendaciones o entendido.
+    public const string AlertaRiesgoVista = "ALERTA_RIESGO_ALTO_VISTA";
+    public const string AlertaRiesgoAccion = "ALERTA_RIESGO_ALTO_ACCION";
+
     // PB-09 HU1-PB9: consulta de recomendaciones básicas del invitado (lista y detalle).
     public const string RecomendacionInvitadoConsulta = "RECOMENDACION_INVITADO_CONSULTA";
 
