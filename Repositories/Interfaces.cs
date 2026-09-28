@@ -13,6 +13,9 @@ public interface IUserRepository
     Task SetEstadoCuentaAsync(int idUsuario, int idEstado, CancellationToken ct = default);
     Task SetPasswordAsync(int idUsuario, string passwordHash, CancellationToken ct = default);
     Task UpdateUltimoAccesoAsync(int idUsuario, CancellationToken ct = default);
+    // PB-10 HU1-PB10: actualiza datos del perfil y correo (con verificación aparte).
+    Task ActualizarPerfilAsync(int idUsuario, string nombres, string apellidos, DateTime? fechaNacimiento, int? idGenero, CancellationToken ct = default);
+    Task ActualizarCorreoAsync(int idUsuario, string nuevoCorreo, CancellationToken ct = default);
     Task<string?> GetRolNombreAsync(int idRol, CancellationToken ct = default);
     Task<string?> GetEstadoCuentaNombreAsync(int idEstadoCuenta, CancellationToken ct = default);
 }

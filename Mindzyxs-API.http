@@ -336,3 +336,42 @@ Content-Type: application/json
 GET {{Host}}/api/recordatorios/hoy
 Authorization: Bearer <token-paciente>
 Accept: application/json
+
+### PB-10 actualizar perfil (HU1-PB10, requiere Bearer)
+PUT {{Host}}/api/account/perfil
+Authorization: Bearer <token-paciente>
+Content-Type: application/json
+
+{
+  "nombres": "Camila",
+  "apellidos": "Rojas Lopez",
+  "fechaNacimiento": "2002-05-10",
+  "idGenero": 2
+}
+
+### PB-10 solicitar cambio de correo (HU1-PB10, 409 si existe)
+POST {{Host}}/api/account/correo/solicitar
+Authorization: Bearer <token-paciente>
+Content-Type: application/json
+
+{
+  "nuevoCorreo": "camila.nueva@test.com"
+}
+
+### PB-10 confirmar cambio de correo (HU1-PB10, 410 si expiro)
+POST {{Host}}/api/account/correo/confirmar
+Authorization: Bearer <token-paciente>
+Content-Type: application/json
+
+{
+  "nuevoCorreo": "camila.nueva@test.com",
+  "codigo": "123456"
+}
+
+### PB-01 reanudar verificacion inconclusa (registro sin verificar)
+POST {{Host}}/api/account/verificacion/reanudar
+Content-Type: application/json
+
+{
+  "correo": "paciente2@test.com"
+}
