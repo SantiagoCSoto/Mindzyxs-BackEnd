@@ -983,3 +983,53 @@ Reanudar: `200 {"mensaje", "requiereVerificacion": true}` solo si sigue en `Pend
 Sin cambios de back: `POST /api/cuestionario/invitado/finalizar` ya devuelve `{mensaje, cuestionarioId, puntaje, nivel, totalPreguntas, respondidas}` — el front guarda `puntaje/nivel` en la cookie de sesión del invitado y la reusa en PB-08. Si al reentrar no hay riesgo previo, es que el front no persistió esa respuesta.
 
 * Rama actual `PB10` (sin DDL).
+
+# Mindzyxs-API - Guía PB-11 (Cuestionario emocional del paciente)
+
+API REST `Mindzyxs 1.1` - solo back-end. El paciente autenticado presiona **Responder cuestionario** (panel del paciente), el back le entrega un cuestionario pendiente (del mismo catálogo que el invitado: `Predeterminado` + `Publicado`, sin entregar los que el paciente ya respondió ni devolver nunca el mismo dos veces), valida que responda **el 100%** de las preguntas y al terminar **guarda las respuestas y el resultado en su historial** (`eventos_bienestar` + `respuestas`, los mismos que lee PB-13) y registra el inicio y la finalización en `dbo.auth`. Todo vive en `Controllers/CuestionarioController.cs` → `Services/CuestionarioService.cs` → `ICuestionarioRepository` + `IHistorialRepository` + `IAuthLogRepository`.
+
+## Endpoints PB-11 (HU1-PB11)
+
+| Método | Ruta | Descripción | Auth |
+|--------|------|-------------|------|
+| `GET`  | `/api/cuestionario/paciente/pendiente` | El siguiente cuestionario que el paciente aún no ha respondido | Bearer paciente |
+| `POST` | `/api/cuestionario/paciente/inicio` | Registrar inicio del cuestionario en `dbo.auth` | Bearer paciente |
+| `POST` | `/api/cuestionario/paciente/finalizar` | Validar 100%, calcular puntaje/nivel y guardar respuestas + resultado en el historial + log | Bearer paciente |
+
+### 9.1 `GET /api/cuestionario/paciente/pendiente` - el cuestionario que me toca responder
+
+```bash
+curl "http://localhost:5015/api/cuestionario/paciente/pendiente" -H "Authorization: Bearer <token>"
+```
+
+`200` con pendiente: `{ "disponible": true, "id": 1, "titulo": "Cuestionario Base Prueba", "avisoObligatorio": true, "preguntas": [{ "id": 1, "texto": "En las ultimas 2 semanas, me he sentido nervioso/a?", "orden": 1, "opciones": [{ "id": 1, "texto": "Nunca", "valor": 0, "orden": 1 }, ...] }] }`. Sin pendientes: `{ "disponible": false, "mensaje": "No tienes cuestionarios pendientes por responder." }`. Sin sesión → `401 "Sesión requerida"`.
+
+### 9.2 `POST /api/cuestionario/paciente/inicio` - registrar inicio
+
+```bash
+curl --location "http://localhost:5015/api/cuestionario/paciente/inicio" -H "Authorization: Bearer <token>" -H "Content-Type: application/json" -d "{\"cuestionarioId\":1}"
+```
+
+`200 {mensaje:"Inicio registrado"}` → log `CUESTIONARIO_PACIENTE_INICIO`. No bloquea la UI.
+
+### 9.3 `POST /api/cuestionario/paciente/finalizar` - validar 100% + guardar en historial
+
+El front envía TODAS las respuestas (avance secuencial con Siguiente + Finalizar). El back valida que cada pregunta tenga respuesta y que cada opción pertenezca a su pregunta, calcula `puntaje = promedio(valores de escala, redondeado)` y `nivel` (1-2 Bajo, 3 Medio, 4-5 Alto, helper compartido `CuestionarioService.CalcularPuntaje`), **inserta el evento en `eventos_bienestar` (tipo Cuestionario) y cada respuesta en `respuestas`** en una transacción, y registra `CUESTIONARIO_PACIENTE_FIN`. La fila queda visible en `GET /api/historial` (PB-13) para alertas, recomendaciones y seguimiento.
+
+```bash
+curl --location "http://localhost:5015/api/cuestionario/paciente/finalizar" -H "Authorization: Bearer <token>" -H "Content-Type: application/json" -d "{\"cuestionarioId\":1,\"respuestas\":[{\"preguntaId\":1,\"opcionId\":3}]}"
+```
+
+`200 {mensaje:"Cuestionario completado", idEvento, cuestionarioId, puntaje, nivel, totalPreguntas, respondidas}`.
+
+## Mensajes exactos PB-11
+
+* `"Cuestionario completado"` (200) / `"Inicio registrado"` (200) / `"Sesión requerida"` (401)
+* `"Debes seleccionar una respuesta para continuar"` (400) si falta alguna (todas son obligatorias)
+* `"La respuesta seleccionada no es válida"` (400) si la opción no pertenece a su pregunta
+* `"Cuestionario no disponible."` (404) si no está publicado
+* `"Este campo es obligatorio"` (400) si el body llega vacío/inválido
+* `"No tienes cuestionarios pendientes por responder."` (200 con `disponible:false`)
+* Logs `CUESTIONARIO_PACIENTE_INICIO` y `CUESTIONARIO_PACIENTE_FIN` en `dbo.auth`
+
+* Rama actual `PB11`, BD `SANTI/Mindzyxs` (seed `Minzyxs-DB/sql/03_seed_datos_prueba.sql`: cuestionario `Cuestionario Base Prueba`, Predeterminado/Publicado, 3 preguntas `opcion_multiple` 0-3). El resultado persiste con el seed de pruebas; el aviso aclaratorio (configurable) se sirve desde `GET /api/aviso` (PB-04) con `avisoObligatorio:true`.

@@ -86,3 +86,77 @@ public class FinalizarCuestionarioVm
 
 /// <summary>Resultado interno de la finalización (el controller agrega el mensaje).</summary>
 public record FinalizarCuestionarioResult(int CuestionarioId, int Puntaje, string Nivel, int TotalPreguntas, int Respondidas);
+
+/// <summary>Cuestionario pendiente para paciente: <c>GET /api/cuestionario/paciente/pendiente</c> (PB-11 HU1-PB11).</summary>
+public class CuestionarioPacienteDto
+{
+    /// <summary>Indica si hay un cuestionario pendiente (false = todos respondidos).</summary>
+    public bool Disponible { get; set; }
+
+    /// <summary>Mensaje cuando no hay pendientes ("No tienes cuestionarios pendientes por responder.").</summary>
+    public string? Mensaje { get; set; }
+
+    /// <summary>Id del cuestionario pendiente.</summary>
+    public int Id { get; set; }
+
+    /// <summary>Título del cuestionario (título de la pantalla Cuestionario emocional).</summary>
+    public string Titulo { get; set; } = "";
+
+    /// <summary>Descripción del cuestionario.</summary>
+    public string? Descripcion { get; set; }
+
+    /// <summary>Si el mensaje aclaratorio (no diagnóstico) es obligatorio antes de iniciar.</summary>
+    public bool AvisoObligatorio { get; set; } = true;
+
+    /// <summary>Preguntas ordenadas (todas obligatorias). El front las muestra una por una.</summary>
+    public List<PreguntaPacienteDto> Preguntas { get; set; } = [];
+
+    /// <summary>Indica si el cuestionario es adaptativo (preguntas adicionales por condición). Hoy no
+    /// hay soporte en BD: la estructura de preguntas es estática, el valor queda para el front.</summary>
+    public bool Adaptativo { get; set; }
+}
+
+/// <summary>Pregunta del cuestionario del paciente (siempre obligatoria).</summary>
+public class PreguntaPacienteDto
+{
+    /// <summary>Id de la pregunta.</summary>
+    public int Id { get; set; }
+
+    /// <summary>Texto de la pregunta.</summary>
+    public string Texto { get; set; } = "";
+
+    /// <summary>Orden de presentación.</summary>
+    public int Orden { get; set; }
+
+    /// <summary>Opciones de respuesta ordenadas (selección única).</summary>
+    public List<OpcionPacienteDto> Opciones { get; set; } = [];
+}
+
+/// <summary>Opción de respuesta de una pregunta del paciente.</summary>
+public class OpcionPacienteDto
+{
+    /// <summary>Id de la opción.</summary>
+    public int Id { get; set; }
+
+    /// <summary>Texto visible (ej. <c>A menudo</c>).</summary>
+    public string Texto { get; set; } = "";
+
+    /// <summary>Valor numérico para el puntaje.</summary>
+    public int Valor { get; set; }
+
+    /// <summary>Orden de presentación.</summary>
+    public int Orden { get; set; }
+}
+
+/// <summary>Finalización del cuestionario del paciente: <c>POST /api/cuestionario/paciente/finalizar</c>.</summary>
+public class FinalizarCuestionarioPacienteVm
+{
+    /// <summary>Id del cuestionario finalizado.</summary>
+    public int CuestionarioId { get; set; }
+
+    /// <summary>Todas las respuestas (debe estar el 100% para finalizar).</summary>
+    public List<RespuestaCuestionarioVm> Respuestas { get; set; } = [];
+}
+
+/// <summary>Resultado interno de la finalización del paciente (persistida en su historial).</summary>
+public record FinalizarCuestionarioPacienteResult(int IdEvento, int CuestionarioId, int Puntaje, string Nivel, int TotalPreguntas, int Respondidas);

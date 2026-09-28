@@ -55,6 +55,11 @@ public static class LogAcciones
     public const string CuestionarioInvitadoInicio = "CUESTIONARIO_INVITADO_INICIO";
     public const string CuestionarioInvitadoFin = "CUESTIONARIO_INVITADO_FIN";
 
+    // PB-11 HU1-PB11: cuestionario emocional del paciente autenticado (inicio y
+    // finalización con persistencia de respuestas y resultado en su historial).
+    public const string CuestionarioPacienteInicio = "CUESTIONARIO_PACIENTE_INICIO";
+    public const string CuestionarioPacienteFin = "CUESTIONARIO_PACIENTE_FIN";
+
     // PB-08 HU1-PB8: cálculo y visualización del riesgo emocional del invitado.
     public const string RiesgoInvitadoCalculo = "RIESGO_INVITADO_CALCULO";
 
