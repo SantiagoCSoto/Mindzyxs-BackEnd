@@ -77,7 +77,10 @@ public class CuestionarioService(
                 throw new InvalidOperationException("Debes seleccionar una respuesta para continuar");
             var op = opciones.FirstOrDefault(o => o.IdOpcion == opcionId && o.IdPregunta == p.IdPregunta);
             if (op is null) throw new InvalidOperationException("La respuesta seleccionada no es válida");
-            if (string.Equals(p.Tipo, "escala", StringComparison.OrdinalIgnoreCase))
+            // Escala: tipo 'escala' u 'opcion_multiple' con valores numéricos
+            // (el cuestionario 1 usa opcion_multiple). 'binaria' no entra.
+            if (string.Equals(p.Tipo, "escala", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(p.Tipo, "opcion_multiple", StringComparison.OrdinalIgnoreCase))
                 valoresEscala.Add(op.Valor);
         }
 
