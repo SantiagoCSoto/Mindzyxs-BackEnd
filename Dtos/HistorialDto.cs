@@ -63,3 +63,22 @@ public class HistorialDetalleDto : HistorialItemDto
     /// <summary>Apoyo del psicólogo (si hay).</summary>
     public List<HistorialObservacionDto> Observaciones { get; set; } = [];
 }
+
+/// <summary>Registro del estado emocional: <c>POST /api/historial</c> (PB-12 HU1-PB12).</summary>
+/// <remarks>
+/// El paciente selecciona su estado en la escala 1-5 (1 Muy mal / 2 Mal / 3 Regular /
+/// 4 Bien / 5 Excelente, según el mockup del PB) y puede escribir una nota opcional.
+/// La fecha y hora se asignan automáticamente al guardar. Sin escala → 400 con
+/// "Debes seleccionar un estado emocional para guardar".
+/// </remarks>
+public class RegistrarEstadoEmocionalVm
+{
+    /// <summary>Estado en la escala 1-5 (obligatorio).</summary>
+    public int? Puntaje { get; set; }
+
+    /// <summary>Nota breve opcional (cómo me sentí).</summary>
+    public string? Nota { get; set; }
+}
+
+/// <summary>Resultado de guardar el estado emocional (el controller agrega el mensaje).</summary>
+public record RegistroEmocionalCreadoResult(int IdEvento, DateTime Fecha, int Puntaje, string Nivel, string? Nota);

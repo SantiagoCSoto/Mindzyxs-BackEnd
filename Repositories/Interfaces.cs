@@ -71,6 +71,10 @@ public interface IHistorialRepository
     Task<int?> GetNivelIdAsync(string nombre, CancellationToken ct = default);
     Task<int?> GetTipoEventoIdAsync(string nombre, CancellationToken ct = default);
     Task<int> GuardarEventoCuestionarioAsync(int idPaciente, int idCuestionario, int idNivelRiesgo, int puntajeTotal, List<RespuestaRow> respuestas, CancellationToken ct = default);
+
+    // PB-12 HU1-PB12: guarda el registro del estado emocional del paciente
+    // (evento tipo RegistroEmocional) con fecha/hora automática y nota opcional.
+    Task<int> GuardarEstadoEmocionalAsync(int idPaciente, int idTipoEvento, int idNivelRiesgo, int puntaje, string? nota, DateTime fechaEvento, CancellationToken ct = default);
 }
 
 // PB-15: recordatorios del paciente (una config por paciente + días).

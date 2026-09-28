@@ -60,6 +60,9 @@ public static class LogAcciones
     public const string CuestionarioPacienteInicio = "CUESTIONARIO_PACIENTE_INICIO";
     public const string CuestionarioPacienteFin = "CUESTIONARIO_PACIENTE_FIN";
 
+    // PB-12 HU1-PB12: registro del estado emocional del paciente (escala 1-5 + nota opcional).
+    public const string RegistroEmocionalCreado = "REGISTRO_EMOCIONAL_CREADO";
+
     // PB-08 HU1-PB8: cálculo y visualización del riesgo emocional del invitado.
     public const string RiesgoInvitadoCalculo = "RIESGO_INVITADO_CALCULO";
 
