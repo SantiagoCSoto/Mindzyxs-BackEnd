@@ -371,6 +371,32 @@ public class AccountController(
         return Ok(new { mensaje = r.Message });
     }
 
+    /// <summary>Devuelve el perfil del usuario autenticado.</summary>
+    /// <remarks>
+    /// PB-10 HU1-PB10. Requiere sesión. Lee nombres, apellidos, fecha de
+    /// nacimiento, género y correo desde `dbo.usuarios`.
+    ///
+    /// Respuestas:
+    /// - `200` — `{ "nombres", "apellidos", "fechaNacimiento", "idGenero", "genero", "correo" }`
+    /// - `401` — sin sesión.
+    /// </remarks>
+    /// <response code="200">Perfil del usuario.</response>
+    /// <response code="401">Sesión requerida.</response>
+    [HttpGet("perfil")]
+    [ProducesResponseType(typeof(PerfilVm), StatusCodes.Status200OK)]
+    public async Task<IActionResult> ObtenerPerfil(CancellationToken ct)
+    {
+        try
+        {
+            var perfil = await perfil.ObtenerAsync(ReadBearerToken(), ct);
+            return Ok(perfil);
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            return Unauthorized(new { error = ex.Message });
+        }
+    }
+
     /// <summary>Actualiza nombres, apellidos, fecha de nacimiento y género.</summary>
     /// <remarks>
     /// PB-10 HU1-PB10. Requiere sesión. Valida obligatorios, fecha válida

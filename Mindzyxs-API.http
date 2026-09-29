@@ -337,6 +337,11 @@ GET {{Host}}/api/recordatorios/hoy
 Authorization: Bearer <token-paciente>
 Accept: application/json
 
+### PB-10 obtener perfil (HU1-PB10, requiere Bearer)
+GET {{Host}}/api/account/perfil
+Authorization: Bearer <token-paciente>
+Accept: application/json
+
 ### PB-10 actualizar perfil (HU1-PB10, requiere Bearer)
 PUT {{Host}}/api/account/perfil
 Authorization: Bearer <token-paciente>

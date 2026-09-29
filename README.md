@@ -963,6 +963,7 @@ Solo back-end. Edición de perfil con validaciones, cambio de correo con código
 
 | Método | Ruta | Descripción | Auth |
 |--------|------|-------------|------|
+| `GET` | `/api/account/perfil` | Devuelve nombres/apellidos/fecha/género/correo | Bearer |
 | `PUT` | `/api/account/perfil` | Actualiza nombres/apellidos/fecha/género + log | Bearer |
 | `POST` | `/api/account/correo/solicitar` | Código al nuevo correo (409 si existe) | Bearer |
 | `POST` | `/api/account/correo/confirmar` | Valida código y cambia el correo + log | Bearer |
