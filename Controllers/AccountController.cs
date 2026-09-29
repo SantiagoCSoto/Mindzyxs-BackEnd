@@ -388,8 +388,8 @@ public class AccountController(
     {
         try
         {
-            var perfil = await perfil.ObtenerAsync(ReadBearerToken(), ct);
-            return Ok(perfil);
+            var datos = await perfil.ObtenerAsync(ReadBearerToken(), ct);
+            return Ok(datos);
         }
         catch (UnauthorizedAccessException ex)
         {
