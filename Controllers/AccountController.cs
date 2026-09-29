@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using Mindzyxs_API.Dtos;
 using Mindzyxs_API.Services;
 
@@ -48,6 +49,7 @@ public class AccountController(
     /// <response code="201">Usuario creado; espera verificación de correo.</response>
     /// <response code="400">Datos inválidos u obligatorios faltantes.</response>
     /// <response code="409">El correo ya está registrado.</response>
+    [EnableRateLimiting("auth")]
     [HttpPost("register")]
     [Consumes("multipart/form-data")]
     [ProducesResponseType(typeof(RegisterResult), StatusCodes.Status201Created)]
@@ -85,6 +87,7 @@ public class AccountController(
     /// <response code="200">Código válido; la cuenta queda verificada.</response>
     /// <response code="400">Código incorrecto o datos inválidos.</response>
     /// <response code="410">El código expiró; reenviar.</response>
+    [EnableRateLimiting("codigos")]
     [HttpPost("verify")]
     [ProducesResponseType(typeof(VerifyResult), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ErrorResult), StatusCodes.Status400BadRequest)]
@@ -105,22 +108,19 @@ public class AccountController(
     /// <remarks>
     /// PB-01 HU4. Devuelve `200` aunque el correo no exista, para no revelar qué cuentas están registradas.
     /// Respuestas:
-    /// - `200` — `{ "mensaje": "Código reenviado" }`
+    /// - `200` — `{ "mensaje": "Código reenviado" }` o genérico anti-enumeración
     /// - `400` — `{ "error": "Ingresa un correo válido" }` / `{ "error": "Este campo es obligatorio" }`
-    /// - `404` — `{ "error": "No fue posible reenviar el código" }`
     /// </remarks>
-    /// <response code="200">Código reenviado.</response>
+    /// <response code="200">Código reenviado (o genérico).</response>
     /// <response code="400">Correo inválido u obligatorio.</response>
-    /// <response code="404">Cuenta en estado que no permite reenvío.</response>
+    [EnableRateLimiting("codigos")]
     [HttpPost("resend")]
     [ProducesResponseType(typeof(MessageResult), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ErrorResult), StatusCodes.Status400BadRequest)]
-    [ProducesResponseType(typeof(ErrorResult), StatusCodes.Status404NotFound)]
     public async Task<IActionResult> Resend([FromBody] ResendVm vm, CancellationToken ct)
     {
         if (!ModelState.IsValid) return BadRequest(new { error = "Este campo es obligatorio" });
         var r = await verification.ResendAsync(vm.Correo, ct);
-        if (!r.Success) return NotFound(new { error = r.Message });
         return Ok(new { mensaje = r.Message });
     }
 
@@ -142,6 +142,7 @@ public class AccountController(
     /// <response code="400">Datos de entrada inválidos.</response>
     /// <response code="401">Credenciales incorrectas.</response>
     /// <response code="403">Cuenta suspendida o pendiente de aprobación.</response>
+    [EnableRateLimiting("auth")]
     [HttpPost("login")]
     [ProducesResponseType(typeof(LoginResult), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ErrorResult), StatusCodes.Status400BadRequest)]
@@ -180,15 +181,6 @@ public class AccountController(
         });
     }
 
-    /// <summary>Eco de depuración del header Authorization recibido (no funcional en producción).</summary>
-    /// <remarks>
-    /// Devuelve el valor de `Authorization`, todos los headers y el token vía `?token=` para
-    /// diagnosticar problemas de autenticación en Postman/curl.
-    /// </remarks>
-    /// <response code="200">Información de depuración del request.</response>
-    [HttpGet("echo")]
-    [ProducesResponseType(typeof(object), StatusCodes.Status200OK)]
-    public IActionResult Echo() => Ok(new { auth = Request.Headers.Authorization.ToString(), allHeaders = Request.Headers.ToDictionary(h => h.Key, h => h.Value.ToString()), queryToken = Request.Query["token"].ToString() });
 
     /// <summary>Valida la sesión activa del token de sesión.</summary>
     /// <remarks>
@@ -245,26 +237,13 @@ public class AccountController(
         return Ok(new { mensaje = r.Message });
     }
 
-    /// <summary>Lee el token de sesión de forma robusta: Authorization Bearer &lt;token&gt;, sin prefijo, con comillas o minúsculas, o `?token=` para pruebas.</summary>
+    /// <summary>Lee el token solo de `Authorization: Bearer &lt;token&gt;` (sin query ni headers alternos).</summary>
     private string? ReadBearerToken()
     {
-        var authHeader = "";
-        if (Request.Headers.TryGetValue("Authorization", out var v1)) authHeader = v1.ToString();
-        if (string.IsNullOrWhiteSpace(authHeader) && Request.Headers.TryGetValue("authorization", out var v2)) authHeader = v2.ToString();
-        if (string.IsNullOrWhiteSpace(authHeader) && Request.Headers.TryGetValue("X-Auth-Token", out var v3)) authHeader = v3.ToString();
-
-        if (!string.IsNullOrWhiteSpace(authHeader))
-        {
-            // Permite "Bearer <token>", "<token>", "'<token>'", "\"<token>\""
-            var parts = authHeader.Trim().Split(' ', StringSplitOptions.RemoveEmptyEntries);
-            var token = parts.Length == 1 ? parts[0] : parts[^1];
-            return token.Trim().Trim('"').Trim('\'');
-        }
-
-        // También soporta ?token=xxx para pruebas rápidas
-        if (Request.Query.TryGetValue("token", out var q))
-            return q.ToString().Trim().Trim('"').Trim('\'');
-
+        if (!Request.Headers.TryGetValue("Authorization", out var v)) return null;
+        var authHeader = v.ToString().Trim();
+        if (authHeader.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase))
+            return authHeader["Bearer ".Length..].Trim().Trim('"').Trim('\'');
         return null;
     }
 
@@ -280,6 +259,7 @@ public class AccountController(
     /// </remarks>
     /// <response code="200">Código enviado (o respuesta genérica por seguridad).</response>
     /// <response code="400">Correo inválido u obligatorio.</response>
+    [EnableRateLimiting("auth")]
     [HttpPost("forgot")]
     [ProducesResponseType(typeof(MessageResult), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ErrorResult), StatusCodes.Status400BadRequest)]
@@ -307,6 +287,7 @@ public class AccountController(
     /// <response code="200">Código correcto; permite continuar a la nueva contraseña.</response>
     /// <response code="400">Código incorrecto o datos inválidos.</response>
     /// <response code="410">El código expiró; reenviar.</response>
+    [EnableRateLimiting("codigos")]
     [HttpPost("forgot/verify")]
     [ProducesResponseType(typeof(MessageResult), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ErrorResult), StatusCodes.Status400BadRequest)]
@@ -334,6 +315,7 @@ public class AccountController(
     /// <response code="200">Contraseña actualizada.</response>
     /// <response code="400">Código incorrecto, contraseña débil o datos inválidos.</response>
     /// <response code="410">El código expiró; reenviar.</response>
+    [EnableRateLimiting("auth")]
     [HttpPost("forgot/reset")]
     [ProducesResponseType(typeof(MessageResult), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ErrorResult), StatusCodes.Status400BadRequest)]
@@ -360,6 +342,7 @@ public class AccountController(
     /// </remarks>
     /// <response code="200">Código reenviado (respuesta genérica por seguridad).</response>
     /// <response code="400">Correo inválido u obligatorio.</response>
+    [EnableRateLimiting("auth")]
     [HttpPost("forgot/resend")]
     [ProducesResponseType(typeof(MessageResult), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ErrorResult), StatusCodes.Status400BadRequest)]
@@ -447,6 +430,7 @@ public class AccountController(
     /// <response code="400">Correo inválido.</response>
     /// <response code="401">Sesión requerida.</response>
     /// <response code="409">Correo duplicado.</response>
+    [EnableRateLimiting("codigos")]
     [HttpPost("correo/solicitar")]
     [ProducesResponseType(typeof(MessageResult), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ErrorResult), StatusCodes.Status400BadRequest)]
@@ -491,6 +475,7 @@ public class AccountController(
     /// <response code="401">Sesión requerida.</response>
     /// <response code="409">Correo duplicado.</response>
     /// <response code="410">Código expirado.</response>
+    [EnableRateLimiting("codigos")]
     [HttpPost("correo/confirmar")]
     [ProducesResponseType(typeof(MessageResult), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ErrorResult), StatusCodes.Status400BadRequest)]
@@ -532,6 +517,7 @@ public class AccountController(
     /// </remarks>
     /// <response code="200">Estado de verificación.</response>
     /// <response code="400">Correo inválido.</response>
+    [EnableRateLimiting("codigos")]
     [HttpPost("verificacion/reanudar")]
     [ProducesResponseType(typeof(MessageResult), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ErrorResult), StatusCodes.Status400BadRequest)]

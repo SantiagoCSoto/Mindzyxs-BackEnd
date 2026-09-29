@@ -88,7 +88,7 @@ Cada endpoint documenta las HUs que cubre, los mensajes exactos de error y los c
 
 **Probar un endpoint autenticado desde Swagger:**
 
-1. `POST /api/account/login` con las credenciales (ej. admin real de prueba `sankie453@gmail.com` / `abc123`).
+1. `POST /api/account/login` con las credenciales de tu usuario de prueba (ej. `admin@test.local` / `<tu-password>`).
 2. Copia el `token` de la respuesta.
 3. Click en **Authorize** (botón arriba a la derecha) y pega el token como `Bearer <token>` (el prefijo `Bearer ` se añade automáticamente por el esquema).
 4. Ejecuta el endpoint protegido (p.ej. `GET /api/account/me`, o `POST /api/admin/backup` para PB-27).

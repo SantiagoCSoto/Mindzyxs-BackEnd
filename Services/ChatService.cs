@@ -177,13 +177,22 @@ public class ChatService(
         {
             Id = r.Id,
             Nombre = r.Nombre,
-            Correo = r.Correo,
+            // Privacidad: el buscador muestra el correo enmascarado.
+            Correo = EnmascararCorreo(r.Correo),
             UltimoPuntaje = r.UltimoPuntaje,
             UltimoNivel = r.UltimoNivel,
             UltimaFecha = r.UltimaFecha,
             CuestionariosRespondidos = r.CuestionariosRespondidos,
             Psicologos = r.Psicologos
         }).ToList();
+    }
+
+    private static string EnmascararCorreo(string? correo)
+    {
+        if (string.IsNullOrWhiteSpace(correo)) return string.Empty;
+        var at = correo.IndexOf('@');
+        if (at <= 0) return "***";
+        return $"{correo[0]}***{correo[at..]}";
     }
 
     private static string? NormalizarNivelChat(string? nivel)

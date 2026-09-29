@@ -1,10 +1,12 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.OpenApi.Models;
 using Mindzyxs_API.Repositories;
 using Mindzyxs_API.Repositories.Models;
 using Mindzyxs_API.Services;
 using Mindzyxs_API.Utilities;
+using System.Threading.RateLimiting;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -21,7 +23,27 @@ builder.Services.AddControllers()
         };
     });
 builder.Services.AddProblemDetails();
-builder.Services.AddCors(o => o.AddDefaultPolicy(p => p.AllowAnyOrigin().AllowAnyHeader().AllowAnyMethod()));
+builder.Services.AddCors(o => o.AddDefaultPolicy(p => p
+    .WithOrigins("http://localhost:3000", "http://127.0.0.1:3000", "http://localhost:5500", "http://127.0.0.1:5500")
+    .AllowAnyHeader().AllowAnyMethod()));
+
+// Rate limiting: frena fuerza bruta en login/registro/recuperación y spam de códigos.
+builder.Services.AddRateLimiter(o =>
+{
+    o.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+    o.AddFixedWindowLimiter("auth", x =>
+    {
+        x.PermitLimit = 10;
+        x.Window = TimeSpan.FromMinutes(1);
+        x.QueueLimit = 0;
+    });
+    o.AddFixedWindowLimiter("codigos", x =>
+    {
+        x.PermitLimit = 5;
+        x.Window = TimeSpan.FromMinutes(1);
+        x.QueueLimit = 0;
+    });
+});
 
 // BD (todo el acceso vive en Repositories/Models + Ef*).
 builder.Services.AddDbContext<MindzyxsDbContext>(o =>
@@ -136,18 +158,25 @@ builder.Services.AddSwaggerGen(o =>
 
 var app = builder.Build();
 
-// Swagger UI siempre disponible: http://localhost:5015/swagger
-app.UseSwagger();
-app.UseSwaggerUI(o =>
+// Swagger UI solo en desarrollo: http://localhost:5015/swagger
+if (app.Environment.IsDevelopment())
 {
-    o.SwaggerEndpoint("/swagger/v1/swagger.json", "Mindzyxs API v1");
-    o.DocumentTitle = "Mindzyxs API — Documentación";
-    o.DisplayRequestDuration();
-});
+    app.UseSwagger();
+    app.UseSwaggerUI(o =>
+    {
+        o.SwaggerEndpoint("/swagger/v1/swagger.json", "Mindzyxs API v1");
+        o.DocumentTitle = "Mindzyxs API — Documentación";
+        o.DisplayRequestDuration();
+    });
+}
 
 app.UseCors();
-// Desactivado en dev para que Postman Agent no pierda Authorization en redirect http->https
-// app.UseHttpsRedirection();
+app.UseRateLimiter();
+if (!app.Environment.IsDevelopment())
+{
+    app.UseHttpsRedirection();
+    app.UseHsts();
+}
 app.UseAuthorization();
 app.MapControllers();
 app.Run();
