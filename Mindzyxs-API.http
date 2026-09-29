@@ -352,6 +352,11 @@ GET {{Host}}/api/cuestionario/paciente/asignados/1
 Authorization: Bearer <token-paciente>
 Accept: application/json
 
+### Directorio de psicólogos (requiere Bearer paciente)
+GET {{Host}}/api/psicologos
+Authorization: Bearer <token-paciente>
+Accept: application/json
+
 ### PB-10 actualizar perfil (HU1-PB10, requiere Bearer)
 PUT {{Host}}/api/account/perfil
 Authorization: Bearer <token-paciente>

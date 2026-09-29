@@ -137,6 +137,7 @@ Campos exactos `Dtos/AuthVm.cs:RegisterVm`:
 | `Correo` | string | → `400 "Este campo es obligatorio"` / `400 "Ingresa un correo válido"` / `409 "El correo ya se encuentra registrado"` |
 | `Password` | string | HU2 → `400 "La contraseña debe tener mínimo 6 caracteres e incluir al menos una letra y un número"` (`Utilities/SecurityHelper.cs:PasswordHelper`) |
 | `TarjetaProfesional` | `File` PDF ≤5MB | HU3 solo `Psicologo` → `400 "La tarjeta profesional es obligatoria para registrarse como psicólogo"` / `"El archivo debe estar en formato PDF"` / `"El archivo supera el tamaño máximo permitido de 5MB"` (`Utilities/FileHelper.cs` verifica `%PDF`, guarda en `Storage:TarjetasPath` + `dbo.usuarios.file_path`) |
+| `Especialidades` | int[] (de catalogos) | Solo `Psicologo` (una, varias o ninguna; vacío = ninguna) → `400 "Las especialidades son solo para psicólogos"` / `"Selecciona especialidades válidas"`. Se guarda en `dbo.psicologo_especialidades` |
 
 **JS front (fetch + FormData):**
 
@@ -150,6 +151,7 @@ fd.append("IdGenero", generoId);
 fd.append("Correo", correo);
 fd.append("Password", password);
 if (tipo === "Psicologo") fd.append("TarjetaProfesional", fileInput.files[0]);
+if (tipo === "Psicologo") especialidadesIds.forEach(id => fd.append("Especialidades", id)); // checklist: una, varias o ninguna
 
 const res = await fetch("http://localhost:5015/api/account/register", { method:"POST", body: fd });
 const data = await res.json();
@@ -274,6 +276,7 @@ Campos exactos `Dtos/AuthVm.cs:RegisterVm`:
 | `Correo` | string | → `400 "Este campo es obligatorio"` / `400 "Ingresa un correo válido"` / `409 "El correo ya se encuentra registrado"` |
 | `Password` | string | HU2 → `400 "La contraseña debe tener mínimo 6 caracteres e incluir al menos una letra y un número"` (`Utilities/SecurityHelper.cs:PasswordHelper`) |
 | `TarjetaProfesional` | `File` PDF ≤5MB | HU3 solo `Psicologo` → `400 "La tarjeta profesional es obligatoria para registrarse como psicólogo"` / `"El archivo debe estar en formato PDF"` / `"El archivo supera el tamaño máximo permitido de 5MB"` (`Utilities/FileHelper.cs` verifica `%PDF`, guarda en `Storage:TarjetasPath` + `dbo.usuarios.file_path`) |
+| `Especialidades` | int[] (de catalogos) | Solo `Psicologo` (una, varias o ninguna; vacío = ninguna) → `400 "Las especialidades son solo para psicólogos"` / `"Selecciona especialidades válidas"`. Se guarda en `dbo.psicologo_especialidades` |
 
 **JS front (fetch + FormData):**
 
@@ -287,6 +290,7 @@ fd.append("IdGenero", generoId);
 fd.append("Correo", correo);
 fd.append("Password", password);
 if (tipo === "Psicologo") fd.append("TarjetaProfesional", fileInput.files[0]);
+if (tipo === "Psicologo") especialidadesIds.forEach(id => fd.append("Especialidades", id)); // checklist: una, varias o ninguna
 
 const res = await fetch("http://localhost:5015/api/account/register", { method:"POST", body: fd });
 const data = await res.json();
@@ -870,6 +874,14 @@ Híbrido: **RTDB** para mensajes en vivo (`/conversaciones/{id}/meta|mensajes|pr
 | `POST` | `/api/chat/conversaciones/{id}/mensajes/aviso` | participante | Auditoría best-effort tras el `push()` a RTDB |
 
 Mensajes: 401 sin sesión; 403 bloqueado que no bloqueó; 404 inexistente; resto 400. Acciones `CHAT_SOLICITUD/ACEPTADO/RECHAZADO/BLOQUEO/DESBLOQUEO/MENSAJE` + `AUTORIZACION_OTORGADA` al aceptar. Nota: el envío entre psicólogo y paciente presupone además la autorización PB-17 (se integra en Sprint 4).
+
+### Directorio de psicólogos (solo pacientes)
+
+| Método | Ruta | Quién | Descripción |
+|--------|------|-------|-------------|
+| `GET` | `/api/psicologos` | paciente | Tarjetas con nombre, especialidades (vacía si ninguna) y pacientes asignados (autorizados) + log `DIRECTORIO_CONSULTA` |
+
+Respuestas: `200` — `[ { "id", "nombre", "especialidades": [], "pacientesAsignados": 0 } ]`; `401` — sin sesión; `403` — sin rol Paciente. Solo psicólogos con cuenta Activa y aprobada (o legacy sin aprobación).
 # Mindzyxs-API - Guía PB-13 (Historial emocional del paciente)
 
 API REST `Mindzyxs 1.1` - solo back-end. Lista del paciente ordenada por fecha (recientes primero) con filtro por rango, y detalle con nota propia ("Cómo me sentí"), respuestas del cuestionario y apoyo del psicólogo. Todo vive en `Controllers/HistorialController.cs` → `Services/HistorialService.cs` → `IHistorialRepository` + `IAuthLogRepository` (log en `dbo.auth`). Solo el dueño ve lo suyo (ajeno = 404).

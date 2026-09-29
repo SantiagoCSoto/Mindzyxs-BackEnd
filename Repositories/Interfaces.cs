@@ -18,15 +18,23 @@ public interface IUserRepository
     Task ActualizarCorreoAsync(int idUsuario, string nuevoCorreo, CancellationToken ct = default);
     Task<string?> GetRolNombreAsync(int idRol, CancellationToken ct = default);
     Task<string?> GetEstadoCuentaNombreAsync(int idEstadoCuenta, CancellationToken ct = default);
+    // PB-especialidades: reemplaza las especialidades del psicólogo (vacío = ninguna).
+    Task GuardarEspecialidadesAsync(int idPsicologo, List<int> idsEspecialidad, CancellationToken ct = default);
+    Task<List<PsicologoDirectorioRow>> GetDirectorioPsicologosAsync(int idRolPsicologo, int idEstadoActiva, int idEstadoAprobado, int idEstadoAutorizado, CancellationToken ct = default);
 }
+
+// PB-especialidades: directorio para pacientes (nombre, especialidades, pacientes asignados).
+public record PsicologoDirectorioRow(int Id, string Nombre, List<string> Especialidades, int PacientesAsignados);
 
 public interface ICatalogRepository
 {
     Task<List<CatalogItemDto>> GetTiposCuentaAsync(CancellationToken ct = default);
     Task<List<CatalogItemDto>> GetGenerosAsync(CancellationToken ct = default);
+    Task<List<CatalogItemDto>> GetEspecialidadesAsync(CancellationToken ct = default);
     Task<int> GetRolIdAsync(string nombre, CancellationToken ct = default);
     Task<int> GetEstadoIdAsync(string nombre, CancellationToken ct = default);
     Task<bool> ExisteGeneroAsync(int idGenero, CancellationToken ct = default);
+    Task<bool> ExisteEspecialidadAsync(int idEspecialidad, CancellationToken ct = default);
     Task<string?> GetRolNombreAsync(int idRol, CancellationToken ct = default);
     Task<string?> GetEstadoNombreAsync(int idEstado, CancellationToken ct = default);
 }

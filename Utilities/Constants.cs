@@ -95,6 +95,9 @@ public static class LogAcciones
     // PB-14 HU1-PB14: consulta del progreso de pacientes autorizados.
     public const string ProgresoConsulta = "PROGRESO_CONSULTA";
 
+    // Directorio de psicólogos para pacientes.
+    public const string DirectorioConsulta = "DIRECTORIO_CONSULTA";
+
     // PB-15 HU1-PB15: configuración de recordatorios.
     public const string RecordatorioConfig = "RECORDATORIO_CONFIG";
 
