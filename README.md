@@ -1000,6 +1000,8 @@ API REST `Mindzyxs 1.1` - solo back-end. El paciente autenticado presiona **Resp
 | `GET`  | `/api/cuestionario/paciente/pendiente` | El siguiente cuestionario que el paciente aún no ha respondido | Bearer paciente |
 | `POST` | `/api/cuestionario/paciente/inicio` | Registrar inicio del cuestionario en `dbo.auth` | Bearer paciente |
 | `POST` | `/api/cuestionario/paciente/finalizar` | Validar 100%, calcular puntaje/nivel y guardar respuestas + resultado en el historial + log | Bearer paciente |
+| `GET`  | `/api/cuestionario/paciente/asignados` | Cuestionarios asignados al paciente (`dbo.asignaciones_cuestionario`, recientes primero) + log | Bearer paciente |
+| `GET`  | `/api/cuestionario/paciente/asignados/{idAsignacion}` | Asignado completo (preguntas+opciones) para responderlo + log | Bearer paciente |
 
 ### 9.1 `GET /api/cuestionario/paciente/pendiente` - el cuestionario que me toca responder
 

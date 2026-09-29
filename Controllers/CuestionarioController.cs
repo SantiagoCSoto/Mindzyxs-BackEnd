@@ -15,6 +15,10 @@ namespace Mindzyxs_API.Controllers;
 /// Cuestionario emocional del paciente (PB-11 HU1-PB11): mismos catálogo y validaciones,
 /// pero requiere sesión de paciente y al finalizar PERSISTE las respuestas y el resultado
 /// en el historial del paciente (`eventos_bienestar` + `respuestas`, reutilizados por PB-13).
+///
+/// Asignados del paciente (PB-22): el paciente consulta sus filas de
+/// `dbo.asignaciones_cuestionario` (`GET paciente/asignados` + detalle) y las responde;
+/// finalizar acepta asignados y los marca Completada. El crear-asignación llega en sprint 4.
 /// </summary>
 [ApiController]
 [Route("api/[controller]")]
@@ -133,6 +137,64 @@ public class CuestionarioController(CuestionarioService cuestionario) : Controll
         catch (UnauthorizedAccessException ex)
         {
             return Unauthorized(new { error = ex.Message });
+        }
+    }
+
+    /// <summary>Devuelve los cuestionarios asignados al paciente (para consultar y responder).</summary>
+    /// <remarks>
+    /// PB-22. Requiere sesión de paciente. Lee `dbo.asignaciones_cuestionario`
+    /// (recientes primero). El crear-asignación llega en sprint 4.
+    ///
+    /// Respuestas:
+    /// - `200` — `[ { "idAsignacion", "idCuestionario", "titulo", "tipo", "fechaAsignacion", "fechaLimite", "estado" } ]` (vacía si no hay)
+    /// - `401` — sin sesión.
+    /// </remarks>
+    /// <response code="200">Asignaciones del paciente.</response>
+    /// <response code="401">Sesión requerida.</response>
+    [HttpGet("paciente/asignados")]
+    [ProducesResponseType(typeof(List<CuestionarioAsignadoDto>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> AsignadosPaciente(CancellationToken ct)
+    {
+        try
+        {
+            var ip = HttpContext.Connection.RemoteIpAddress?.ToString();
+            return Ok(await cuestionario.ObtenerAsignadosPacienteAsync(ReadOptionalBearerToken(), ip, ct));
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            return Unauthorized(new { error = ex.Message });
+        }
+    }
+
+    /// <summary>Devuelve un cuestionario asignado completo (preguntas+opciones) para responderlo.</summary>
+    /// <remarks>
+    /// PB-22. Requiere sesión de paciente dueño de la asignación.
+    ///
+    /// Respuestas:
+    /// - `200` — `{ "disponible": true, "id", "titulo", "avisoObligatorio": true, "preguntas": [...] }`
+    /// - `401` — sin sesión.
+    /// - `404` — `{ "error": "Asignación no encontrada." }`
+    /// </remarks>
+    /// <response code="200">Cuestionario asignado completo.</response>
+    /// <response code="401">Sesión requerida.</response>
+    /// <response code="404">Asignación no encontrada.</response>
+    [HttpGet("paciente/asignados/{idAsignacion:int}")]
+    [ProducesResponseType(typeof(CuestionarioPacienteDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ErrorResult), StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> AsignadoDetallePaciente(int idAsignacion, CancellationToken ct)
+    {
+        try
+        {
+            var ip = HttpContext.Connection.RemoteIpAddress?.ToString();
+            return Ok(await cuestionario.ObtenerAsignadoDetalleAsync(ReadOptionalBearerToken(), idAsignacion, ip, ct));
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            return Unauthorized(new { error = ex.Message });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return NotFound(new { error = ex.Message });
         }
     }
 
