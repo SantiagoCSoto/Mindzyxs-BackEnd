@@ -15,6 +15,8 @@ public class MindzyxsDbContext(DbContextOptions<MindzyxsDbContext> options) : Db
     public DbSet<RespaldoRow> Respaldos => Set<RespaldoRow>();
     public DbSet<CuestionarioRow> Cuestionarios => Set<CuestionarioRow>();
     public DbSet<AsignacionRow> Asignaciones => Set<AsignacionRow>();
+    public DbSet<EspecialidadRow> Especialidades => Set<EspecialidadRow>();
+    public DbSet<PsicologoEspecialidadRow> PsicologoEspecialidades => Set<PsicologoEspecialidadRow>();
     public DbSet<PreguntaRow> Preguntas => Set<PreguntaRow>();
     public DbSet<OpcionPreguntaRow> OpcionesPregunta => Set<OpcionPreguntaRow>();
     public DbSet<LineaAyudaRow> LineasAyuda => Set<LineaAyudaRow>();
@@ -126,6 +128,19 @@ public class MindzyxsDbContext(DbContextOptions<MindzyxsDbContext> options) : Db
             e.Property(x => x.FechaAsignacion).HasColumnName("fecha_asignacion");
             e.Property(x => x.FechaLimite).HasColumnName("fecha_limite");
             e.Property(x => x.Estado).HasColumnName("estado").HasMaxLength(20).IsUnicode(false);
+        });
+        b.Entity<EspecialidadRow>(e =>
+        {
+            e.ToTable("especialidades", "dbo").HasKey(x => x.IdEspecialidad);
+            e.Property(x => x.IdEspecialidad).HasColumnName("id_especialidad");
+            e.Property(x => x.Nombre).HasColumnName("nombre").HasMaxLength(100).IsUnicode(false);
+            e.Property(x => x.Descripcion).HasColumnName("descripcion").HasMaxLength(255).IsUnicode(false);
+        });
+        b.Entity<PsicologoEspecialidadRow>(e =>
+        {
+            e.ToTable("psicologo_especialidades", "dbo").HasKey(x => new { x.IdPsicologo, x.IdEspecialidad });
+            e.Property(x => x.IdPsicologo).HasColumnName("id_psicologo");
+            e.Property(x => x.IdEspecialidad).HasColumnName("id_especialidad");
         });
         b.Entity<PreguntaRow>(e =>
         {

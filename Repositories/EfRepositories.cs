@@ -78,6 +78,43 @@ public class EfUserRepository(MindzyxsDbContext db) : IUserRepository
         => await db.Usuarios.Where(x => x.IdUsuario == idUsuario)
             .ExecuteUpdateAsync(s => s.SetProperty(x => x.Correo, nuevoCorreo), ct);
 
+    // PB-especialidades: reemplaza las especialidades del psicólogo (vacío = ninguna).
+    public async Task GuardarEspecialidadesAsync(int idPsicologo, List<int> idsEspecialidad, CancellationToken ct = default)
+    {
+        var actuales = db.PsicologoEspecialidades.Where(p => p.IdPsicologo == idPsicologo);
+        db.PsicologoEspecialidades.RemoveRange(actuales);
+        foreach (var id in idsEspecialidad.Distinct())
+            db.PsicologoEspecialidades.Add(new PsicologoEspecialidadRow { IdPsicologo = idPsicologo, IdEspecialidad = id });
+        await db.SaveChangesAsync(ct);
+    }
+
+    // PB-especialidades: directorio para pacientes (activas y aprobadas, con conteo de asignados).
+    public async Task<List<PsicologoDirectorioRow>> GetDirectorioPsicologosAsync(int idRolPsicologo, int idEstadoActiva, int idEstadoAprobado, int idEstadoAutorizado, CancellationToken ct = default)
+    {
+        var psicos = await db.Usuarios.AsNoTracking()
+            .Where(u => u.IdRol == idRolPsicologo && u.IdEstadoCuenta == idEstadoActiva
+                && (u.IdEstadoAprobacion == null || u.IdEstadoAprobacion == idEstadoAprobado))
+            .OrderBy(u => u.Nombre).ThenBy(u => u.Apellido)
+            .Select(u => new { u.IdUsuario, u.Nombre, u.Apellido })
+            .ToListAsync(ct);
+        if (psicos.Count == 0) return [];
+        var ids = psicos.Select(p => p.IdUsuario).ToList();
+        var esp = await (from pe in db.PsicologoEspecialidades.AsNoTracking()
+                         join e in db.Especialidades.AsNoTracking() on pe.IdEspecialidad equals e.IdEspecialidad
+                         where ids.Contains(pe.IdPsicologo)
+                         select new { pe.IdPsicologo, e.Nombre }).ToListAsync(ct);
+        var conteos = await db.Autorizaciones.AsNoTracking()
+            .Where(a => ids.Contains(a.IdPsicologo) && a.IdEstado == idEstadoAutorizado)
+            .GroupBy(a => a.IdPsicologo)
+            .Select(g => new { Id = g.Key, N = g.Select(a => a.IdPaciente).Distinct().Count() })
+            .ToListAsync(ct);
+        return psicos.Select(p => new PsicologoDirectorioRow(
+            p.IdUsuario,
+            $"{p.Nombre} {p.Apellido}".Trim(),
+            esp.Where(x => x.IdPsicologo == p.IdUsuario).Select(x => x.Nombre).ToList(),
+            conteos.FirstOrDefault(x => x.Id == p.IdUsuario)?.N ?? 0)).ToList();
+    }
+
     // Intento actualizar ultimo_acceso si existe; si no, no falla.
     public async Task<string?> GetRolNombreAsync(int idRol, CancellationToken ct = default)
         => await db.Roles.Where(r => r.IdRol == idRol).Select(r => r.Nombre).FirstOrDefaultAsync(ct);
@@ -123,6 +160,15 @@ public class EfCatalogRepository(MindzyxsDbContext db) : ICatalogRepository
 
     public async Task<bool> ExisteGeneroAsync(int idGenero, CancellationToken ct = default)
         => await db.Generos.AnyAsync(g => g.IdGenero == idGenero, ct);
+
+    // PB-especialidades: checklist para el registro del psicólogo.
+    public async Task<List<CatalogItemDto>> GetEspecialidadesAsync(CancellationToken ct = default)
+        => await db.Especialidades.AsNoTracking().OrderBy(e => e.Nombre)
+            .Select(e => new CatalogItemDto { Id = e.IdEspecialidad, Codigo = e.Nombre, Nombre = e.Nombre })
+            .ToListAsync(ct);
+
+    public async Task<bool> ExisteEspecialidadAsync(int idEspecialidad, CancellationToken ct = default)
+        => await db.Especialidades.AnyAsync(e => e.IdEspecialidad == idEspecialidad, ct);
 
     public async Task<string?> GetRolNombreAsync(int idRol, CancellationToken ct = default)
         => await db.Roles.Where(r => r.IdRol == idRol).Select(r => r.Nombre).FirstOrDefaultAsync(ct);

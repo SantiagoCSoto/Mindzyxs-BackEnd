@@ -101,6 +101,22 @@ public class AsignacionRow
     public string Estado { get; set; } = string.Empty;
 }
 
+// PB-especialidades: dbo.especialidades (checklist de 100) +
+// dbo.psicologo_especialidades (una, varias o ninguna por psicólogo).
+public class EspecialidadRow
+{
+    public int IdEspecialidad { get; set; }
+    public string Nombre { get; set; } = string.Empty;
+    public string? Descripcion { get; set; }
+}
+
+/// <summary>Fila de <c>dbo.psicologo_especialidades</c> (PK compuesta).</summary>
+public class PsicologoEspecialidadRow
+{
+    public int IdPsicologo { get; set; }
+    public int IdEspecialidad { get; set; }
+}
+
 // PB-07: dbo.preguntas. Todas son siempre obligatorias (sin flag).
 // tipo: 'escala' (entra al promedio de puntaje) u otros ('binaria', 'opcion_multiple').
 public class PreguntaRow
