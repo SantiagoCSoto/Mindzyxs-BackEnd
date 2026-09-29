@@ -16,6 +16,28 @@ public class ActualizarPerfilVm
     public int? IdGenero { get; set; }
 }
 
+/// <summary>Perfil del usuario autenticado: <c>GET /api/account/perfil</c> (PB-10 HU1-PB10).</summary>
+public class PerfilVm
+{
+    /// <summary>Nombres del usuario.</summary>
+    public string Nombres { get; set; } = string.Empty;
+
+    /// <summary>Apellidos del usuario.</summary>
+    public string Apellidos { get; set; } = string.Empty;
+
+    /// <summary>Fecha de nacimiento (puede ser nula).</summary>
+    public DateTime? FechaNacimiento { get; set; }
+
+    /// <summary>Id del género (puede ser nulo).</summary>
+    public int? IdGenero { get; set; }
+
+    /// <summary>Nombre del género (puede ser nulo).</summary>
+    public string? Genero { get; set; }
+
+    /// <summary>Correo electrónico actual.</summary>
+    public string Correo { get; set; } = string.Empty;
+}
+
 /// <summary>Solicitar cambio de correo: <c>POST /api/account/correo/solicitar</c>.</summary>
 public class SolicitarCambioCorreoVm
 {

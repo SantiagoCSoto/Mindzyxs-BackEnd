@@ -15,6 +15,28 @@ public class PerfilService(
     IEmailSender email,
     IOptions<RegistroOptions> registroOptions)
 {
+    // PB-10 HU1-PB10: devuelve el perfil del usuario autenticado (nombres,
+    // apellidos, fecha de nacimiento, género y correo) desde dbo.usuarios.
+    public async Task<PerfilVm> ObtenerAsync(string? tokenRaw, CancellationToken ct = default)
+    {
+        var yo = await RequireSesionAsync(tokenRaw, ct);
+        string? genero = null;
+        if (yo.IdGenero.HasValue)
+        {
+            var generos = await catalogs.GetGenerosAsync(ct);
+            genero = generos.FirstOrDefault(g => g.Id == yo.IdGenero.Value)?.Nombre;
+        }
+        return new PerfilVm
+        {
+            Nombres = yo.Nombre,
+            Apellidos = yo.Apellido,
+            FechaNacimiento = yo.FechaNacimiento,
+            IdGenero = yo.IdGenero,
+            Genero = genero,
+            Correo = yo.Correo
+        };
+    }
+
     // PB-10 HU1-PB10: actualiza nombres, apellidos, fecha de nacimiento y género.
     // Valida obligatorios, fecha válida (no futura, mayor de 14) y género existente.
     // Lanza InvalidOperationException con el mensaje exacto para el 400.
