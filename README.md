@@ -781,6 +781,8 @@ curl http://localhost:5015/api/ayuda/lineas
 
 `200`: `[ { "id": 1, "nombre": "Línea Prueba 123", "telefono": "123", "url": "...", "horario": ..., "cobertura": ..., "descripcion": ... } ]`. El contenido real lo administra el admin (PB-29).
 
+> **Diseño futuro (decisión de producto): el cálculo de riesgo NO es fijo.** Hoy está quemado en `Services/CuestionarioService.cs` (promedio 1-5: ≤2 Bajo, 3 Medio, ≥4 Alto). A futuro el psicólogo debe poder elegir la escala (rango, ej. 1-4/1-5/1-10) y cómo se calcula el riesgo (umbrales por nivel, por cuestionario). No quemar más umbrales en código: toda lógica nueva de riesgo debe salir de configuración (BD), no de constantes.
+
 ## Mensajes exactos PB-08
 
 * `"No se encontraron respuestas para calcular el riesgo. Por favor responde el cuestionario nuevamente"` (400; el front redirige al panel/cuestionario)
