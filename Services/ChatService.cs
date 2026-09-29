@@ -11,6 +11,7 @@ public class ChatService(
     ICatalogRepository catalogos,
     ISesionRepository sesiones,
     IAuthLogRepository authLogs,
+    IHistorialRepository historial,
     FirebaseService firebase)
 {
     // PB-31: mis conversaciones (paciente ve las suyas, psicólogo las suyas).
@@ -74,7 +75,8 @@ public class ChatService(
         return await ToDtoAsync(row.IdConversacion, yo.IdUsuario, ct);
     }
 
-    // PB-31: el paciente acepta/rechaza su solicitud pendiente. Al aceptar se escribe el meta en RTDB.
+    // PB-31: el paciente acepta/rechaza su solicitud pendiente. Al aceptar se escribe el meta en RTDB
+    // y se otorga autorización al psicólogo (aceptar el chat cuenta como autorizarlo).
     public async Task<ConversacionDto> ResponderAsync(string? tokenRaw, int idConversacion, bool aceptar, string? ip, CancellationToken ct = default)
     {
         var yo = await RequireSesionAsync(tokenRaw, ct);
@@ -87,7 +89,16 @@ public class ChatService(
 
         await chats.SetEstadoAsync(idConversacion, aceptar ? "Aceptada" : "Rechazada", null, ct);
         if (aceptar)
+        {
             await firebase.WriteMetaAsync(idConversacion, c.IdPaciente, c.IdPsicologo, "Aceptada", null, ct);
+            var idAut = await historial.GetEstadoIdAsync("Autorizado", ct);
+            if (idAut.HasValue)
+            {
+                await historial.AsegurarAutorizacionAsync(c.IdPaciente, c.IdPsicologo, idAut.Value, ct);
+                await authLogs.LogAsync(yo.IdUsuario, c.IdPsicologo, LogAcciones.AutorizacionOtorgada,
+                    $"Paciente:{yo.IdUsuario} autorizó al psicólogo:{c.IdPsicologo} al aceptar el chat (conversación {idConversacion})", ip, ct);
+            }
+        }
 
         await authLogs.LogAsync(yo.IdUsuario, c.IdPsicologo,
             aceptar ? LogAcciones.ChatAceptado : LogAcciones.ChatRechazado,

@@ -82,6 +82,9 @@ public static class LogAcciones
     public const string ChatDesbloqueo = "CHAT_DESBLOQUEO";
     public const string ChatMensaje = "CHAT_MENSAJE";
 
+    // PB-31: aceptar el chat otorga autorización al psicólogo.
+    public const string AutorizacionOtorgada = "AUTORIZACION_OTORGADA";
+
     // Corrección BD: acciones registradas por triggers (ver sql/10_triggers_auth.sql).
     public const string CambioEstadoCuenta = "CAMBIO_ESTADO_CUENTA";
     public const string SesionCreada = "SESION_CREADA";
