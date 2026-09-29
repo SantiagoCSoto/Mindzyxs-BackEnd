@@ -283,6 +283,30 @@ public class EfHistorialRepository(MindzyxsDbContext db) : IHistorialRepository
             .Where(a => a.IdPaciente == idPaciente && a.IdPsicologo == idPsicologo && a.IdEstado == idEstadoAutorizado)
             .AnyAsync(ct);
 
+    // PB-31: aceptar el chat otorga autorización (upsert a Autorizado).
+    public async Task AsegurarAutorizacionAsync(int idPaciente, int idPsicologo, int idEstadoAutorizado, CancellationToken ct = default)
+    {
+        var existente = await db.Autorizaciones
+            .FirstOrDefaultAsync(a => a.IdPaciente == idPaciente && a.IdPsicologo == idPsicologo, ct);
+        if (existente is null)
+        {
+            db.Autorizaciones.Add(new AutorizacionRow
+            {
+                IdPaciente = idPaciente,
+                IdPsicologo = idPsicologo,
+                IdEstado = idEstadoAutorizado,
+                FechaSolicitud = DateTime.UtcNow,
+                FechaRespuesta = DateTime.UtcNow
+            });
+        }
+        else
+        {
+            existente.IdEstado = idEstadoAutorizado;
+            existente.FechaRespuesta = DateTime.UtcNow;
+        }
+        await db.SaveChangesAsync(ct);
+    }
+
     public async Task<int?> GetEstadoIdAsync(string nombre, CancellationToken ct = default)
         => await db.Estados.AsNoTracking()
             .Where(e => e.Nombre == nombre)

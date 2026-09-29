@@ -63,6 +63,7 @@ public interface IHistorialRepository
     Task<Dictionary<int, string>> GetCuestionariosTituloAsync(List<int> ids, CancellationToken ct = default);
     Task<List<UsuarioDto>> GetPacientesAutorizadosAsync(int idPsicologo, int idEstadoAutorizado, CancellationToken ct = default);
     Task<bool> EstaAutorizadoAsync(int idPaciente, int idPsicologo, int idEstadoAutorizado, CancellationToken ct = default);
+    Task AsegurarAutorizacionAsync(int idPaciente, int idPsicologo, int idEstadoAutorizado, CancellationToken ct = default);
     Task<int?> GetEstadoIdAsync(string nombre, CancellationToken ct = default);
 
     // PB-11 HU1-PB11: escritura del resultado de un cuestionario en el historial del

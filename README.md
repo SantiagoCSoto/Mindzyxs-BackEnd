@@ -864,12 +864,12 @@ Híbrido: **RTDB** para mensajes en vivo (`/conversaciones/{id}/meta|mensajes|pr
 | `GET` | `/api/chat/conversaciones` | sesión | Propias (pendientes = notificaciones internas) |
 | `GET` | `/api/chat/pacientes?q=&nivel=&minCuestionarios=&tienePsicologo=` | psicólogo | Buscador multifiltro (nombre opcional, exige ≥1) con último riesgo + conteos |
 | `POST` | `/api/chat/solicitudes {idPaciente}` | psicólogo aprobado/activo | Ofrece chat (reactiva Rechazada/Cerrada) |
-| `POST` | `/api/chat/solicitudes/{id}/aceptar\|rechazar` | paciente dueño | Aceptar escribe `meta` Aceptada en RTDB |
+| `POST` | `/api/chat/solicitudes/{id}/aceptar\|rechazar` | paciente dueño | Aceptar escribe `meta` Aceptada en RTDB **y otorga autorización al psicólogo** (aceptar el chat cuenta como autorizarlo); rechazar no toca la autorización |
 | `POST` | `/api/chat/conversaciones/{id}/bloqueo` | paciente dueño | Bloquea (meta Bloqueada); bloqueado → 403 + aviso |
 | `DELETE` | `/api/chat/conversaciones/{id}/bloqueo` | paciente que bloqueó | Desbloquea (vuelve a Aceptada) |
 | `POST` | `/api/chat/conversaciones/{id}/mensajes/aviso` | participante | Auditoría best-effort tras el `push()` a RTDB |
 
-Mensajes: 401 sin sesión; 403 bloqueado que no bloqueó; 404 inexistente; resto 400. Acciones `CHAT_SOLICITUD/ACEPTADO/RECHAZADO/BLOQUEO/DESBLOQUEO/MENSAJE`. Nota: el envío entre psicólogo y paciente presupone además la autorización PB-17 (se integra en Sprint 4).
+Mensajes: 401 sin sesión; 403 bloqueado que no bloqueó; 404 inexistente; resto 400. Acciones `CHAT_SOLICITUD/ACEPTADO/RECHAZADO/BLOQUEO/DESBLOQUEO/MENSAJE` + `AUTORIZACION_OTORGADA` al aceptar. Nota: el envío entre psicólogo y paciente presupone además la autorización PB-17 (se integra en Sprint 4).
 # Mindzyxs-API - Guía PB-13 (Historial emocional del paciente)
 
 API REST `Mindzyxs 1.1` - solo back-end. Lista del paciente ordenada por fecha (recientes primero) con filtro por rango, y detalle con nota propia ("Cómo me sentí"), respuestas del cuestionario y apoyo del psicólogo. Todo vive en `Controllers/HistorialController.cs` → `Services/HistorialService.cs` → `IHistorialRepository` + `IAuthLogRepository` (log en `dbo.auth`). Solo el dueño ve lo suyo (ajeno = 404).
