@@ -163,8 +163,9 @@ public class CuestionarioService(
     {
         var yo = await RequirePacienteAsync(tokenRaw, ct);
         var c = await cuestionarios.FindPublicadoInvitadoAsync(vm.CuestionarioId, ct);
-        // PB-22: también vale un cuestionario asignado al paciente (cualquier tipo/estado publicado por su psicólogo).
-        var asignacion = c is null ? await cuestionarios.FindAsignacionPendienteAsync(yo.IdUsuario, vm.CuestionarioId, ct) : null;
+        // PB-22: si el paciente tiene asignación pendiente de este cuestionario (sea o no
+        // publicado), finalizar la marca Completada.
+        var asignacion = await cuestionarios.FindAsignacionPendienteAsync(yo.IdUsuario, vm.CuestionarioId, ct);
         if (c is null && asignacion is null) throw new InvalidOperationException("Cuestionario no disponible.");
         var idCuestionario = c?.IdCuestionario ?? asignacion!.IdCuestionario;
         var titulo = c?.Titulo ?? asignacion!.TituloCuestionario;
