@@ -342,6 +342,16 @@ GET {{Host}}/api/account/perfil
 Authorization: Bearer <token-paciente>
 Accept: application/json
 
+### PB-22 asignados del paciente (requiere Bearer paciente)
+GET {{Host}}/api/cuestionario/paciente/asignados
+Authorization: Bearer <token-paciente>
+Accept: application/json
+
+### PB-22 detalle de un asignado (requiere Bearer paciente dueño)
+GET {{Host}}/api/cuestionario/paciente/asignados/1
+Authorization: Bearer <token-paciente>
+Accept: application/json
+
 ### PB-10 actualizar perfil (HU1-PB10, requiere Bearer)
 PUT {{Host}}/api/account/perfil
 Authorization: Bearer <token-paciente>

@@ -163,9 +163,13 @@ public class CuestionarioService(
     {
         var yo = await RequirePacienteAsync(tokenRaw, ct);
         var c = await cuestionarios.FindPublicadoInvitadoAsync(vm.CuestionarioId, ct);
-        if (c is null) throw new InvalidOperationException("Cuestionario no disponible.");
+        // PB-22: también vale un cuestionario asignado al paciente (cualquier tipo/estado publicado por su psicólogo).
+        var asignacion = c is null ? await cuestionarios.FindAsignacionPendienteAsync(yo.IdUsuario, vm.CuestionarioId, ct) : null;
+        if (c is null && asignacion is null) throw new InvalidOperationException("Cuestionario no disponible.");
+        var idCuestionario = c?.IdCuestionario ?? asignacion!.IdCuestionario;
+        var titulo = c?.Titulo ?? asignacion!.TituloCuestionario;
 
-        var (preguntas, opciones) = await cuestionarios.GetCompletoAsync(c.IdCuestionario, ct);
+        var (preguntas, opciones) = await cuestionarios.GetCompletoAsync(idCuestionario, ct);
         var porPregunta = vm.Respuestas.GroupBy(r => r.PreguntaId).ToDictionary(g => g.Key, g => g.First().OpcionId);
 
         var valoresEscala = new List<int>();
@@ -189,12 +193,69 @@ public class CuestionarioService(
         if (idNivel is null) throw new InvalidOperationException("Nivel de riesgo no configurado.");
 
         var idEvento = await historial.GuardarEventoCuestionarioAsync(
-            yo.IdUsuario, c.IdCuestionario, idNivel.Value, puntaje, respuestas, ct);
+            yo.IdUsuario, idCuestionario, idNivel.Value, puntaje, respuestas, ct);
 
-        var detalle = $"Paciente:{yo.IdUsuario} completó el cuestionario \"{c.Titulo}\" (id: {c.IdCuestionario}) al 100%: puntaje {puntaje}, nivel {nivel}, evento {idEvento}";
+        // PB-22: al finalizar, la asignación queda Completada (automático).
+        if (asignacion is not null)
+            await cuestionarios.MarcarAsignacionCompletadaAsync(asignacion.IdAsignacion, ct);
+
+        var detalle = $"Paciente:{yo.IdUsuario} completó el cuestionario \"{titulo}\" (id: {idCuestionario}) al 100%: puntaje {puntaje}, nivel {nivel}, evento {idEvento}";
         await authLogs.LogAsync(yo.IdUsuario, yo.IdUsuario, LogAcciones.CuestionarioPacienteFin, detalle, ip, ct);
 
-        return new FinalizarCuestionarioPacienteResult(idEvento, c.IdCuestionario, puntaje, nivel, preguntas.Count, porPregunta.Count);
+        return new FinalizarCuestionarioPacienteResult(idEvento, idCuestionario, puntaje, nivel, preguntas.Count, porPregunta.Count);
+    }
+
+    // PB-22: cuestionarios asignados al paciente (lista para consultar y responder).
+    public async Task<List<CuestionarioAsignadoDto>> ObtenerAsignadosPacienteAsync(string? tokenRaw, string? ip, CancellationToken ct = default)
+    {
+        var yo = await RequirePacienteAsync(tokenRaw, ct);
+        var lista = await cuestionarios.GetAsignadosPorPacienteAsync(yo.IdUsuario, ct);
+
+        await authLogs.LogAsync(yo.IdUsuario, yo.IdUsuario, LogAcciones.CuestionarioPacienteInicio,
+            $"Paciente:{yo.IdUsuario} consultó sus cuestionarios asignados ({lista.Count})", ip, ct);
+
+        return lista.Select(a => new CuestionarioAsignadoDto
+        {
+            IdAsignacion = a.IdAsignacion,
+            IdCuestionario = a.IdCuestionario,
+            Titulo = a.TituloCuestionario,
+            Tipo = a.TipoCuestionario,
+            FechaAsignacion = a.FechaAsignacion,
+            FechaLimite = a.FechaLimite,
+            Estado = a.Estado
+        }).ToList();
+    }
+
+    // PB-22: cuestionario asignado completo (preguntas+opciones) para responderlo.
+    public async Task<CuestionarioPacienteDto> ObtenerAsignadoDetalleAsync(string? tokenRaw, int idAsignacion, string? ip, CancellationToken ct = default)
+    {
+        var yo = await RequirePacienteAsync(tokenRaw, ct);
+        var lista = await cuestionarios.GetAsignadosPorPacienteAsync(yo.IdUsuario, ct);
+        var asignacion = lista.FirstOrDefault(a => a.IdAsignacion == idAsignacion)
+            ?? throw new InvalidOperationException("Asignación no encontrada.");
+
+        var (preguntas, opciones) = await cuestionarios.GetCompletoAsync(asignacion.IdCuestionario, ct);
+
+        await authLogs.LogAsync(yo.IdUsuario, yo.IdUsuario, LogAcciones.CuestionarioPacienteInicio,
+            $"Paciente:{yo.IdUsuario} abrió su cuestionario asignado \"{asignacion.TituloCuestionario}\" (asignación {idAsignacion})", ip, ct);
+
+        return new CuestionarioPacienteDto
+        {
+            Disponible = true,
+            Id = asignacion.IdCuestionario,
+            Titulo = asignacion.TituloCuestionario,
+            Descripcion = null,
+            AvisoObligatorio = true,
+            Preguntas = preguntas.Select(p => new PreguntaPacienteDto
+            {
+                Id = p.IdPregunta,
+                Texto = p.Texto,
+                Orden = p.Orden,
+                Opciones = opciones.Where(o => o.IdPregunta == p.IdPregunta)
+                    .Select(o => new OpcionPacienteDto { Id = o.IdOpcion, Texto = o.Texto, Valor = o.Valor, Orden = o.Orden })
+                    .ToList()
+            }).ToList()
+        };
     }
 
     // Requiere sesión de paciente válida (mismo patrón que HistorialService).

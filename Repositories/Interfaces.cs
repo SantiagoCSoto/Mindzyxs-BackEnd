@@ -87,11 +87,16 @@ public interface IRecordatorioRepository
 
 // PB-07: lectura de cuestionarios publicados para invitados (y pacientes).
 // Solo Predeterminado + Publicado; los Personalizado van por asignaciones (PB-22).
+public record AsignacionCuestionarioDto(int IdAsignacion, int IdCuestionario, string TituloCuestionario, string TipoCuestionario, int IdPaciente, int IdPsicologo, DateTime FechaAsignacion, DateTime? FechaLimite, string Estado);
+
 public interface ICuestionarioRepository
 {
     Task<List<CuestionarioRow>> GetPublicadosInvitadoAsync(CancellationToken ct = default);
     Task<CuestionarioRow?> FindPublicadoInvitadoAsync(int idCuestionario, CancellationToken ct = default);
     Task<(List<PreguntaRow> Preguntas, List<OpcionPreguntaRow> Opciones)> GetCompletoAsync(int idCuestionario, CancellationToken ct = default);
+    Task<List<AsignacionCuestionarioDto>> GetAsignadosPorPacienteAsync(int idPaciente, CancellationToken ct = default);
+    Task<AsignacionCuestionarioDto?> FindAsignacionPendienteAsync(int idPaciente, int idCuestionario, CancellationToken ct = default);
+    Task MarcarAsignacionCompletadaAsync(int idAsignacion, CancellationToken ct = default);
 }
 
 // PB-08: líneas de ayuda activas para invitados y pacientes (las administra el admin, PB-29).
