@@ -427,6 +427,17 @@ public class EfCuestionarioRepository(MindzyxsDbContext db) : ICuestionarioRepos
             .Where(c => c.IdCuestionario == idCuestionario && c.Tipo == "Predeterminado" && c.Estado == "Publicado")
             .FirstOrDefaultAsync(ct);
 
+    // PB-22: asignaciones del paciente con datos del cuestionario, recientes primero.
+    public Task<List<AsignacionCuestionarioDto>> GetAsignadosPorPacienteAsync(int idPaciente, CancellationToken ct = default)
+        => (from a in db.Asignaciones.AsNoTracking()
+            join c in db.Cuestionarios.AsNoTracking() on a.IdCuestionario equals c.IdCuestionario
+            where a.IdPaciente == idPaciente
+            orderby a.FechaAsignacion descending
+            select new AsignacionCuestionarioDto(
+                a.IdAsignacion, a.IdCuestionario, c.Titulo, c.Tipo,
+                a.IdPaciente, a.IdPsicologo, a.FechaAsignacion, a.FechaLimite, a.Estado))
+            .ToListAsync(ct);
+
     // Corrección BD: sp_cuestionario_completo trae preguntas+opciones en 1 round-trip
     // (3 result sets; el 1ro es el cuestionario, ya validado por Find). Multi-result vía reader.
     public async Task<(List<PreguntaRow> Preguntas, List<OpcionPreguntaRow> Opciones)> GetCompletoAsync(int idCuestionario, CancellationToken ct = default)

@@ -15,6 +15,9 @@ namespace Mindzyxs_API.Controllers;
 /// Cuestionario emocional del paciente (PB-11 HU1-PB11): mismos catálogo y validaciones,
 /// pero requiere sesión de paciente y al finalizar PERSISTE las respuestas y el resultado
 /// en el historial del paciente (`eventos_bienestar` + `respuestas`, reutilizados por PB-13).
+///
+/// Asignados del paciente (PB-22): el psicólogo consulta `dbo.asignaciones_cuestionario`
+/// (`GET psicologo/paciente/{id}/asignados`); el crear-asignación llega en sprint 4.
 /// </summary>
 [ApiController]
 [Route("api/[controller]")]
@@ -223,6 +226,46 @@ public class CuestionarioController(CuestionarioService cuestionario) : Controll
         catch (InvalidOperationException ex)
         {
             return BadRequest(new { error = ex.Message });
+        }
+    }
+
+    /// <summary>Devuelve los cuestionarios asignados a un paciente específico.</summary>
+    /// <remarks>
+    /// PB-22 (consulta; el crear-asignación llega en sprint 4). Requiere sesión de
+    /// psicólogo (o admin) y paciente autorizado. Lee `dbo.asignaciones_cuestionario`.
+    ///
+    /// Respuestas:
+    /// - `200` — `[ { "idAsignacion", "idCuestionario", "titulo", "tipo", "fechaAsignacion", "fechaLimite", "estado" } ]` (vacía si no hay)
+    /// - `401` — sin sesión.
+    /// - `403` — sin rol o sin autorización sobre el paciente.
+    /// - `404` — `{ "error": "Paciente no encontrado." }`
+    /// </remarks>
+    /// <response code="200">Asignaciones del paciente.</response>
+    /// <response code="401">Sesión requerida.</response>
+    /// <response code="403">Sin permisos o sin autorización.</response>
+    /// <response code="404">Paciente no encontrado.</response>
+    [HttpGet("psicologo/paciente/{idPaciente:int}/asignados")]
+    [ProducesResponseType(typeof(List<CuestionarioAsignadoDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ErrorResult), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(typeof(ErrorResult), StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> AsignadosPaciente(int idPaciente, CancellationToken ct)
+    {
+        var ip = HttpContext.Connection.RemoteIpAddress?.ToString();
+        try
+        {
+            return Ok(await cuestionario.ObtenerAsignadosAsync(ReadOptionalBearerToken(), idPaciente, ip, ct));
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            return Unauthorized(new { error = ex.Message });
+        }
+        catch (InvalidOperationException ex) when (ex.Message == "Paciente no encontrado.")
+        {
+            return NotFound(new { error = ex.Message });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return StatusCode(StatusCodes.Status403Forbidden, new { error = ex.Message });
         }
     }
 

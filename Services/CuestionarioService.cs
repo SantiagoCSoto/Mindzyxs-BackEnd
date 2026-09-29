@@ -197,6 +197,56 @@ public class CuestionarioService(
         return new FinalizarCuestionarioPacienteResult(idEvento, c.IdCuestionario, puntaje, nivel, preguntas.Count, porPregunta.Count);
     }
 
+    // PB-22: cuestionarios asignados a un paciente específico.
+    // Requiere sesión de psicólogo (o admin) y paciente autorizado.
+    // Sin autorización -> 403 "No tienes autorización para ver los registros de este paciente".
+    public async Task<List<CuestionarioAsignadoDto>> ObtenerAsignadosAsync(string? tokenRaw, int idPaciente, string? ip, CancellationToken ct = default)
+    {
+        var yo = await RequirePsicologoAsync(tokenRaw, ct);
+
+        var paciente = await usuarios.FindByIdAsync(idPaciente, ct);
+        var rolPaciente = paciente is null ? null : await usuarios.GetRolNombreAsync(paciente.IdRol, ct);
+        if (paciente is null || !string.Equals(rolPaciente, AppRoles.Paciente, StringComparison.OrdinalIgnoreCase))
+            throw new InvalidOperationException("Paciente no encontrado.");
+
+        var idAut = await historial.GetEstadoIdAsync("Autorizado", ct) ?? -1;
+        if (!await historial.EstaAutorizadoAsync(idPaciente, yo.IdUsuario, idAut, ct))
+            throw new InvalidOperationException("No tienes autorización para ver los registros de este paciente.");
+
+        var lista = await cuestionarios.GetAsignadosPorPacienteAsync(idPaciente, ct);
+
+        await authLogs.LogAsync(yo.IdUsuario, idPaciente, LogAcciones.AsignadosConsulta,
+            $"Psicólogo:{yo.IdUsuario} consultó cuestionarios asignados del paciente:{idPaciente} ({lista.Count})", ip, ct);
+
+        return lista.Select(a => new CuestionarioAsignadoDto
+        {
+            IdAsignacion = a.IdAsignacion,
+            IdCuestionario = a.IdCuestionario,
+            Titulo = a.TituloCuestionario,
+            Tipo = a.TipoCuestionario,
+            FechaAsignacion = a.FechaAsignacion,
+            FechaLimite = a.FechaLimite,
+            Estado = a.Estado
+        }).ToList();
+    }
+
+    // Requiere sesión de psicólogo o administrador (mismo patrón que el resto de servicios).
+    private async Task<UsuarioDto> RequirePsicologoAsync(string? tokenRaw, CancellationToken ct)
+    {
+        if (string.IsNullOrWhiteSpace(tokenRaw))
+            throw new UnauthorizedAccessException("Sesión requerida");
+        var sesion = await sesiones.FindByTokenHashAsync(TokenHelper.Hash(tokenRaw.Trim()), ct);
+        if (sesion is null || sesion.ExpiraEn < DateTime.UtcNow)
+            throw new UnauthorizedAccessException("Sesión requerida");
+        var user = await usuarios.FindByIdAsync(sesion.IdUsuario, ct)
+            ?? throw new UnauthorizedAccessException("Sesión requerida");
+        var rol = await usuarios.GetRolNombreAsync(user.IdRol, ct);
+        if (!string.Equals(rol, AppRoles.Psicologo, StringComparison.OrdinalIgnoreCase)
+            && !string.Equals(rol, AppRoles.Administrador, StringComparison.OrdinalIgnoreCase))
+            throw new InvalidOperationException("No tienes permisos para acceder a esta función");
+        return user;
+    }
+
     // Requiere sesión de paciente válida (mismo patrón que HistorialService).
     private async Task<UsuarioDto> RequirePacienteAsync(string? tokenRaw, CancellationToken ct)
     {

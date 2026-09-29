@@ -88,6 +88,19 @@ public class CuestionarioRow
     public DateTime FechaCreacion { get; set; }
 }
 
+// PB-22: dbo.asignaciones_cuestionario (el psicólogo asigna cuestionarios
+// a pacientes específicos; el crear-asignación llega en sprint 4).
+public class AsignacionRow
+{
+    public int IdAsignacion { get; set; }
+    public int IdCuestionario { get; set; }
+    public int IdPaciente { get; set; }
+    public int IdPsicologo { get; set; }
+    public DateTime FechaAsignacion { get; set; }
+    public DateTime? FechaLimite { get; set; }
+    public string Estado { get; set; } = string.Empty;
+}
+
 // PB-07: dbo.preguntas. Todas son siempre obligatorias (sin flag).
 // tipo: 'escala' (entra al promedio de puntaje) u otros ('binaria', 'opcion_multiple').
 public class PreguntaRow

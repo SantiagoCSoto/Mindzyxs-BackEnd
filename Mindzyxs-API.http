@@ -342,6 +342,11 @@ GET {{Host}}/api/account/perfil
 Authorization: Bearer <token-paciente>
 Accept: application/json
 
+### PB-22 asignados de un paciente (psicólogo autorizado, 404 si no es paciente)
+GET {{Host}}/api/cuestionario/psicologo/paciente/6/asignados
+Authorization: Bearer <token-psicologo>
+Accept: application/json
+
 ### PB-10 actualizar perfil (HU1-PB10, requiere Bearer)
 PUT {{Host}}/api/account/perfil
 Authorization: Bearer <token-paciente>

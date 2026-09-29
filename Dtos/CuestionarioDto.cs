@@ -160,3 +160,28 @@ public class FinalizarCuestionarioPacienteVm
 
 /// <summary>Resultado interno de la finalización del paciente (persistida en su historial).</summary>
 public record FinalizarCuestionarioPacienteResult(int IdEvento, int CuestionarioId, int Puntaje, string Nivel, int TotalPreguntas, int Respondidas);
+
+/// <summary>Cuestionario asignado a un paciente: <c>GET /api/cuestionario/psicologo/paciente/{idPaciente}/asignados</c> (PB-22).</summary>
+public class CuestionarioAsignadoDto
+{
+    /// <summary>Id de la asignación.</summary>
+    public int IdAsignacion { get; set; }
+
+    /// <summary>Id del cuestionario asignado.</summary>
+    public int IdCuestionario { get; set; }
+
+    /// <summary>Título del cuestionario.</summary>
+    public string Titulo { get; set; } = string.Empty;
+
+    /// <summary>Tipo del cuestionario (Predeterminado/Personalizado).</summary>
+    public string Tipo { get; set; } = string.Empty;
+
+    /// <summary>Fecha de asignación.</summary>
+    public DateTime FechaAsignacion { get; set; }
+
+    /// <summary>Fecha límite (puede ser nula).</summary>
+    public DateTime? FechaLimite { get; set; }
+
+    /// <summary>Estado de la asignación (ej. Pendiente).</summary>
+    public string Estado { get; set; } = string.Empty;
+}
