@@ -542,6 +542,42 @@ public class EfCuestionarioRepository(MindzyxsDbContext db) : ICuestionarioRepos
         => await db.Asignaciones.Where(a => a.IdAsignacion == idAsignacion)
             .ExecuteUpdateAsync(s => s.SetProperty(a => a.Estado, "Completada"), ct);
 
+    public Task<CuestionarioRow?> FindByIdAsync(int idCuestionario, CancellationToken ct = default)
+        => db.Cuestionarios.AsNoTracking()
+            .Where(c => c.IdCuestionario == idCuestionario)
+            .FirstOrDefaultAsync(ct);
+
+    // PB-20: crea el cuestionario con preguntas y opciones en una transacción.
+    public async Task<int> CrearAsync(CuestionarioRow cuestionario, List<(PreguntaRow Pregunta, List<OpcionPreguntaRow> Opciones)> preguntas, CancellationToken ct = default)
+    {
+        await using var tx = await db.Database.BeginTransactionAsync(ct);
+        try
+        {
+            cuestionario.FechaCreacion = DateTime.UtcNow;
+            db.Cuestionarios.Add(cuestionario);
+            await db.SaveChangesAsync(ct);
+            foreach (var (pregunta, opciones) in preguntas)
+            {
+                pregunta.IdCuestionario = cuestionario.IdCuestionario;
+                db.Preguntas.Add(pregunta);
+                await db.SaveChangesAsync(ct);
+                foreach (var op in opciones)
+                {
+                    op.IdPregunta = pregunta.IdPregunta;
+                    db.OpcionesPregunta.Add(op);
+                }
+                await db.SaveChangesAsync(ct);
+            }
+            await tx.CommitAsync(ct);
+            return cuestionario.IdCuestionario;
+        }
+        catch
+        {
+            await tx.RollbackAsync(ct);
+            throw;
+        }
+    }
+
     // Corrección BD: sp_cuestionario_completo trae preguntas+opciones en 1 round-trip
     // (3 result sets; el 1ro es el cuestionario, ya validado por Find). Multi-result vía reader.
     public async Task<(List<PreguntaRow> Preguntas, List<OpcionPreguntaRow> Opciones)> GetCompletoAsync(int idCuestionario, CancellationToken ct = default)

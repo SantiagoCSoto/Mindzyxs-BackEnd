@@ -117,6 +117,10 @@ public class MindzyxsDbContext(DbContextOptions<MindzyxsDbContext> options) : Db
             e.Property(x => x.Estado).HasColumnName("estado").HasMaxLength(20).IsUnicode(false);
             e.Property(x => x.IdCreador).HasColumnName("id_creador");
             e.Property(x => x.FechaCreacion).HasColumnName("fecha_creacion");
+            // PB-20: riesgo configurable (NULL = regla actual).
+            e.Property(x => x.ModoCalculo).HasColumnName("modo_calculo").HasMaxLength(20).IsUnicode(false);
+            e.Property(x => x.UmbralBajoMax).HasColumnName("umbral_bajo_max");
+            e.Property(x => x.UmbralMedioMax).HasColumnName("umbral_medio_max");
         });
         b.Entity<AsignacionRow>(e =>
         {

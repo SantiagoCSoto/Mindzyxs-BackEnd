@@ -547,3 +547,27 @@ Content-Type: application/json
 {
   "accion": "vista"
 }
+
+### PB-20 crear cuestionario (requiere Bearer psicólogo aprobado)
+POST {{Host}}/api/psicologo/cuestionarios
+Authorization: Bearer <token-psicologo>
+Content-Type: application/json
+Accept: application/json
+
+{
+  "titulo": "Ansiedad semanal",
+  "descripcion": "Seguimiento de síntomas",
+  "publicar": false,
+  "umbrales": { "bajoMax": 6, "medioMax": 12 },
+  "preguntas": [
+    {
+      "texto": "¿Con qué frecuencia se sintió nervioso?",
+      "tipo": "opcion_multiple",
+      "opciones": [
+        { "texto": "Nunca", "valor": 0 },
+        { "texto": "A veces", "valor": 2 },
+        { "texto": "Siempre", "valor": 4 }
+      ]
+    }
+  ]
+}

@@ -77,6 +77,8 @@ public class RespaldoRow
 
 // PB-07: dbo.cuestionarios (Predeterminado/Publicado para invitados y pacientes;
 // Personalizado + asignaciones_cuestionario para pacientes específicos).
+// PB-20: modo_calculo/umbrales NULL = regla actual (promedio); 'suma' + umbrales
+// = intervalos Alto/Medio/Bajo definidos por el psicólogo.
 public class CuestionarioRow
 {
     public int IdCuestionario { get; set; }
@@ -86,6 +88,9 @@ public class CuestionarioRow
     public string Estado { get; set; } = string.Empty;
     public int IdCreador { get; set; }
     public DateTime FechaCreacion { get; set; }
+    public string? ModoCalculo { get; set; }
+    public int? UmbralBajoMax { get; set; }
+    public int? UmbralMedioMax { get; set; }
 }
 
 // PB-22: dbo.asignaciones_cuestionario (el psicólogo asigna cuestionarios
