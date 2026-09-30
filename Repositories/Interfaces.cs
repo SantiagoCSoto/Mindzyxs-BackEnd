@@ -86,6 +86,10 @@ public interface IHistorialRepository
     // PB-12 HU1-PB12: guarda el registro del estado emocional del paciente
     // (evento tipo RegistroEmocional) con fecha/hora automática y nota opcional.
     Task<int> GuardarEstadoEmocionalAsync(int idPaciente, int idTipoEvento, int idNivelRiesgo, int puntaje, string? nota, DateTime fechaEvento, CancellationToken ct = default);
+
+    // PB-19 HU1-PB19: guarda la observación del psicólogo sobre un paciente autorizado
+    // (opcionalmente ligada a un evento). Devuelve el id de la observación.
+    Task<int> GuardarObservacionAsync(int idPsicologo, int idPaciente, int? idEvento, string contenido, string firma, CancellationToken ct = default);
 }
 
 // PB-15: recordatorios del paciente (una config por paciente + días).

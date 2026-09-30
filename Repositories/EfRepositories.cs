@@ -455,6 +455,23 @@ public class EfHistorialRepository(MindzyxsDbContext db) : IHistorialRepository
         await db.SaveChangesAsync(ct);
         return evento.IdEvento;
     }
+
+    // PB-19: guarda la observación del psicólogo (fecha/hora automática).
+    public async Task<int> GuardarObservacionAsync(int idPsicologo, int idPaciente, int? idEvento, string contenido, string firma, CancellationToken ct = default)
+    {
+        var obs = new ObservacionRow
+        {
+            IdPsicologo = idPsicologo,
+            IdPaciente = idPaciente,
+            IdEvento = idEvento,
+            Contenido = contenido,
+            Firma = firma,
+            FechaObservacion = DateTime.UtcNow
+        };
+        db.Observaciones.Add(obs);
+        await db.SaveChangesAsync(ct);
+        return obs.IdObservacion;
+    }
 }
 
 // PB-15: recordatorios (upsert por paciente + reemplazo de días).
