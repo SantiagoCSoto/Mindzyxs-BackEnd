@@ -185,7 +185,7 @@ public class CuestionarioService(
             if (string.Equals(p.Tipo, "escala", StringComparison.OrdinalIgnoreCase)
                 || string.Equals(p.Tipo, "opcion_multiple", StringComparison.OrdinalIgnoreCase))
                 valoresEscala.Add(op.Valor);
-            respuestas.Add(new RespuestaRow { IdPregunta = p.IdPregunta, Valor = op.Valor });
+            respuestas.Add(new RespuestaRow { IdPregunta = p.IdPregunta, Valor = op.Valor, Texto = op.Texto });
         }
 
         var (puntaje, nivel) = CalcularPuntaje(valoresEscala);

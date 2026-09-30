@@ -66,6 +66,7 @@ public interface IHistorialRepository
     Task<List<EventoRow>> GetEventosAsync(int idPaciente, DateTime? desde, DateTime? hasta, CancellationToken ct = default);
     Task<EventoRow?> FindEventoAsync(int idEvento, CancellationToken ct = default);
     Task<List<RespuestaRow>> GetRespuestasAsync(int idEvento, CancellationToken ct = default);
+    Task<Dictionary<(int IdPregunta, int Valor), string>> GetTextosOpcionAsync(List<int> idsPregunta, CancellationToken ct = default);
     Task<List<ObservacionRow>> GetObservacionesAsync(int idEvento, CancellationToken ct = default);
     Task<Dictionary<int, string>> GetPreguntasTextoAsync(List<int> idsPregunta, CancellationToken ct = default);
     Task<Dictionary<int, string>> GetNivelesAsync(CancellationToken ct = default);
