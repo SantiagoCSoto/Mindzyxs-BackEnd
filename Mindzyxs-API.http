@@ -577,3 +577,15 @@ Content-Type: application/json
 {
   "accion": "vista"
 }
+
+### PB-19 crear observación (requiere Bearer psicólogo autorizado)
+POST {{Host}}/api/observaciones
+Authorization: Bearer <token-psicologo>
+Content-Type: application/json
+Accept: application/json
+
+{
+  "idPaciente": 12,
+  "idEvento": null,
+  "contenido": "El paciente muestra mejoría en la regulación emocional."
+}

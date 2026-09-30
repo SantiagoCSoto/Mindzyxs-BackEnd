@@ -107,6 +107,9 @@ public static class LogAcciones
     // Directorio de psicólogos para pacientes.
     public const string DirectorioConsulta = "DIRECTORIO_CONSULTA";
 
+    // PB-19 HU1-PB19: crear observación en registro de paciente autorizado.
+    public const string ObservacionCrear = "OBSERVACION_CREAR";
+
     // PB-15 HU1-PB15: configuración de recordatorios.
     public const string RecordatorioConfig = "RECORDATORIO_CONFIG";
 
