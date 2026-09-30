@@ -286,12 +286,16 @@ public class EfHistorialRepository(MindzyxsDbContext db) : IHistorialRepository
             .ToListAsync(ct);
 
     // Textos de opción por (pregunta, valor): respaldo para respuestas viejas sin texto.
+    // Tolerante a opciones duplicadas (misma pregunta y valor): toma la primera.
     public async Task<Dictionary<(int IdPregunta, int Valor), string>> GetTextosOpcionAsync(List<int> idsPregunta, CancellationToken ct = default)
-        => idsPregunta.Count == 0
-            ? new()
-            : await db.OpcionesPregunta.AsNoTracking()
-                .Where(o => idsPregunta.Contains(o.IdPregunta))
-                .ToDictionaryAsync(o => (o.IdPregunta, o.Valor), o => o.Texto, ct);
+    {
+        if (idsPregunta.Count == 0) return new();
+        var filas = await db.OpcionesPregunta.AsNoTracking()
+            .Where(o => idsPregunta.Contains(o.IdPregunta))
+            .ToListAsync(ct);
+        return filas.GroupBy(o => (o.IdPregunta, o.Valor))
+            .ToDictionary(g => g.Key, g => g.First().Texto);
+    }
 
     public Task<List<ObservacionRow>> GetObservacionesAsync(int idEvento, CancellationToken ct = default)
         => db.Observaciones.AsNoTracking()
