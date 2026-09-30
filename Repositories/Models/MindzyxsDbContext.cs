@@ -206,6 +206,8 @@ public class MindzyxsDbContext(DbContextOptions<MindzyxsDbContext> options) : Db
             e.Property(x => x.IdBloqueador).HasColumnName("id_bloqueador");
             e.Property(x => x.FechaCreacion).HasColumnName("fecha_creacion");
             e.Property(x => x.FechaRespuesta).HasColumnName("fecha_respuesta");
+            e.Property(x => x.IdSolicitante).HasColumnName("id_solicitante");
+            e.Property(x => x.MotivoBloqueo).HasColumnName("motivo_bloqueo").HasMaxLength(500).IsUnicode(false);
         });
         b.Entity<EventoRow>(e =>
         {

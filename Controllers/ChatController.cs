@@ -113,6 +113,85 @@ public class ChatController(
         }
     }
 
+    /// <summary>El paciente solicita chat a un psicólogo (doble vía).</summary>
+    /// <remarks>
+    /// Solo paciente; psicólogo existente, aprobado, activo y con rol Psicologo.
+    /// Si hubo Rechazada/Cerrada se reactiva. El psicólogo la acepta/rechaza.
+    /// Guarda `CHAT_SOLICITUD`.
+    ///
+    /// Respuestas: `200` — conversación; `400` — validación; `401` sin sesión.
+    /// </remarks>
+    /// <response code="200">Solicitud creada/reactivada.</response>
+    /// <response code="400">Validación.</response>
+    /// <response code="401">Sesión requerida.</response>
+    [HttpPost("solicitudes/paciente")]
+    [ProducesResponseType(typeof(ConversacionDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ErrorResult), StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> SolicitarPaciente([FromBody] SolicitudPacienteVm vm, CancellationToken ct)
+    {
+        if (!ModelState.IsValid || vm.IdPsicologo <= 0)
+            return BadRequest(new { error = "Este campo es obligatorio" });
+        try
+        {
+            var ip = HttpContext.Connection.RemoteIpAddress?.ToString();
+            return Ok(await chats.SolicitarPacienteAsync(ReadOptionalBearerToken(), vm.IdPsicologo, ip, ct));
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            return Unauthorized(new { error = ex.Message });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { error = ex.Message });
+        }
+    }
+
+    /// <summary>El psicólogo acepta la solicitud que le hizo el paciente.</summary>
+    /// <remarks>
+    /// PB-31 doble vía. Solo el psicólogo dueño y en estado Pendiente pedida por
+    /// el paciente. Escribe meta Aceptada en RTDB y otorga autorización.
+    /// </remarks>
+    /// <response code="200">Conversación aceptada.</response>
+    /// <response code="400">Validación.</response>
+    /// <response code="401">Sesión requerida.</response>
+    /// <response code="404">No existe.</response>
+    [HttpPost("solicitudes/{id:int}/aceptar-psicologo")]
+    [ProducesResponseType(typeof(ConversacionDto), StatusCodes.Status200OK)]
+    public async Task<IActionResult> AceptarPsicologo([FromRoute] int id, CancellationToken ct)
+        => await ResponderPsicologo(id, true, ct);
+
+    /// <summary>El psicólogo rechaza la solicitud que le hizo el paciente.</summary>
+    /// <remarks>PB-31 doble vía. Solo el psicólogo dueño y en estado Pendiente pedida por el paciente.</remarks>
+    /// <response code="200">Solicitud rechazada.</response>
+    /// <response code="400">Validación.</response>
+    /// <response code="401">Sesión requerida.</response>
+    /// <response code="404">No existe.</response>
+    [HttpPost("solicitudes/{id:int}/rechazar-psicologo")]
+    [ProducesResponseType(typeof(ConversacionDto), StatusCodes.Status200OK)]
+    public async Task<IActionResult> RechazarPsicologo([FromRoute] int id, CancellationToken ct)
+        => await ResponderPsicologo(id, false, ct);
+
+    private async Task<IActionResult> ResponderPsicologo(int id, bool aceptar, CancellationToken ct)
+    {
+        try
+        {
+            var ip = HttpContext.Connection.RemoteIpAddress?.ToString();
+            return Ok(await chats.ResponderPsicologoAsync(ReadOptionalBearerToken(), id, aceptar, ip, ct));
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            return Unauthorized(new { error = ex.Message });
+        }
+        catch (InvalidOperationException ex) when (ex.Message == "Conversación no encontrada.")
+        {
+            return NotFound(new { error = ex.Message });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { error = ex.Message });
+        }
+    }
+
     /// <summary>El paciente acepta su solicitud (escribe meta Aceptada en RTDB).</summary>
     /// <remarks>PB-31. Solo el paciente dueño y en estado Pendiente. Guarda `CHAT_ACEPTADO`.</remarks>
     /// <response code="200">Conversación aceptada.</response>
@@ -135,23 +214,63 @@ public class ChatController(
     public async Task<IActionResult> Rechazar([FromRoute] int id, CancellationToken ct)
         => await Responder(id, false, ct);
 
-    /// <summary>El paciente bloquea el chat (escribe meta Bloqueada en RTDB).</summary>
+    /// <summary>El paciente solicita bloqueo con motivo (queda pendiente de revisión).</summary>
     /// <remarks>
-    /// PB-31. Solo en Aceptada. El bloqueado que intente escribir recibe aviso
-    /// (reglas RTDB + 403 aquí). Guarda `CHAT_BLOQUEO`.
+    /// Ya no bloquea de un botón: pasa a `BloqueoPendiente` (mensajes congelados),
+    /// guarda `ALERTA_BLOQUEO` y el psicólogo o admin lo resuelve.
+    ///
+    /// Respuestas: `200` — solicitud registrada; `400` — validación; `401` sin sesión; `404` no existe.
     /// </remarks>
-    /// <response code="200">Chat bloqueado.</response>
+    /// <response code="200">Solicitud de bloqueo registrada.</response>
     /// <response code="400">Validación.</response>
     /// <response code="401">Sesión requerida.</response>
     /// <response code="404">No existe.</response>
-    [HttpPost("conversaciones/{id:int}/bloqueo")]
+    [HttpPost("conversaciones/{id:int}/bloqueo/solicitar")]
     [ProducesResponseType(typeof(ConversacionDto), StatusCodes.Status200OK)]
-    public async Task<IActionResult> Bloquear([FromRoute] int id, CancellationToken ct)
+    public async Task<IActionResult> SolicitarBloqueo([FromRoute] int id, [FromBody] SolicitudBloqueoVm vm, CancellationToken ct)
     {
+        if (!ModelState.IsValid || vm is null)
+            return BadRequest(new { error = "Este campo es obligatorio" });
         try
         {
             var ip = HttpContext.Connection.RemoteIpAddress?.ToString();
-            return Ok(await chats.BloquearAsync(ReadOptionalBearerToken(), id, ip, ct));
+            return Ok(await chats.SolicitarBloqueoAsync(ReadOptionalBearerToken(), id, vm.Motivo, ip, ct));
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            return Unauthorized(new { error = ex.Message });
+        }
+        catch (InvalidOperationException ex) when (ex.Message == "Conversación no encontrada.")
+        {
+            return NotFound(new { error = ex.Message });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { error = ex.Message });
+        }
+    }
+
+    /// <summary>El psicólogo o admin resuelve la solicitud de bloqueo.</summary>
+    /// <remarks>
+    /// `aceptar=true` confirma el bloqueo; `false` lo rechaza (vuelve a Aceptada).
+    /// El paciente puede cancelar la suya con `aceptar=false`.
+    ///
+    /// Respuestas: `200` — resuelto; `400` — validación; `401` sin sesión; `404` no existe.
+    /// </remarks>
+    /// <response code="200">Bloqueo resuelto.</response>
+    /// <response code="400">Validación.</response>
+    /// <response code="401">Sesión requerida.</response>
+    /// <response code="404">No existe.</response>
+    [HttpPost("conversaciones/{id:int}/bloqueo/resolver")]
+    [ProducesResponseType(typeof(ConversacionDto), StatusCodes.Status200OK)]
+    public async Task<IActionResult> ResolverBloqueo([FromRoute] int id, [FromBody] ResolverBloqueoVm vm, CancellationToken ct)
+    {
+        if (!ModelState.IsValid || vm is null)
+            return BadRequest(new { error = "Este campo es obligatorio" });
+        try
+        {
+            var ip = HttpContext.Connection.RemoteIpAddress?.ToString();
+            return Ok(await chats.ResolverBloqueoAsync(ReadOptionalBearerToken(), id, vm.Aceptar, ip, ct));
         }
         catch (UnauthorizedAccessException ex)
         {

@@ -129,8 +129,9 @@ public interface IChatRepository
     Task<List<ConversacionRow>> GetDeUsuarioAsync(int idUsuario, CancellationToken ct = default);
     Task<ConversacionRow?> FindAsync(int idConversacion, CancellationToken ct = default);
     Task<ConversacionRow?> FindParejaAsync(int idPaciente, int idPsicologo, CancellationToken ct = default);
-    Task<ConversacionRow> CrearAsync(int idPaciente, int idPsicologo, CancellationToken ct = default);
+    Task<ConversacionRow> CrearAsync(int idPaciente, int idPsicologo, int idSolicitante, CancellationToken ct = default);
     Task SetEstadoAsync(int idConversacion, string estado, int? idBloqueador, CancellationToken ct = default);
+    Task SolicitarBloqueoAsync(int idConversacion, string motivo, CancellationToken ct = default);
     Task<List<PacienteBusquedaDto>> BuscarPacientesAsync(int idRolPaciente, int idEstadoActiva, string? q, string? nivel, int? minCuestionarios, bool? tienePsicologo, CancellationToken ct = default);
 }
 

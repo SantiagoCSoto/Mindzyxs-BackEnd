@@ -7,6 +7,27 @@ public class SolicitudChatVm
     public int IdPaciente { get; set; }
 }
 
+/// <summary>Solicitud de chat del paciente: <c>POST /api/chat/solicitudes/paciente</c> (doble vía).</summary>
+public class SolicitudPacienteVm
+{
+    /// <summary>Id del psicólogo al que se le pide el chat.</summary>
+    public int IdPsicologo { get; set; }
+}
+
+/// <summary>Solicitud de bloqueo: <c>POST /api/chat/conversaciones/{id}/bloqueo/solicitar</c>.</summary>
+public class SolicitudBloqueoVm
+{
+    /// <summary>Motivo (obligatorio, máx. 500).</summary>
+    public string? Motivo { get; set; }
+}
+
+/// <summary>Resolver bloqueo: <c>POST /api/chat/conversaciones/{id}/bloqueo/resolver</c>.</summary>
+public class ResolverBloqueoVm
+{
+    /// <summary>True confirma el bloqueo, false lo rechaza (vuelve a Aceptada).</summary>
+    public bool Aceptar { get; set; }
+}
+
 /// <summary>Paciente en el buscador: <c>GET /api/chat/pacientes?q=</c> (solo psicólogo).</summary>
 public class PacienteChatDto
 {    /// <summary>Id del paciente (para ofrecer chat).</summary>
@@ -51,8 +72,14 @@ public class ConversacionDto
     /// <summary>Id de la conversación (coincide con RTDB /conversaciones/{id}).</summary>
     public int Id { get; set; }
 
-    /// <summary>Estado: Pendiente/Aceptada/Rechazada/Bloqueada/Cerrada.</summary>
+    /// <summary>Estado: Pendiente/Aceptada/Rechazada/Bloqueada/BloqueoPendiente/Cerrada.</summary>
     public string Estado { get; set; } = "";
+
+    /// <summary>Quién pidió el chat (id de paciente o psicólogo).</summary>
+    public int? IdSolicitante { get; set; }
+
+    /// <summary>Motivo de la solicitud de bloqueo (si hay).</summary>
+    public string? MotivoBloqueo { get; set; }
 
     /// <summary>True si yo la bloqueé.</summary>
     public bool BloqueadaPorMi { get; set; }

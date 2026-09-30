@@ -192,6 +192,10 @@ public class ConversacionRow
     public int? IdBloqueador { get; set; }
     public DateTime FechaCreacion { get; set; }
     public DateTime? FechaRespuesta { get; set; }
+    /// <summary>Quién pidió el chat (paciente o psicólogo). Legacy = psicólogo.</summary>
+    public int? IdSolicitante { get; set; }
+    /// <summary>Motivo del paciente al solicitar bloqueo.</summary>
+    public string? MotivoBloqueo { get; set; }
 }
 
 // PB-13: dbo.eventos_bienestar (registros y cuestionarios del paciente).

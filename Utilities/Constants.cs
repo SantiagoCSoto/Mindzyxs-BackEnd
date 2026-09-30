@@ -80,6 +80,8 @@ public static class LogAcciones
     public const string ChatRechazado = "CHAT_RECHAZADO";
     public const string ChatBloqueo = "CHAT_BLOQUEO";
     public const string ChatDesbloqueo = "CHAT_DESBLOQUEO";
+    // Solicitud de bloqueo con motivo (queda pendiente de revisión).
+    public const string AlertaBloqueo = "ALERTA_BLOQUEO";
     public const string ChatMensaje = "CHAT_MENSAJE";
 
     // PB-31: aceptar el chat otorga autorización al psicólogo.
