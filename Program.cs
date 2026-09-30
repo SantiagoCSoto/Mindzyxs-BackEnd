@@ -90,6 +90,9 @@ builder.Services.AddScoped<PerfilService>();
 builder.Services.AddScoped<ChatService>();
 builder.Services.AddScoped<PsicologoService>();
 builder.Services.AddScoped<PsicologoCuestionariosService>();
+builder.Services.AddScoped<ObservacionesService>();
+builder.Services.AddScoped<PsicologoRegistrosService>();
+builder.Services.AddScoped<AccesosService>();
 
 // Swagger: documentación interactiva en /swagger (Swagger UI) y spec en /swagger/v1/swagger.json.
 builder.Services.AddSwaggerGen(o =>

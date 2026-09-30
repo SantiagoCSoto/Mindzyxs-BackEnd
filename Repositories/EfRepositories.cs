@@ -286,12 +286,16 @@ public class EfHistorialRepository(MindzyxsDbContext db) : IHistorialRepository
             .ToListAsync(ct);
 
     // Textos de opción por (pregunta, valor): respaldo para respuestas viejas sin texto.
+    // Tolerante a opciones duplicadas (misma pregunta y valor): toma la primera.
     public async Task<Dictionary<(int IdPregunta, int Valor), string>> GetTextosOpcionAsync(List<int> idsPregunta, CancellationToken ct = default)
-        => idsPregunta.Count == 0
-            ? new()
-            : await db.OpcionesPregunta.AsNoTracking()
-                .Where(o => idsPregunta.Contains(o.IdPregunta))
-                .ToDictionaryAsync(o => (o.IdPregunta, o.Valor), o => o.Texto, ct);
+    {
+        if (idsPregunta.Count == 0) return new();
+        var filas = await db.OpcionesPregunta.AsNoTracking()
+            .Where(o => idsPregunta.Contains(o.IdPregunta))
+            .ToListAsync(ct);
+        return filas.GroupBy(o => (o.IdPregunta, o.Valor))
+            .ToDictionary(g => g.Key, g => g.First().Texto);
+    }
 
     public Task<List<ObservacionRow>> GetObservacionesAsync(int idEvento, CancellationToken ct = default)
         => db.Observaciones.AsNoTracking()
@@ -341,6 +345,14 @@ public class EfHistorialRepository(MindzyxsDbContext db) : IHistorialRepository
             .ToListAsync(ct);
     }
 
+    // PB-17: ids de psicólogos autorizados por el paciente.
+    public async Task<List<int>> GetPsicologosAutorizadosAsync(int idPaciente, int idEstadoAutorizado, CancellationToken ct = default)
+        => await db.Autorizaciones.AsNoTracking()
+            .Where(a => a.IdPaciente == idPaciente && a.IdEstado == idEstadoAutorizado)
+            .Select(a => a.IdPsicologo)
+            .Distinct()
+            .ToListAsync(ct);
+
     public Task<bool> EstaAutorizadoAsync(int idPaciente, int idPsicologo, int idEstadoAutorizado, CancellationToken ct = default)
         => db.Autorizaciones.AsNoTracking()
             .Where(a => a.IdPaciente == idPaciente && a.IdPsicologo == idPsicologo && a.IdEstado == idEstadoAutorizado)
@@ -365,6 +377,30 @@ public class EfHistorialRepository(MindzyxsDbContext db) : IHistorialRepository
         else
         {
             existente.IdEstado = idEstadoAutorizado;
+            existente.FechaRespuesta = DateTime.UtcNow;
+        }
+        await db.SaveChangesAsync(ct);
+    }
+
+    // PB-17: revoca el acceso (pasa a Revocado con fecha de respuesta).
+    public async Task RevocarAutorizacionAsync(int idPaciente, int idPsicologo, int idEstadoRevocado, CancellationToken ct = default)
+    {
+        var existente = await db.Autorizaciones
+            .FirstOrDefaultAsync(a => a.IdPaciente == idPaciente && a.IdPsicologo == idPsicologo, ct);
+        if (existente is null)
+        {
+            db.Autorizaciones.Add(new AutorizacionRow
+            {
+                IdPaciente = idPaciente,
+                IdPsicologo = idPsicologo,
+                IdEstado = idEstadoRevocado,
+                FechaSolicitud = DateTime.UtcNow,
+                FechaRespuesta = DateTime.UtcNow
+            });
+        }
+        else
+        {
+            existente.IdEstado = idEstadoRevocado;
             existente.FechaRespuesta = DateTime.UtcNow;
         }
         await db.SaveChangesAsync(ct);
@@ -454,6 +490,23 @@ public class EfHistorialRepository(MindzyxsDbContext db) : IHistorialRepository
         db.Eventos.Add(evento);
         await db.SaveChangesAsync(ct);
         return evento.IdEvento;
+    }
+
+    // PB-19: guarda la observación del psicólogo (fecha/hora automática).
+    public async Task<int> GuardarObservacionAsync(int idPsicologo, int idPaciente, int? idEvento, string contenido, string firma, CancellationToken ct = default)
+    {
+        var obs = new ObservacionRow
+        {
+            IdPsicologo = idPsicologo,
+            IdPaciente = idPaciente,
+            IdEvento = idEvento,
+            Contenido = contenido,
+            Firma = firma,
+            FechaObservacion = DateTime.UtcNow
+        };
+        db.Observaciones.Add(obs);
+        await db.SaveChangesAsync(ct);
+        return obs.IdObservacion;
     }
 }
 

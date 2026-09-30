@@ -72,8 +72,10 @@ public interface IHistorialRepository
     Task<Dictionary<int, string>> GetNivelesAsync(CancellationToken ct = default);
     Task<Dictionary<int, string>> GetCuestionariosTituloAsync(List<int> ids, CancellationToken ct = default);
     Task<List<UsuarioDto>> GetPacientesAutorizadosAsync(int idPsicologo, int idEstadoAutorizado, CancellationToken ct = default);
+    Task<List<int>> GetPsicologosAutorizadosAsync(int idPaciente, int idEstadoAutorizado, CancellationToken ct = default);
     Task<bool> EstaAutorizadoAsync(int idPaciente, int idPsicologo, int idEstadoAutorizado, CancellationToken ct = default);
     Task AsegurarAutorizacionAsync(int idPaciente, int idPsicologo, int idEstadoAutorizado, CancellationToken ct = default);
+    Task RevocarAutorizacionAsync(int idPaciente, int idPsicologo, int idEstadoRevocado, CancellationToken ct = default);
     Task<int?> GetEstadoIdAsync(string nombre, CancellationToken ct = default);
 
     // PB-11 HU1-PB11: escritura del resultado de un cuestionario en el historial del
@@ -86,6 +88,10 @@ public interface IHistorialRepository
     // PB-12 HU1-PB12: guarda el registro del estado emocional del paciente
     // (evento tipo RegistroEmocional) con fecha/hora automática y nota opcional.
     Task<int> GuardarEstadoEmocionalAsync(int idPaciente, int idTipoEvento, int idNivelRiesgo, int puntaje, string? nota, DateTime fechaEvento, CancellationToken ct = default);
+
+    // PB-19 HU1-PB19: guarda la observación del psicólogo sobre un paciente autorizado
+    // (opcionalmente ligada a un evento). Devuelve el id de la observación.
+    Task<int> GuardarObservacionAsync(int idPsicologo, int idPaciente, int? idEvento, string contenido, string firma, CancellationToken ct = default);
 }
 
 // PB-15: recordatorios del paciente (una config por paciente + días).
