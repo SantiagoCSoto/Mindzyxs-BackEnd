@@ -105,6 +105,20 @@ public class CuestionarioService(
         return (puntaje, nivel);
     }
 
+    // PB-20 HU1-PB20: puntaje con intervalos propios del cuestionario (SUMA de valores).
+    // Sin modo 'suma' o sin umbrales (NULL) aplica la regla actual (promedio).
+    public static (int Puntaje, string Nivel) CalcularPuntaje(IEnumerable<int> valoresEscala, string? modoCalculo, int? umbralBajoMax, int? umbralMedioMax)
+    {
+        var vals = valoresEscala.ToList();
+        if (!string.Equals(modoCalculo, "suma", StringComparison.OrdinalIgnoreCase)
+            || !umbralBajoMax.HasValue || !umbralMedioMax.HasValue)
+            return CalcularPuntaje(vals);
+        if (vals.Count == 0) return (0, "Bajo");
+        var puntaje = vals.Sum();
+        var nivel = puntaje <= umbralBajoMax.Value ? "Bajo" : puntaje <= umbralMedioMax.Value ? "Medio" : "Alto";
+        return (puntaje, nivel);
+    }
+
     // PB-11 HU1-PB11: siguiente cuestionario pendiente para el paciente autenticado.
     // Mismo catálogo que el invitado (Predeterminado + Publicado) menos los que el
     // paciente ya respondió (guardados en su historial, eventos tipo Cuestionario).
@@ -188,7 +202,9 @@ public class CuestionarioService(
             respuestas.Add(new RespuestaRow { IdPregunta = p.IdPregunta, Valor = op.Valor, Texto = op.Texto });
         }
 
-        var (puntaje, nivel) = CalcularPuntaje(valoresEscala);
+        // PB-20: si el cuestionario define intervalos propios, el puntaje usa la suma.
+        var fila = await cuestionarios.FindByIdAsync(idCuestionario, ct);
+        var (puntaje, nivel) = CalcularPuntaje(valoresEscala, fila?.ModoCalculo, fila?.UmbralBajoMax, fila?.UmbralMedioMax);
 
         var idNivel = await historial.GetNivelIdAsync(nivel, ct);
         if (idNivel is null) throw new InvalidOperationException("Nivel de riesgo no configurado.");

@@ -117,4 +117,7 @@ public static class LogAcciones
     public const string PerfilActualizado = "PERFIL_ACTUALIZADO";
     public const string CorreoSolicitado = "CORREO_SOLICITADO";
     public const string CorreoActualizado = "CORREO_ACTUALIZADO";
+
+    // PB-20 HU1-PB20: el psicólogo crea un cuestionario personalizado.
+    public const string CuestionarioCreado = "CUESTIONARIO_CREADO";
 }

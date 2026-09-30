@@ -114,6 +114,11 @@ public interface ICuestionarioRepository
     Task<List<AsignacionCuestionarioDto>> GetAsignadosPorPacienteAsync(int idPaciente, CancellationToken ct = default);
     Task<AsignacionCuestionarioDto?> FindAsignacionPendienteAsync(int idPaciente, int idCuestionario, CancellationToken ct = default);
     Task MarcarAsignacionCompletadaAsync(int idAsignacion, CancellationToken ct = default);
+    Task<CuestionarioRow?> FindByIdAsync(int idCuestionario, CancellationToken ct = default);
+
+    // PB-20 HU1-PB20: crea el cuestionario Personalizado con sus preguntas y opciones
+    // en una transacción. Devuelve el id del cuestionario.
+    Task<int> CrearAsync(CuestionarioRow cuestionario, List<(PreguntaRow Pregunta, List<OpcionPreguntaRow> Opciones)> preguntas, CancellationToken ct = default);
 }
 
 // PB-08: líneas de ayuda activas para invitados y pacientes (las administra el admin, PB-29).
