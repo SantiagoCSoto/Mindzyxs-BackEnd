@@ -89,11 +89,14 @@ public class EfUserRepository(MindzyxsDbContext db) : IUserRepository
     }
 
     // PB-especialidades: directorio para pacientes (activas y aprobadas, con conteo de asignados).
-    public async Task<List<PsicologoDirectorioRow>> GetDirectorioPsicologosAsync(int idRolPsicologo, int idEstadoActiva, int idEstadoAprobado, int idEstadoAutorizado, CancellationToken ct = default)
+    // Filtros opcionales: q (nombre/apellido) e idEspecialidad (checklist).
+    public async Task<List<PsicologoDirectorioRow>> GetDirectorioPsicologosAsync(int idRolPsicologo, int idEstadoActiva, int idEstadoAprobado, int idEstadoAutorizado, string? q, int? idEspecialidad, CancellationToken ct = default)
     {
         var psicos = await db.Usuarios.AsNoTracking()
             .Where(u => u.IdRol == idRolPsicologo && u.IdEstadoCuenta == idEstadoActiva
-                && (u.IdEstadoAprobacion == null || u.IdEstadoAprobacion == idEstadoAprobado))
+                && (u.IdEstadoAprobacion == null || u.IdEstadoAprobacion == idEstadoAprobado)
+                && (string.IsNullOrWhiteSpace(q) || u.Nombre.Contains(q) || u.Apellido.Contains(q))
+                && (!idEspecialidad.HasValue || db.PsicologoEspecialidades.Any(pe => pe.IdPsicologo == u.IdUsuario && pe.IdEspecialidad == idEspecialidad.Value)))
             .OrderBy(u => u.Nombre).ThenBy(u => u.Apellido)
             .Select(u => new { u.IdUsuario, u.Nombre, u.Apellido })
             .ToListAsync(ct);

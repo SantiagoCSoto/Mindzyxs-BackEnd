@@ -20,7 +20,7 @@ public interface IUserRepository
     Task<string?> GetEstadoCuentaNombreAsync(int idEstadoCuenta, CancellationToken ct = default);
     // PB-especialidades: reemplaza las especialidades del psicólogo (vacío = ninguna).
     Task GuardarEspecialidadesAsync(int idPsicologo, List<int> idsEspecialidad, CancellationToken ct = default);
-    Task<List<PsicologoDirectorioRow>> GetDirectorioPsicologosAsync(int idRolPsicologo, int idEstadoActiva, int idEstadoAprobado, int idEstadoAutorizado, CancellationToken ct = default);
+    Task<List<PsicologoDirectorioRow>> GetDirectorioPsicologosAsync(int idRolPsicologo, int idEstadoActiva, int idEstadoAprobado, int idEstadoAutorizado, string? q, int? idEspecialidad, CancellationToken ct = default);
 }
 
 // PB-especialidades: directorio para pacientes (nombre, especialidades, pacientes asignados).

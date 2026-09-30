@@ -14,8 +14,9 @@ public class PsicologosController(PsicologoService psicologos) : ControllerBase
 {
     /// <summary>Devuelve el directorio de psicólogos (activas y aprobadas).</summary>
     /// <remarks>
-    /// Solo pacientes con sesión. Cada tarjeta trae nombre, especialidades
-    /// (vacía si no registró ninguna) y pacientes asignados (autorizados).
+    /// Solo pacientes con sesión. Filtros opcionales: `q` (nombre/apellido) e
+    /// `idEspecialidad` (checklist de especialidades). Cada tarjeta trae nombre,
+    /// especialidades (vacía si no registró ninguna) y pacientes asignados (autorizados).
     ///
     /// Respuestas:
     /// - `200` — `[ { "id", "nombre", "especialidades": [], "pacientesAsignados": 0 } ]`
@@ -28,12 +29,12 @@ public class PsicologosController(PsicologoService psicologos) : ControllerBase
     [HttpGet]
     [ProducesResponseType(typeof(List<PsicologoDirectorioDto>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ErrorResult), StatusCodes.Status403Forbidden)]
-    public async Task<IActionResult> Directorio(CancellationToken ct)
+    public async Task<IActionResult> Directorio([FromQuery] string? q, [FromQuery] int? idEspecialidad, CancellationToken ct)
     {
         try
         {
             var ip = HttpContext.Connection.RemoteIpAddress?.ToString();
-            return Ok(await psicologos.DirectorioAsync(ReadOptionalBearerToken(), ip, ct));
+            return Ok(await psicologos.DirectorioAsync(ReadOptionalBearerToken(), q, idEspecialidad, ip, ct));
         }
         catch (UnauthorizedAccessException ex)
         {
