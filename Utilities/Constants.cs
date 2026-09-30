@@ -100,6 +100,10 @@ public static class LogAcciones
     // PB-14 HU1-PB14: consulta del progreso de pacientes autorizados.
     public const string ProgresoConsulta = "PROGRESO_CONSULTA";
 
+    // PB-18 HU1-PB18: consulta de registros y detalle de pacientes autorizados.
+    public const string RegistrosConsulta = "REGISTROS_CONSULTA";
+    public const string RegistroDetalle = "REGISTRO_DETALLE";
+
     // Directorio de psicólogos para pacientes.
     public const string DirectorioConsulta = "DIRECTORIO_CONSULTA";
 
