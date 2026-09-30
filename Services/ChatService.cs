@@ -29,6 +29,8 @@ public class ChatService(
                 Id = c.IdConversacion,
                 Estado = c.Estado,
                 BloqueadaPorMi = c.IdBloqueador == yo.IdUsuario,
+                IdSolicitante = c.IdSolicitante,
+                MotivoBloqueo = c.MotivoBloqueo,
                 Contraparte = new ChatContraparteDto
                 {
                     Id = otroId,
@@ -58,7 +60,7 @@ public class ChatService(
         ConversacionRow row;
         if (existente is null)
         {
-            row = await chats.CrearAsync(idPaciente, yo.IdUsuario, ct);
+            row = await chats.CrearAsync(idPaciente, yo.IdUsuario, yo.IdUsuario, ct);
         }
         else if (existente.Estado is "Rechazada" or "Cerrada")
         {
@@ -77,6 +79,7 @@ public class ChatService(
 
     // PB-31: el paciente acepta/rechaza su solicitud pendiente. Al aceptar se escribe el meta en RTDB
     // y se otorga autorización al psicólogo (aceptar el chat cuenta como autorizarlo).
+    // Solo vale para solicitudes hechas por el psicólogo.
     public async Task<ConversacionDto> ResponderAsync(string? tokenRaw, int idConversacion, bool aceptar, string? ip, CancellationToken ct = default)
     {
         var yo = await RequireSesionAsync(tokenRaw, ct);
@@ -86,6 +89,8 @@ public class ChatService(
             throw new InvalidOperationException("No tienes permiso sobre esta conversación.");
         if (c.Estado != "Pendiente")
             throw new InvalidOperationException("La solicitud ya fue procesada.");
+        if (c.IdSolicitante.HasValue && c.IdSolicitante.Value != c.IdPsicologo)
+            throw new InvalidOperationException("Debes esperar la respuesta del psicólogo.");
 
         await chats.SetEstadoAsync(idConversacion, aceptar ? "Aceptada" : "Rechazada", null, ct);
         if (aceptar)
@@ -106,8 +111,76 @@ public class ChatService(
         return await ToDtoAsync(idConversacion, yo.IdUsuario, ct);
     }
 
-    // PB-31: el paciente bloquea (solo en Aceptada). El bloqueado que intente escribir recibe aviso.
-    public async Task<ConversacionDto> BloquearAsync(string? tokenRaw, int idConversacion, string? ip, CancellationToken ct = default)
+    // PB-31 doble vía: el paciente solicita chat a un psicólogo desde el directorio.
+    // El psicólogo la acepta/rechaza; al aceptar se otorga autorización (simétrico).
+    public async Task<ConversacionDto> SolicitarPacienteAsync(string? tokenRaw, int idPsicologo, string? ip, CancellationToken ct = default)
+    {
+        var yo = await RequireSesionAsync(tokenRaw, ct);
+        await RequireRolAsync(yo.IdUsuario, AppRoles.Paciente, ct);
+
+        var psi = await usuarios.FindByIdAsync(idPsicologo, ct)
+            ?? throw new InvalidOperationException("Psicólogo no encontrado.");
+        await RequireRolAsync(idPsicologo, AppRoles.Psicologo, ct);
+        await RequireAprobadoAsync(idPsicologo, ct);
+        await RequireActivaAsync(idPsicologo, ct);
+
+        var existente = await chats.FindParejaAsync(yo.IdUsuario, idPsicologo, ct);
+        ConversacionRow row;
+        if (existente is null)
+        {
+            row = await chats.CrearAsync(yo.IdUsuario, idPsicologo, yo.IdUsuario, ct);
+        }
+        else if (existente.Estado is "Rechazada" or "Cerrada")
+        {
+            await chats.SetEstadoAsync(existente.IdConversacion, "Pendiente", null, ct);
+            row = (await chats.FindAsync(existente.IdConversacion, ct))!;
+        }
+        else
+        {
+            throw new InvalidOperationException("Ya existe una solicitud o conversación activa con este psicólogo.");
+        }
+
+        await authLogs.LogAsync(yo.IdUsuario, idPsicologo, LogAcciones.ChatSolicitud,
+            $"Paciente:{yo.IdUsuario} solicitó chat al psicólogo:{idPsicologo} (conversación {row.IdConversacion})", ip, ct);
+        return await ToDtoAsync(row.IdConversacion, yo.IdUsuario, ct);
+    }
+
+    // PB-31 doble vía: el psicólogo acepta/rechaza la solicitud que le hizo el paciente.
+    // Al aceptar se otorga autorización (simétrico al aceptar del paciente).
+    public async Task<ConversacionDto> ResponderPsicologoAsync(string? tokenRaw, int idConversacion, bool aceptar, string? ip, CancellationToken ct = default)
+    {
+        var yo = await RequireSesionAsync(tokenRaw, ct);
+        var c = await chats.FindAsync(idConversacion, ct)
+            ?? throw new InvalidOperationException("Conversación no encontrada.");
+        if (c.IdPsicologo != yo.IdUsuario)
+            throw new InvalidOperationException("No tienes permiso sobre esta conversación.");
+        if (c.Estado != "Pendiente")
+            throw new InvalidOperationException("La solicitud ya fue procesada.");
+        if (!c.IdSolicitante.HasValue || c.IdSolicitante.Value != c.IdPaciente)
+            throw new InvalidOperationException("Esta solicitud no requiere tu respuesta.");
+
+        await chats.SetEstadoAsync(idConversacion, aceptar ? "Aceptada" : "Rechazada", null, ct);
+        if (aceptar)
+        {
+            await firebase.WriteMetaAsync(idConversacion, c.IdPaciente, c.IdPsicologo, "Aceptada", null, ct);
+            var idAut = await historial.GetEstadoIdAsync("Autorizado", ct);
+            if (idAut.HasValue)
+            {
+                await historial.AsegurarAutorizacionAsync(c.IdPaciente, c.IdPsicologo, idAut.Value, ct);
+                await authLogs.LogAsync(c.IdPaciente, c.IdPsicologo, LogAcciones.AutorizacionOtorgada,
+                    $"Paciente:{c.IdPaciente} autorizó al psicólogo:{c.IdPsicologo} al aceptar este su chat (conversación {idConversacion})", ip, ct);
+            }
+        }
+
+        await authLogs.LogAsync(yo.IdUsuario, c.IdPaciente,
+            aceptar ? LogAcciones.ChatAceptado : LogAcciones.ChatRechazado,
+            $"Psicólogo:{yo.IdUsuario} {(aceptar ? "aceptó" : "rechazó")} el chat solicitado por paciente:{c.IdPaciente} (conversación {idConversacion})", ip, ct);
+        return await ToDtoAsync(idConversacion, yo.IdUsuario, ct);
+    }
+
+    // PB-31: el paciente ya no bloquea de un botón: solicita bloqueo con motivo.
+    // Queda BloqueoPendiente (mensajes congelados) hasta que el psicólogo o admin lo resuelva.
+    public async Task<ConversacionDto> SolicitarBloqueoAsync(string? tokenRaw, int idConversacion, string? motivoRaw, string? ip, CancellationToken ct = default)
     {
         var yo = await RequireSesionAsync(tokenRaw, ct);
         var c = await chats.FindAsync(idConversacion, ct)
@@ -115,12 +188,53 @@ public class ChatService(
         if (c.IdPaciente != yo.IdUsuario)
             throw new InvalidOperationException("No tienes permiso sobre esta conversación.");
         if (c.Estado != "Aceptada")
-            throw new InvalidOperationException("Solo se puede bloquear un chat aceptado.");
+            throw new InvalidOperationException("Solo se puede solicitar bloqueo en un chat aceptado.");
+        var motivo = (motivoRaw ?? "").Trim();
+        if (string.IsNullOrWhiteSpace(motivo))
+            throw new InvalidOperationException("Cuéntanos el motivo de la solicitud.");
+        if (motivo.Length > 500)
+            throw new InvalidOperationException("El motivo no puede superar los 500 caracteres.");
 
-        await chats.SetEstadoAsync(idConversacion, "Bloqueada", yo.IdUsuario, ct);
-        await firebase.WriteMetaAsync(idConversacion, c.IdPaciente, c.IdPsicologo, "Bloqueada", yo.IdUsuario, ct);
-        await authLogs.LogAsync(yo.IdUsuario, c.IdPsicologo, LogAcciones.ChatBloqueo,
-            $"Paciente:{yo.IdUsuario} bloqueó al psicólogo:{c.IdPsicologo} (conversación {idConversacion})", ip, ct);
+        await chats.SolicitarBloqueoAsync(idConversacion, motivo, ct);
+        await firebase.WriteMetaAsync(idConversacion, c.IdPaciente, c.IdPsicologo, "BloqueoPendiente", yo.IdUsuario, ct);
+        await authLogs.LogAsync(yo.IdUsuario, c.IdPsicologo, LogAcciones.AlertaBloqueo,
+            $"Paciente:{yo.IdUsuario} solicitó bloqueo al psicólogo:{c.IdPsicologo} (conversación {idConversacion}): {motivo}", ip, ct);
+        return await ToDtoAsync(idConversacion, yo.IdUsuario, ct);
+    }
+
+    // PB-31: el psicólogo (o admin) resuelve la solicitud: confirma el bloqueo o lo rechaza.
+    // El paciente puede cancelar su propia solicitud (aceptar=false).
+    public async Task<ConversacionDto> ResolverBloqueoAsync(string? tokenRaw, int idConversacion, bool aceptar, string? ip, CancellationToken ct = default)
+    {
+        var yo = await RequireSesionAsync(tokenRaw, ct);
+        var c = await chats.FindAsync(idConversacion, ct)
+            ?? throw new InvalidOperationException("Conversación no encontrada.");
+        if (c.Estado != "BloqueoPendiente")
+            throw new InvalidOperationException("No hay solicitud de bloqueo pendiente.");
+        var rol = await usuarios.GetRolNombreAsync(yo.IdRol, ct);
+        var esAdmin = string.Equals(rol, AppRoles.Administrador, StringComparison.OrdinalIgnoreCase);
+        if (yo.IdUsuario == c.IdPaciente)
+        {
+            if (aceptar)
+                throw new InvalidOperationException("No puedes confirmar tu propia solicitud.");
+        }
+        else if (yo.IdUsuario != c.IdPsicologo && !esAdmin)
+        {
+            throw new InvalidOperationException("No tienes permiso sobre esta conversación.");
+        }
+
+        if (aceptar)
+        {
+            await chats.SetEstadoAsync(idConversacion, "Bloqueada", c.IdPaciente, ct);
+            await firebase.WriteMetaAsync(idConversacion, c.IdPaciente, c.IdPsicologo, "Bloqueada", c.IdPaciente, ct);
+        }
+        else
+        {
+            await chats.SetEstadoAsync(idConversacion, "Aceptada", null, ct);
+            await firebase.WriteMetaAsync(idConversacion, c.IdPaciente, c.IdPsicologo, "Aceptada", null, ct);
+        }
+        await authLogs.LogAsync(yo.IdUsuario, c.IdPaciente, LogAcciones.ChatBloqueo,
+            $"Usuario:{yo.IdUsuario} {(aceptar ? "confirmó el bloqueo" : "rechazó la solicitud de bloqueo")} (conversación {idConversacion})", ip, ct);
         return await ToDtoAsync(idConversacion, yo.IdUsuario, ct);
     }
 
@@ -148,10 +262,12 @@ public class ChatService(
             ?? throw new InvalidOperationException("Conversación no encontrada.");
         if (c.IdPaciente != yo.IdUsuario && c.IdPsicologo != yo.IdUsuario)
             throw new InvalidOperationException("No tienes permiso sobre esta conversación.");
-        if (c.Estado != "Aceptada" && c.Estado != "Bloqueada")
-            throw new InvalidOperationException("El chat no está aceptado.");
         if (c.Estado == "Bloqueada" && c.IdBloqueador != yo.IdUsuario)
             throw new InvalidOperationException("Has sido bloqueado por este usuario.");
+        if (c.Estado == "BloqueoPendiente")
+            throw new InvalidOperationException("Solicitud de bloqueo en revisión: el chat está pausado.");
+        if (c.Estado != "Aceptada" && !(c.Estado == "Bloqueada" && c.IdBloqueador == yo.IdUsuario))
+            throw new InvalidOperationException("El chat no está aceptado.");
 
         await authLogs.LogAsync(yo.IdUsuario, yo.IdUsuario == c.IdPaciente ? c.IdPsicologo : c.IdPaciente,
             LogAcciones.ChatMensaje, $"Mensaje enviado en conversación {idConversacion} por usuario:{yo.IdUsuario}", ip, ct);
@@ -215,6 +331,8 @@ public class ChatService(
             Id = c.IdConversacion,
             Estado = c.Estado,
             BloqueadaPorMi = c.IdBloqueador == yoId,
+            IdSolicitante = c.IdSolicitante,
+            MotivoBloqueo = c.MotivoBloqueo,
             Contraparte = new ChatContraparteDto
             {
                 Id = otroId,

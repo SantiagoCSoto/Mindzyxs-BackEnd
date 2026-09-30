@@ -635,12 +635,13 @@ public class EfChatRepository(MindzyxsDbContext db) : IChatRepository
             .Where(c => c.IdPaciente == idPaciente && c.IdPsicologo == idPsicologo)
             .FirstOrDefaultAsync(ct);
 
-    public async Task<ConversacionRow> CrearAsync(int idPaciente, int idPsicologo, CancellationToken ct = default)
+    public async Task<ConversacionRow> CrearAsync(int idPaciente, int idPsicologo, int idSolicitante, CancellationToken ct = default)
     {
         var row = new ConversacionRow
         {
             IdPaciente = idPaciente,
             IdPsicologo = idPsicologo,
+            IdSolicitante = idSolicitante,
             Estado = "Pendiente",
             FechaCreacion = DateTime.UtcNow
         };
@@ -658,6 +659,19 @@ public class EfChatRepository(MindzyxsDbContext db) : IChatRepository
         row.Estado = estado;
         row.IdBloqueador = idBloqueador;
         row.FechaRespuesta = estado == "Pendiente" ? null : (DateTime?)DateTime.UtcNow;
+        await db.SaveChangesAsync(ct);
+    }
+
+    // Solicitud de bloqueo: pasa a BloqueoPendiente con motivo (mensajes congelados).
+    public async Task SolicitarBloqueoAsync(int idConversacion, string motivo, CancellationToken ct = default)
+    {
+        var row = await db.Conversaciones
+            .Where(c => c.IdConversacion == idConversacion)
+            .FirstOrDefaultAsync(ct);
+        if (row is null) return;
+        row.Estado = "BloqueoPendiente";
+        row.MotivoBloqueo = motivo;
+        row.FechaRespuesta = DateTime.UtcNow;
         await db.SaveChangesAsync(ct);
     }
 

@@ -357,6 +357,38 @@ GET {{Host}}/api/psicologos
 Authorization: Bearer <token-paciente>
 Accept: application/json
 
+### PB-31 paciente solicita chat (doble vía, requiere Bearer paciente)
+POST {{Host}}/api/chat/solicitudes/paciente
+Authorization: Bearer <token-paciente>
+Content-Type: application/json
+
+{
+  "idPsicologo": 15
+}
+
+### PB-31 psicólogo acepta solicitud del paciente (requiere Bearer psicólogo dueño)
+POST {{Host}}/api/chat/solicitudes/1/aceptar-psicologo
+Authorization: Bearer <token-psicologo>
+Accept: application/json
+
+### PB-31 solicitar bloqueo con motivo (requiere Bearer paciente dueño, queda pendiente)
+POST {{Host}}/api/chat/conversaciones/1/bloqueo/solicitar
+Authorization: Bearer <token-paciente>
+Content-Type: application/json
+
+{
+  "motivo": "Necesito una pausa en la conversación"
+}
+
+### PB-31 resolver bloqueo (psicólogo dueño o admin; el paciente cancela con aceptar=false)
+POST {{Host}}/api/chat/conversaciones/1/bloqueo/resolver
+Authorization: Bearer <token-psicologo>
+Content-Type: application/json
+
+{
+  "aceptar": true
+}
+
 ### PB-10 actualizar perfil (HU1-PB10, requiere Bearer)
 PUT {{Host}}/api/account/perfil
 Authorization: Bearer <token-paciente>

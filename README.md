@@ -868,6 +868,10 @@ Híbrido: **RTDB** para mensajes en vivo (`/conversaciones/{id}/meta|mensajes|pr
 | `GET` | `/api/chat/conversaciones` | sesión | Propias (pendientes = notificaciones internas) |
 | `GET` | `/api/chat/pacientes?q=&nivel=&minCuestionarios=&tienePsicologo=` | psicólogo | Buscador multifiltro (nombre opcional, exige ≥1) con último riesgo + conteos |
 | `POST` | `/api/chat/solicitudes {idPaciente}` | psicólogo aprobado/activo | Ofrece chat (reactiva Rechazada/Cerrada) |
+| `POST` | `/api/chat/solicitudes/paciente {idPsicologo}` | paciente | Solicita chat al psicólogo (doble vía); el psicólogo acepta/rechaza |
+| `POST` | `/api/chat/solicitudes/{id}/aceptar-psicologo\|rechazar-psicologo` | psicólogo dueño | Responde solicitud del paciente; al aceptar otorga autorización |
+| `POST` | `/api/chat/conversaciones/{id}/bloqueo/solicitar {motivo}` | paciente dueño | Solicita bloqueo con motivo: queda `BloqueoPendiente` (mensajes congelados), log `ALERTA_BLOQUEO` |
+| `POST` | `/api/chat/conversaciones/{id}/bloqueo/resolver {aceptar}` | psicólogo dueño o admin (paciente cancela con `false`) | Confirma (`Bloqueada`) o rechaza (`Aceptada`) |
 | `POST` | `/api/chat/solicitudes/{id}/aceptar\|rechazar` | paciente dueño | Aceptar escribe `meta` Aceptada en RTDB **y otorga autorización al psicólogo** (aceptar el chat cuenta como autorizarlo); rechazar no toca la autorización |
 | `POST` | `/api/chat/conversaciones/{id}/bloqueo` | paciente dueño | Bloquea (meta Bloqueada); bloqueado → 403 + aviso |
 | `DELETE` | `/api/chat/conversaciones/{id}/bloqueo` | paciente que bloqueó | Desbloquea (vuelve a Aceptada) |
