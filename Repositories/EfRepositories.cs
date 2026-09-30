@@ -282,6 +282,14 @@ public class EfHistorialRepository(MindzyxsDbContext db) : IHistorialRepository
             .OrderBy(r => r.IdRespuesta)
             .ToListAsync(ct);
 
+    // Textos de opción por (pregunta, valor): respaldo para respuestas viejas sin texto.
+    public async Task<Dictionary<(int IdPregunta, int Valor), string>> GetTextosOpcionAsync(List<int> idsPregunta, CancellationToken ct = default)
+        => idsPregunta.Count == 0
+            ? new()
+            : await db.OpcionesPregunta.AsNoTracking()
+                .Where(o => idsPregunta.Contains(o.IdPregunta))
+                .ToDictionaryAsync(o => (o.IdPregunta, o.Valor), o => o.Texto, ct);
+
     public Task<List<ObservacionRow>> GetObservacionesAsync(int idEvento, CancellationToken ct = default)
         => db.Observaciones.AsNoTracking()
             .Where(o => o.IdEvento == idEvento)

@@ -61,11 +61,13 @@ public class HistorialService(
         if (respuestas.Count > 0)
         {
             var preguntas = await historial.GetPreguntasTextoAsync(respuestas.Select(r => r.IdPregunta).Distinct().ToList(), ct);
+            var textosOpcion = await historial.GetTextosOpcionAsync(respuestas.Select(r => r.IdPregunta).Distinct().ToList(), ct);
             detalle.Respuestas = respuestas.Select(r => new HistorialRespuestaDto
             {
                 Pregunta = preguntas.TryGetValue(r.IdPregunta, out var t) ? t : $"Pregunta {r.IdPregunta}",
                 Valor = r.Valor,
-                Texto = r.Texto
+                // Las respuestas viejas se guardaron sin texto: se resuelve desde el catálogo.
+                Texto = r.Texto ?? (r.Valor.HasValue && textosOpcion.TryGetValue((r.IdPregunta, r.Valor.Value), out var to) ? to : null)
             }).ToList();
         }
 
