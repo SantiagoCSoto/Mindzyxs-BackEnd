@@ -389,6 +389,21 @@ Content-Type: application/json
   "aceptar": true
 }
 
+### PB-17 accesos del paciente (requiere Bearer paciente)
+GET {{Host}}/api/accesos?q=
+Authorization: Bearer <token-paciente>
+Accept: application/json
+
+### PB-17 autorizar psicólogo (requiere Bearer paciente)
+POST {{Host}}/api/accesos/15/autorizar
+Authorization: Bearer <token-paciente>
+Accept: application/json
+
+### PB-17 revocar psicólogo (requiere Bearer paciente)
+POST {{Host}}/api/accesos/15/revocar
+Authorization: Bearer <token-paciente>
+Accept: application/json
+
 ### PB-10 actualizar perfil (HU1-PB10, requiere Bearer)
 PUT {{Host}}/api/account/perfil
 Authorization: Bearer <token-paciente>
