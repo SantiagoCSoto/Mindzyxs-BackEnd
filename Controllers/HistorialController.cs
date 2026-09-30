@@ -29,6 +29,7 @@ public class HistorialController(HistorialService historial) : ControllerBase
     /// <response code="401">Sesión requerida.</response>
     [HttpGet]
     [ProducesResponseType(typeof(List<HistorialItemDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ErrorResult), StatusCodes.Status400BadRequest)]
     public async Task<IActionResult> Mio([FromQuery] DateTime? desde, [FromQuery] DateTime? hasta, CancellationToken ct)
     {
         try
@@ -39,6 +40,10 @@ public class HistorialController(HistorialService historial) : ControllerBase
         catch (UnauthorizedAccessException ex)
         {
             return Unauthorized(new { error = ex.Message });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { error = ex.Message });
         }
     }
 

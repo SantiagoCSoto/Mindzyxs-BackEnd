@@ -52,6 +52,7 @@ public interface ISesionRepository
     Task<SesionDto?> FindByTokenHashAsync(string tokenHash, CancellationToken ct = default);
     Task DeleteAsync(int idSesion, CancellationToken ct = default);
     Task DeleteByTokenHashAsync(string tokenHash, CancellationToken ct = default);
+    Task DeleteByUsuarioAsync(int idUsuario, CancellationToken ct = default);
 }
 
 public interface IAuthLogRepository

@@ -16,6 +16,8 @@ public class HistorialService(
     public async Task<List<HistorialItemDto>> ObtenerAsync(string? tokenRaw, DateTime? desde, DateTime? hasta, string? ip, CancellationToken ct = default)
     {
         var yo = await RequirePacienteAsync(tokenRaw, ct);
+        if (desde.HasValue && hasta.HasValue && desde.Value.Date > hasta.Value.Date)
+            throw new InvalidOperationException("La fecha \"Desde\" no puede ser posterior a \"Hasta\".");
         var eventos = await historial.GetEventosAsync(yo.IdUsuario, desde, hasta, ct);
         if (eventos.Count == 0) return [];
 
@@ -99,6 +101,8 @@ public class HistorialService(
         if (idTipo is null) throw new InvalidOperationException("Tipo de evento RegistroEmocional no configurado.");
 
         var nota = string.IsNullOrWhiteSpace(vm.Nota) ? null : vm.Nota.Trim();
+        if (nota is not null && nota.Length > 500)
+            throw new InvalidOperationException("La nota no puede superar los 500 caracteres.");
         var fecha = DateTime.UtcNow;
 
         var idEvento = await historial.GuardarEstadoEmocionalAsync(yo.IdUsuario, idTipo.Value, idNivel.Value, vm.Puntaje.Value, nota, fecha, ct);

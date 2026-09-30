@@ -107,12 +107,14 @@ public class EfUserRepository(MindzyxsDbContext db) : IUserRepository
             .Where(a => ids.Contains(a.IdPsicologo) && a.IdEstado == idEstadoAutorizado)
             .GroupBy(a => a.IdPsicologo)
             .Select(g => new { Id = g.Key, N = g.Select(a => a.IdPaciente).Distinct().Count() })
-            .ToListAsync(ct);
+            .ToDictionaryAsync(g => g.Id, g => g.N, ct);
+        var porPsicologo = esp.GroupBy(x => x.IdPsicologo)
+            .ToDictionary(g => g.Key, g => g.Select(x => x.Nombre).ToList());
         return psicos.Select(p => new PsicologoDirectorioRow(
             p.IdUsuario,
             $"{p.Nombre} {p.Apellido}".Trim(),
-            esp.Where(x => x.IdPsicologo == p.IdUsuario).Select(x => x.Nombre).ToList(),
-            conteos.FirstOrDefault(x => x.Id == p.IdUsuario)?.N ?? 0)).ToList();
+            porPsicologo.TryGetValue(p.IdUsuario, out var lista) ? lista : [],
+            conteos.TryGetValue(p.IdUsuario, out var n) ? n : 0)).ToList();
     }
 
     // Intento actualizar ultimo_acceso si existe; si no, no falla.
@@ -231,6 +233,10 @@ public class EfSesionRepository(MindzyxsDbContext db) : ISesionRepository
 
     public async Task DeleteByTokenHashAsync(string tokenHash, CancellationToken ct = default)
         => await db.Sesiones.Where(s => s.TokenHash == tokenHash).ExecuteDeleteAsync(ct);
+
+    // Seguridad: revoca todas las sesiones del usuario (ej. al restablecer contraseña).
+    public async Task DeleteByUsuarioAsync(int idUsuario, CancellationToken ct = default)
+        => await db.Sesiones.Where(s => s.IdUsuario == idUsuario).ExecuteDeleteAsync(ct);
 }
 
 public class EfAuthLogRepository(MindzyxsDbContext db) : IAuthLogRepository
@@ -509,11 +515,16 @@ public class EfCuestionarioRepository(MindzyxsDbContext db) : ICuestionarioRepos
             .ToListAsync(ct);
 
     // PB-22: asignación pendiente del paciente para un cuestionario (cualquiera de sus estados pendientes).
-    public async Task<AsignacionCuestionarioDto?> FindAsignacionPendienteAsync(int idPaciente, int idCuestionario, CancellationToken ct = default)
-        => (await GetAsignadosPorPacienteAsync(idPaciente, ct))
-            .FirstOrDefault(a => a.IdCuestionario == idCuestionario
-                && (string.Equals(a.Estado, "Pendiente", StringComparison.OrdinalIgnoreCase)
-                    || string.Equals(a.Estado, "Asignado", StringComparison.OrdinalIgnoreCase)));
+    public Task<AsignacionCuestionarioDto?> FindAsignacionPendienteAsync(int idPaciente, int idCuestionario, CancellationToken ct = default)
+        => (from a in db.Asignaciones.AsNoTracking()
+            join c in db.Cuestionarios.AsNoTracking() on a.IdCuestionario equals c.IdCuestionario
+            where a.IdPaciente == idPaciente && a.IdCuestionario == idCuestionario
+                && (a.Estado == "Pendiente" || a.Estado == "Asignado")
+            orderby a.FechaAsignacion descending
+            select new AsignacionCuestionarioDto(
+                a.IdAsignacion, a.IdCuestionario, c.Titulo, c.Tipo,
+                a.IdPaciente, a.IdPsicologo, a.FechaAsignacion, a.FechaLimite, a.Estado))
+            .FirstOrDefaultAsync(ct);
 
     // PB-22: al finalizar, la asignación queda Completada (automático).
     public async Task MarcarAsignacionCompletadaAsync(int idAsignacion, CancellationToken ct = default)
@@ -739,6 +750,14 @@ public class EfAdminRepository(MindzyxsDbContext db, IOptions<AdminOptions> admi
     // si BACKUP DATABASE nativo falla (permisos/carpeta). Nunca expone secrets.
     public async Task<string> ExportSnapshotJsonAsync(CancellationToken ct = default)
     {
+        // Seguridad: nunca se exporta password_hash ni rutas de archivos.
+        var usuarios = await db.Usuarios.AsNoTracking()
+            .Select(u => new
+            {
+                u.IdUsuario, u.IdRol, u.IdEstadoCuenta, u.IdEstadoAprobacion,
+                u.Nombre, u.Apellido, u.Correo, u.FechaNacimiento, u.FechaRegistro,
+                u.IdGenero, u.UltimoAcceso
+            }).ToListAsync(ct);
         var snapshot = new
         {
             sistema = "Mindzyx",
@@ -750,7 +769,7 @@ public class EfAdminRepository(MindzyxsDbContext db, IOptions<AdminOptions> admi
                 roles = await db.Roles.AsNoTracking().ToListAsync(ct),
                 generos = await db.Generos.AsNoTracking().ToListAsync(ct),
                 estados = await db.Estados.AsNoTracking().ToListAsync(ct),
-                usuarios = await db.Usuarios.AsNoTracking().ToListAsync(ct)
+                usuarios
             }
         };
         return System.Text.Json.JsonSerializer.Serialize(snapshot, new System.Text.Json.JsonSerializerOptions { WriteIndented = true });
