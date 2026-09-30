@@ -11,14 +11,15 @@ public class PsicologoService(
     IAuthLogRepository authLogs)
 {
     // Directorio para pacientes: psicólogos (con especialidades y pacientes asignados).
-    public async Task<List<PsicologoDirectorioDto>> DirectorioAsync(string? tokenRaw, string? ip, CancellationToken ct = default)
+    // Filtros opcionales: q (nombre) y idEspecialidad (checklist de especialidades).
+    public async Task<List<PsicologoDirectorioDto>> DirectorioAsync(string? tokenRaw, string? q, int? idEspecialidad, string? ip, CancellationToken ct = default)
     {
         var yo = await RequirePacienteAsync(tokenRaw, ct);
         var idRolPsi = await catalogs.GetRolIdAsync(AppRoles.Psicologo, ct);
         var idActiva = await catalogs.GetEstadoIdAsync(AccountStates.Activa, ct);
         var idAprob = await catalogs.GetEstadoIdAsync(AccountStates.Aprobado, ct);
         var idAut = await catalogs.GetEstadoIdAsync("Autorizado", ct);
-        var lista = await users.GetDirectorioPsicologosAsync(idRolPsi, idActiva, idAprob, idAut, ct);
+        var lista = await users.GetDirectorioPsicologosAsync(idRolPsi, idActiva, idAprob, idAut, q, idEspecialidad, ct);
 
         await authLogs.LogAsync(yo.IdUsuario, yo.IdUsuario, LogAcciones.DirectorioConsulta,
             $"Paciente:{yo.IdUsuario} consultó el directorio de psicólogos ({lista.Count})", ip, ct);
