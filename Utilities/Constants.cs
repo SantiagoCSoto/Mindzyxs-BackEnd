@@ -87,6 +87,9 @@ public static class LogAcciones
     // PB-31: aceptar el chat otorga autorización al psicólogo.
     public const string AutorizacionOtorgada = "AUTORIZACION_OTORGADA";
 
+    // PB-17 HU1-PB17: revocar acceso de psicólogo.
+    public const string AutorizacionRevocada = "AUTORIZACION_REVOCADA";
+
     // Corrección BD: acciones registradas por triggers (ver sql/10_triggers_auth.sql).
     public const string CambioEstadoCuenta = "CAMBIO_ESTADO_CUENTA";
     public const string SesionCreada = "SESION_CREADA";
@@ -96,6 +99,10 @@ public static class LogAcciones
 
     // PB-14 HU1-PB14: consulta del progreso de pacientes autorizados.
     public const string ProgresoConsulta = "PROGRESO_CONSULTA";
+
+    // PB-18 HU1-PB18: consulta de registros y detalle de pacientes autorizados.
+    public const string RegistrosConsulta = "REGISTROS_CONSULTA";
+    public const string RegistroDetalle = "REGISTRO_DETALLE";
 
     // Directorio de psicólogos para pacientes.
     public const string DirectorioConsulta = "DIRECTORIO_CONSULTA";
