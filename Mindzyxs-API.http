@@ -754,3 +754,50 @@ Content-Type: application/json
 {
   "pacientesIds": [2]
 }
+
+### PB-24 obtener perfil profesional (HU1-PB24, psicólogo activo y aprobado)
+GET {{Host}}/api/psicologo/perfil-profesional
+Authorization: Bearer <token-psicologo>
+Accept: application/json
+
+### PB-24 actualizar perfil profesional (HU1-PB24, log PERFIL_PROFESIONAL_ACTUALIZADO)
+PUT {{Host}}/api/psicologo/perfil-profesional
+Authorization: Bearer <token-psicologo>
+Content-Type: application/json
+Accept: application/json
+
+{
+  "añosExperiencia": 10,
+  "descripcionProfesional": "Psicólogo clínico con enfoque en ansiedad y trauma.",
+  "datosContacto": "Tel: 3001234567, Clínica Central, Bogotá",
+  "tarjetaProfesionalVerificada": true,
+  "especialidades": [1, 3],
+  "correo": "nuevo@correo.com"
+}
+
+### PB-24 actualizar perfil profesional - correo duplicado - 400 (HU1-PB24)
+PUT {{Host}}/api/psicologo/perfil-profesional
+Authorization: Bearer <token-psicologo>
+Content-Type: application/json
+
+{
+  "correo": "admin@test.com"
+}
+
+### PB-24 actualizar perfil profesional - años negativos - 400 (HU1-PB24)
+PUT {{Host}}/api/psicologo/perfil-profesional
+Authorization: Bearer <token-psicologo>
+Content-Type: application/json
+
+{
+  "añosExperiencia": -1
+}
+
+### PB-24 actualizar perfil profesional - especialidad inexistente - 400 (HU1-PB24)
+PUT {{Host}}/api/psicologo/perfil-profesional
+Authorization: Bearer <token-psicologo>
+Content-Type: application/json
+
+{
+  "especialidades": [999]
+}

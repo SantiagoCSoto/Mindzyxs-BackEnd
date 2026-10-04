@@ -66,6 +66,13 @@ public class MindzyxsDbContext(DbContextOptions<MindzyxsDbContext> options) : Db
             e.Property(x => x.FilePath).HasColumnName("file_path").HasMaxLength(500).IsUnicode(false);
             e.Property(x => x.FechaRegistro).HasColumnName("fecha_registro");
             e.Property(x => x.UltimoAcceso).HasColumnName("ultimo_acceso");
+
+            // PB-24 HU1-PB24: perfil profesional del psicólogo
+            e.Property(x => x.AñosExperiencia).HasColumnName("años_experiencia");
+            e.Property(x => x.DescripcionProfesional).HasColumnName("descripcion_profesional").HasMaxLength(4000).IsUnicode(false);
+            e.Property(x => x.DatosContacto).HasColumnName("datos_contacto").HasMaxLength(500).IsUnicode(false);
+            e.Property(x => x.TarjetaProfesionalVerificada).HasColumnName("tarjeta_profesional_verificada");
+
             e.HasIndex(x => x.Correo).IsUnique();
         });
         b.Entity<CodigoRow>(e =>

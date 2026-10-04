@@ -40,4 +40,20 @@ public class UsuarioDto
 
     /// <summary>Ruta física de la tarjeta profesional (solo psicólogos) en disco.</summary>
     public string? FilePath { get; set; }
+
+    // PB-24 HU1-PB24: perfil profesional del psicólogo
+    /// <summary>Años de experiencia del psicólogo.</summary>
+    public int? AñosExperiencia { get; set; }
+
+    /// <summary>Descripción profesional del psicólogo.</summary>
+    public string? DescripcionProfesional { get; set; }
+
+    /// <summary>Datos de contacto adicionales (teléfono, dirección, etc.).</summary>
+    public string? DatosContacto { get; set; }
+
+    /// <summary>Indica si la tarjeta profesional ha sido verificada por el administrador.</summary>
+    public bool TarjetaProfesionalVerificada { get; set; }
+
+    /// <summary>Especialidades del psicólogo (nombres).</summary>
+    public List<string> Especialidades { get; set; } = [];
 }

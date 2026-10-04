@@ -120,6 +120,80 @@ public class EfUserRepository(MindzyxsDbContext db) : IUserRepository
             conteos.TryGetValue(p.IdUsuario, out var n) ? n : 0)).ToList();
     }
 
+    // PB-24 HU1-PB24: perfil profesional del psicólogo.
+    public async Task<UsuarioDto?> FindPerfilProfesionalAsync(int idUsuario, CancellationToken ct = default)
+    {
+        var u = await db.Usuarios.AsNoTracking()
+            .Where(x => x.IdUsuario == idUsuario)
+            .Select(x => new
+            {
+                x.IdUsuario,
+                x.IdRol,
+                x.IdEstadoCuenta,
+                x.IdEstadoAprobacion,
+                x.Nombre,
+                x.Apellido,
+                x.Correo,
+                x.PasswordHash,
+                x.FechaNacimiento,
+                x.IdGenero,
+                x.FilePath,
+                x.AñosExperiencia,
+                x.DescripcionProfesional,
+                x.DatosContacto,
+                x.TarjetaProfesionalVerificada
+            })
+            .FirstOrDefaultAsync(ct);
+
+        if (u is null) return null;
+
+        var dto = new UsuarioDto
+        {
+            IdUsuario = u.IdUsuario,
+            IdRol = u.IdRol,
+            IdEstadoCuenta = u.IdEstadoCuenta,
+            IdEstadoAprobacion = u.IdEstadoAprobacion,
+            Nombre = u.Nombre,
+            Apellido = u.Apellido,
+            Correo = u.Correo,
+            PasswordHash = u.PasswordHash,
+            FechaNacimiento = u.FechaNacimiento,
+            IdGenero = u.IdGenero,
+            FilePath = u.FilePath,
+            AñosExperiencia = u.AñosExperiencia,
+            DescripcionProfesional = u.DescripcionProfesional,
+            DatosContacto = u.DatosContacto,
+            TarjetaProfesionalVerificada = u.TarjetaProfesionalVerificada
+        };
+
+        // Cargar especialidades
+        var esp = await db.PsicologoEspecialidades.AsNoTracking()
+            .Where(p => p.IdPsicologo == idUsuario)
+            .Join(db.Especialidades.AsNoTracking(), p => p.IdEspecialidad, e => e.IdEspecialidad, (p, e) => e.Nombre)
+            .ToListAsync(ct);
+        dto.Especialidades = esp;
+
+        return dto;
+    }
+
+    // PB-24 HU1-PB24: actualiza perfil profesional del psicólogo.
+    public async Task ActualizarPerfilProfesionalAsync(int idUsuario, int? añosExperiencia, string? descripcionProfesional, string? datosContacto, bool tarjetaProfesionalVerificada, List<int> idsEspecialidad, CancellationToken ct = default)
+    {
+        await db.Usuarios.Where(x => x.IdUsuario == idUsuario)
+            .ExecuteUpdateAsync(s => s
+                .SetProperty(x => x.AñosExperiencia, añosExperiencia)
+                .SetProperty(x => x.DescripcionProfesional, descripcionProfesional)
+                .SetProperty(x => x.DatosContacto, datosContacto)
+                .SetProperty(x => x.TarjetaProfesionalVerificada, tarjetaProfesionalVerificada), ct);
+
+        // Reemplazar especialidades
+        var actuales = db.PsicologoEspecialidades.Where(p => p.IdPsicologo == idUsuario);
+        db.PsicologoEspecialidades.RemoveRange(actuales);
+        foreach (var id in idsEspecialidad.Distinct())
+            db.PsicologoEspecialidades.Add(new PsicologoEspecialidadRow { IdPsicologo = idUsuario, IdEspecialidad = id });
+        await db.SaveChangesAsync(ct);
+    }
+
     // Intento actualizar ultimo_acceso si existe; si no, no falla.
     public async Task<string?> GetRolNombreAsync(int idRol, CancellationToken ct = default)
         => await db.Roles.Where(r => r.IdRol == idRol).Select(r => r.Nombre).FirstOrDefaultAsync(ct);

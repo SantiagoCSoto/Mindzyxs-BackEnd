@@ -31,9 +31,17 @@ public class UsuarioRow
     public int IdEstadoCuenta { get; set; }
     public int? IdEstadoAprobacion { get; set; }
     public int? IdGenero { get; set; }
+    public int? IdInstitucion { get; set; }
+    public int? IdEspecialidad { get; set; }
     public string? FilePath { get; set; }
     public DateTime FechaRegistro { get; set; }
     public DateTime? UltimoAcceso { get; set; }
+
+    // PB-24 HU1-PB24: perfil profesional del psicólogo
+    public int? AñosExperiencia { get; set; }
+    public string? DescripcionProfesional { get; set; }
+    public string? DatosContacto { get; set; }
+    public bool TarjetaProfesionalVerificada { get; set; }
 }
 
 public class CodigoRow
