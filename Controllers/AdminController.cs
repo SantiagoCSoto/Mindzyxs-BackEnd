@@ -148,13 +148,24 @@ public class AdminController(AdminService admin) : ControllerBase
         return (true, adminId, string.Empty);
     }
 
-    /// <summary>Solo `Authorization: Bearer &lt;token&gt;` (sin query ni headers alternos).</summary>
+    /// <summary>Mismo parser robusto que AccountController (Authorization Bearer, comillas, ?token=).</summary>
     private string? ReadBearerToken()
     {
-        if (!Request.Headers.TryGetValue("Authorization", out var v)) return null;
-        var authHeader = v.ToString().Trim();
-        if (authHeader.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase))
-            return authHeader["Bearer ".Length..].Trim().Trim('"').Trim('\'');
+        var authHeader = "";
+        if (Request.Headers.TryGetValue("Authorization", out var v1)) authHeader = v1.ToString();
+        if (string.IsNullOrWhiteSpace(authHeader) && Request.Headers.TryGetValue("authorization", out var v2)) authHeader = v2.ToString();
+        if (string.IsNullOrWhiteSpace(authHeader) && Request.Headers.TryGetValue("X-Auth-Token", out var v3)) authHeader = v3.ToString();
+
+        if (!string.IsNullOrWhiteSpace(authHeader))
+        {
+            var parts = authHeader.Trim().Split(' ', StringSplitOptions.RemoveEmptyEntries);
+            var token = parts.Length == 1 ? parts[0] : parts[^1];
+            return token.Trim().Trim('"').Trim('\'');
+        }
+
+        if (Request.Query.TryGetValue("token", out var q))
+            return q.ToString().Trim().Trim('"').Trim('\'');
+
         return null;
     }
 }

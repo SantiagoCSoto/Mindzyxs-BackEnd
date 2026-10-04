@@ -44,12 +44,6 @@ public class RegisterVm
     /// el Paciente lo envía null.
     /// </summary>
     public IFormFile? TarjetaProfesional { get; set; }
-
-    /// <summary>
-    /// Ids de especialidades del psicólogo (checklist de `GET /api/account/catalogos`,
-    /// una, varias o ninguna). Solo para `Psicologo`; el Paciente lo envía vacío.
-    /// </summary>
-    public List<int>? Especialidades { get; set; }
 }
 
 /// <summary>Cuerpo de <c>POST /api/account/verify</c> (verificación de código del registro).</summary>

@@ -21,7 +21,4 @@ public class RegistroCatalogosDto
 
     /// <summary>Géneros disponibles.</summary>
     public List<CatalogItemDto> Generos { get; set; } = [];
-
-    /// <summary>Especialidades disponibles (checklist del registro del psicólogo).</summary>
-    public List<CatalogItemDto> Especialidades { get; set; } = [];
 }

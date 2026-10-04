@@ -17,7 +17,7 @@ public class VerificationService(
     {
         var c = ContactHelper.Normalize(correo);
         var user = await users.FindByCorreoAsync(c, ct);
-        if (user is null) return OperationResult<string>.Fail("Código incorrecto. Verifica e intenta nuevamente");
+        if (user is null) return OperationResult<string>.Fail("No se encontró un registro con ese correo.");
 
         var ultimo = await codes.UltimoAsync(user.IdUsuario, VerificationTypes.Registro, ct);
         if (ultimo is null) return OperationResult<string>.Fail("Código incorrecto. Verifica e intenta nuevamente");
@@ -45,8 +45,7 @@ public class VerificationService(
     {
         var c = ContactHelper.Normalize(correo);
         var user = await users.FindByCorreoAsync(c, ct);
-        // Anti-enumeración: respuesta genérica exista o no la cuenta.
-        if (user is null) return OperationResult.Fail("Si el correo está registrado y pendiente, recibirás un código.");
+        if (user is null) return OperationResult.Fail("No se encontró un registro con ese correo.");
 
         var codigo = CodeHelper.NewCode6();
         var expira = DateTimeProvider.UtcNow().AddMinutes(registroOptions.Value.CodigoExpiraMinutos);

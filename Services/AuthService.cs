@@ -45,16 +45,6 @@ public class AuthService(
         if (vm.IdGenero is null || !await catalogs.ExisteGeneroAsync(vm.IdGenero.Value, ct))
             return OperationResult<int>.Fail("Este campo es obligatorio");
 
-        // PB-especialidades: checklist solo para psicólogo (una, varias o ninguna).
-        var especialidades = (vm.Especialidades ?? []).Distinct().ToList();
-        if (!esPsicologo && especialidades.Count > 0)
-            return OperationResult<int>.Fail("Las especialidades son solo para psicólogos");
-        foreach (var idEsp in especialidades)
-        {
-            if (!await catalogs.ExisteEspecialidadAsync(idEsp, ct))
-                return OperationResult<int>.Fail("Selecciona especialidades válidas");
-        }
-
         var correo = ContactHelper.Normalize(vm.Correo);
         if (string.IsNullOrWhiteSpace(correo))
             return OperationResult<int>.Fail("Este campo es obligatorio");
@@ -88,9 +78,6 @@ public class AuthService(
             IdEstadoAprobacion = idAprob,
             IdGenero = vm.IdGenero
         }, ct);
-
-        if (esPsicologo && especialidades.Count > 0)
-            await users.GuardarEspecialidadesAsync(id, especialidades, ct);
 
         if (esPsicologo && vm.TarjetaProfesional is not null)
         {

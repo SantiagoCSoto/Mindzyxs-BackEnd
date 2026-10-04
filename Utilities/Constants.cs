@@ -22,7 +22,6 @@ public static class VerificationTypes
 {
     public const string Registro = "Registro";
     public const string Recuperar = "Recuperar";
-    public const string CambioCorreo = "CambioCorreo";
 }
 
 public static class LogAcciones
@@ -55,79 +54,13 @@ public static class LogAcciones
     public const string CuestionarioInvitadoInicio = "CUESTIONARIO_INVITADO_INICIO";
     public const string CuestionarioInvitadoFin = "CUESTIONARIO_INVITADO_FIN";
 
-    // PB-11 HU1-PB11: cuestionario emocional del paciente autenticado (inicio y
-    // finalización con persistencia de respuestas y resultado en su historial).
-    public const string CuestionarioPacienteInicio = "CUESTIONARIO_PACIENTE_INICIO";
-    public const string CuestionarioPacienteFin = "CUESTIONARIO_PACIENTE_FIN";
-
-    // PB-12 HU1-PB12: registro del estado emocional del paciente (escala 1-5 + nota opcional).
-    public const string RegistroEmocionalCreado = "REGISTRO_EMOCIONAL_CREADO";
-
     // PB-08 HU1-PB8: cálculo y visualización del riesgo emocional del invitado.
     public const string RiesgoInvitadoCalculo = "RIESGO_INVITADO_CALCULO";
-
-    // PB-16 HU1-PB16: alerta de riesgo alto del paciente. Vista = generación y
-    // visualización del modal; Accion = lo elegido: líneas de ayuda, recomendaciones o entendido.
-    public const string AlertaRiesgoVista = "ALERTA_RIESGO_ALTO_VISTA";
-    public const string AlertaRiesgoAccion = "ALERTA_RIESGO_ALTO_ACCION";
 
     // PB-09 HU1-PB9: consulta de recomendaciones básicas del invitado (lista y detalle).
     public const string RecomendacionInvitadoConsulta = "RECOMENDACION_INVITADO_CONSULTA";
 
-    // PB-31 HU1-PB31: ciclo de vida del chat (solicitudes, mensajes, bloqueos).
-    public const string ChatSolicitud = "CHAT_SOLICITUD";
-    public const string ChatAceptado = "CHAT_ACEPTADO";
-    public const string ChatRechazado = "CHAT_RECHAZADO";
-    public const string ChatBloqueo = "CHAT_BLOQUEO";
-    public const string ChatDesbloqueo = "CHAT_DESBLOQUEO";
-    // Solicitud de bloqueo con motivo (queda pendiente de revisión).
-    public const string AlertaBloqueo = "ALERTA_BLOQUEO";
-    public const string ChatMensaje = "CHAT_MENSAJE";
-
-    // PB-31: aceptar el chat otorga autorización al psicólogo.
-    public const string AutorizacionOtorgada = "AUTORIZACION_OTORGADA";
-
-    // PB-17 HU1-PB17: revocar acceso de psicólogo.
-    public const string AutorizacionRevocada = "AUTORIZACION_REVOCADA";
-
     // Corrección BD: acciones registradas por triggers (ver sql/10_triggers_auth.sql).
     public const string CambioEstadoCuenta = "CAMBIO_ESTADO_CUENTA";
     public const string SesionCreada = "SESION_CREADA";
-
-    // PB-13 HU1-PB13: consulta del historial emocional (lista y detalle).
-    public const string HistorialConsulta = "HISTORIAL_CONSULTA";
-
-    // PB-14 HU1-PB14: consulta del progreso de pacientes autorizados.
-    public const string ProgresoConsulta = "PROGRESO_CONSULTA";
-
-    // PB-18 HU1-PB18: consulta de registros y detalle de pacientes autorizados.
-    public const string RegistrosConsulta = "REGISTROS_CONSULTA";
-    public const string RegistroDetalle = "REGISTRO_DETALLE";
-
-    // Directorio de psicólogos para pacientes.
-    public const string DirectorioConsulta = "DIRECTORIO_CONSULTA";
-
-    // PB-19 HU1-PB19: crear observación en registro de paciente autorizado.
-    public const string ObservacionCrear = "OBSERVACION_CREAR";
-
-    // PB-15 HU1-PB15: configuración de recordatorios.
-    public const string RecordatorioConfig = "RECORDATORIO_CONFIG";
-
-    // PB-10 HU1-PB10: edición de perfil y cambio de correo.
-    public const string PerfilActualizado = "PERFIL_ACTUALIZADO";
-    public const string CorreoSolicitado = "CORREO_SOLICITADO";
-    public const string CorreoActualizado = "CORREO_ACTUALIZADO";
-
-    // PB-20 HU1-PB20: el psicólogo crea un cuestionario personalizado.
-    public const string CuestionarioCreado = "CUESTIONARIO_CREADO";
-
-    // PB-21 HU1-PB21: el psicólogo edita (incluye despublicar por confirmación) o elimina
-    // un cuestionario propio; la eliminación es lógica (estado Eliminado) y deja de
-    // contarse en los análisis.
-    public const string CuestionarioEditado = "CUESTIONARIO_EDITADO";
-    public const string CuestionarioEliminado = "CUESTIONARIO_ELIMINADO";
-
-    // PB-22 HU1-PB22: el psicólogo asigna un cuestionario publicado a uno o varios
-    // pacientes que le hayan autorizado (queda disponible de inmediato para el paciente).
-    public const string CuestionarioAsignado = "CUESTIONARIO_ASIGNADO";
 }

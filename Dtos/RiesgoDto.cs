@@ -10,19 +10,6 @@ public class CalcularRiesgoVm
     public List<RespuestaCuestionarioVm> Respuestas { get; set; } = [];
 }
 
-/// <summary>Acción del paciente sobre la alerta de riesgo alto: <c>POST /api/riesgo/paciente/alerta</c> (PB-16 HU1-PB16).</summary>
-public class RegistrarAlertaRiesgoVm
-{
-    /// <summary>
-    /// Acción registrada en logs: "vista" (se generó y visualizó la alerta),
-    /// "lineas" (Líneas de ayuda), "recomendaciones" (Ver recomendaciones) o "entendido".
-    /// </summary>
-    public string Accion { get; set; } = "";
-
-    /// <summary>Origen de la alerta: "cuestionario" o "registro" (opcional, solo para el detalle del log).</summary>
-    public string? Origen { get; set; }
-}
-
 /// <summary>Alerta de urgencia (solo se muestra si el riesgo es alto).</summary>
 public class AlertaRiesgoDto
 {

@@ -31,7 +31,7 @@ public class LoginService(
         }
         if (!ContactHelper.IsEmail(correo))
         {
-            await authLogs.LogAsync(null, null, LogAcciones.LoginFailed, $"Correo inválido: {MaskCorreo(correo)}", ip, ct);
+            await authLogs.LogAsync(null, null, LogAcciones.LoginFailed, $"Correo inválido: {correo}", ip, ct);
             return OperationResult<LoginResponseDto>.Fail("Ingresa un correo válido");
         }
         if (string.IsNullOrWhiteSpace(password))
@@ -40,12 +40,12 @@ public class LoginService(
             return OperationResult<LoginResponseDto>.Fail("Este campo es obligatorio");
         }
 
-        await authLogs.LogAsync(null, null, LogAcciones.LoginAttempt, $"Intento login: {MaskCorreo(correo)}", ip, ct);
+        await authLogs.LogAsync(null, null, LogAcciones.LoginAttempt, $"Intento login: {correo}", ip, ct);
 
         var user = await users.FindByCorreoAsync(correo, ct);
         if (user is null)
         {
-            await authLogs.LogAsync(null, null, LogAcciones.LoginFailed, $"Usuario no encontrado: {MaskCorreo(correo)}", ip, ct);
+            await authLogs.LogAsync(null, null, LogAcciones.LoginFailed, $"Usuario no encontrado: {correo}", ip, ct);
             return OperationResult<LoginResponseDto>.Fail("Correo o contraseña incorrectos");
         }
 
@@ -62,7 +62,7 @@ public class LoginService(
             || string.Equals(estadoNombre, AccountStates.Inactiva, StringComparison.OrdinalIgnoreCase))
         {
             await authLogs.LogAsync(user.IdUsuario, user.IdUsuario, LogAcciones.LoginBloqueadoSuspendida,
-                $"Bloqueado por estado {estadoNombre}: {MaskCorreo(correo)}", ip, ct);
+                $"Bloqueado por estado {estadoNombre}: {correo}", ip, ct);
             return OperationResult<LoginResponseDto>.Fail("Tu cuenta se encuentra suspendida. Contacta al administrador");
         }
 
@@ -70,7 +70,7 @@ public class LoginService(
             && string.Equals(rolNombre, AppRoles.Psicologo, StringComparison.OrdinalIgnoreCase))
         {
             await authLogs.LogAsync(user.IdUsuario, user.IdUsuario, LogAcciones.LoginBloqueadoPendienteAprobacion,
-                $"Bloqueado PendienteAprobacion psicólogo: {MaskCorreo(correo)}", ip, ct);
+                $"Bloqueado PendienteAprobacion psicólogo: {correo}", ip, ct);
             return OperationResult<LoginResponseDto>.Fail("Tu cuenta está pendiente de aprobación por el administrador. Intenta más tarde");
         }
 
@@ -78,7 +78,7 @@ public class LoginService(
         if (!string.Equals(estadoNombre, AccountStates.Activa, StringComparison.OrdinalIgnoreCase))
         {
             await authLogs.LogAsync(user.IdUsuario, user.IdUsuario, LogAcciones.LoginBloqueadoSuspendida,
-                $"Bloqueado estado no activo {estadoNombre}: {MaskCorreo(correo)}", ip, ct);
+                $"Bloqueado estado no activo {estadoNombre}: {correo}", ip, ct);
             // Si no es ninguno de los dos casos específicos, usar mensaje genérico de suspendida
             // (cumple HU2-PB2 para Suspendida/Inactiva; PendienteVerificacion queda bloqueado)
             return OperationResult<LoginResponseDto>.Fail("Tu cuenta se encuentra suspendida. Contacta al administrador");
@@ -87,7 +87,7 @@ public class LoginService(
         // HU1-PB2 T3: validar password contra hash (PBKDF2 v1$...)
         if (!PasswordHelper.Verify(password, user.PasswordHash))
         {
-            await authLogs.LogAsync(null, user.IdUsuario, LogAcciones.LoginFailed, $"Password incorrecto: {MaskCorreo(correo)}", ip, ct);
+            await authLogs.LogAsync(null, user.IdUsuario, LogAcciones.LoginFailed, $"Password incorrecto: {correo}", ip, ct);
             return OperationResult<LoginResponseDto>.Fail("Correo o contraseña incorrectos");
         }
 
@@ -103,7 +103,7 @@ public class LoginService(
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Error creando sesión");
+            logger.LogError(ex, "Error creando sesión para {Correo}", correo);
             return OperationResult<LoginResponseDto>.Fail("No fue posible iniciar sesión. Intenta nuevamente");
         }
 
@@ -210,14 +210,5 @@ public class LoginService(
         {
             logger.LogError(ex, "No se pudo registrar {Accion} en dbo.auth", accion);
         }
-    }
-
-    // Privacidad: enmascara correos en logs (u***@dominio).
-    private static string MaskCorreo(string? correo)
-    {
-        if (string.IsNullOrWhiteSpace(correo)) return "***";
-        var at = correo.IndexOf('@');
-        if (at <= 0) return "***";
-        return $"{correo[0]}***{correo[at..]}";
     }
 }
