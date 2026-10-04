@@ -613,3 +613,91 @@ Accept: application/json
   "idEvento": null,
   "contenido": "El paciente muestra mejoría en la regulación emocional."
 }
+
+### PB-21 lista mis cuestionarios con búsqueda (HU1-PB21, Bearer psicólogo)
+GET {{Host}}/api/psicologo/cuestionarios?q=ansiedad
+Authorization: Bearer <token-psicologo>
+Accept: application/json
+
+### PB-21 detalle de mi cuestionario (HU1-PB21, prellena el editor)
+GET {{Host}}/api/psicologo/cuestionarios/7
+Authorization: Bearer <token-psicologo>
+Accept: application/json
+
+### PB-21 pasar a borrador con confirmación (HU1-PB21, solo si está Publicado, log en dbo.auth)
+POST {{Host}}/api/psicologo/cuestionarios/7/despublicar
+Authorization: Bearer <token-psicologo>
+
+### PB-21 editar y guardar como borrador (HU1-PB21, log CUESTIONARIO_EDITADO)
+PUT {{Host}}/api/psicologo/cuestionarios/7
+Authorization: Bearer <token-psicologo>
+Content-Type: application/json
+Accept: application/json
+
+{
+  "titulo": "Ansiedad semanal (revisado)",
+  "descripcion": "Seguimiento de síntomas - versión editada",
+  "publicar": false,
+  "umbrales": { "bajoMax": 6, "medioMax": 12 },
+  "preguntas": [
+    {
+      "id": 10,
+      "texto": "¿Con qué frecuencia se sintió nervioso/a esta semana?",
+      "tipo": "opcion_multiple",
+      "opciones": [
+        { "texto": "Nunca", "valor": 0 },
+        { "texto": "A veces", "valor": 2 },
+        { "texto": "Siempre", "valor": 4 }
+      ]
+    },
+    {
+      "texto": "¿Le costó conciliar el sueño?",
+      "tipo": "opcion_multiple",
+      "opciones": [
+        { "texto": "No", "valor": 0 },
+        { "texto": "A veces", "valor": 2 },
+        { "texto": "Casi siempre", "valor": 4 }
+      ]
+    }
+  ]
+}
+
+### PB-21 editar sin preguntas - 400 (HU1-PB21, "El cuestionario debe tener al menos una pregunta")
+PUT {{Host}}/api/psicologo/cuestionarios/7
+Authorization: Bearer <token-psicologo>
+Content-Type: application/json
+
+{
+  "titulo": "Sin preguntas",
+  "publicar": false,
+  "preguntas": []
+}
+
+### PB-21 publicar los cambios (HU1-PB21, queda disponible para asignar)
+PUT {{Host}}/api/psicologo/cuestionarios/7
+Authorization: Bearer <token-psicologo>
+Content-Type: application/json
+
+{
+  "titulo": "Ansiedad semanal (revisado)",
+  "publicar": true,
+  "preguntas": [
+    {
+      "texto": "¿Con qué frecuencia se sintió nervioso/a esta semana?",
+      "tipo": "opcion_multiple",
+      "opciones": [
+        { "texto": "Nunca", "valor": 0 },
+        { "texto": "A veces", "valor": 2 },
+        { "texto": "Siempre", "valor": 4 }
+      ]
+    }
+  ]
+}
+
+### PB-21 eliminar con confirmación extra (HU1-PB21, baja lógica + observaciones, log CUESTIONARIO_ELIMINADO)
+DELETE {{Host}}/api/psicologo/cuestionarios/7?confirmar=true
+Authorization: Bearer <token-psicologo>
+
+### PB-21 eliminar sin confirmar - 400 (HU1-PB21)
+DELETE {{Host}}/api/psicologo/cuestionarios/7
+Authorization: Bearer <token-psicologo>

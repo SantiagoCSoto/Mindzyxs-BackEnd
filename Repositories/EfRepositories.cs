@@ -631,6 +631,114 @@ public class EfCuestionarioRepository(MindzyxsDbContext db) : ICuestionarioRepos
         }
     }
 
+    // PB-21: lista "Mis cuestionarios" del psicólogo (Borrador/Publicado), con búsqueda
+    // por título y recientes primero.
+    public Task<List<CuestionarioPsicologoListaDto>> GetDePsicologoAsync(int idPsicologo, string? q, CancellationToken ct = default)
+        => (from c in db.Cuestionarios.AsNoTracking()
+            where c.IdCreador == idPsicologo && (c.Estado == "Borrador" || c.Estado == "Publicado")
+                && (string.IsNullOrEmpty(q) || c.Titulo.Contains(q))
+            orderby c.FechaCreacion descending
+            select new CuestionarioPsicologoListaDto(
+                c.IdCuestionario, c.Titulo, c.Descripcion, c.Estado,
+                db.Preguntas.Count(p => p.IdCuestionario == c.IdCuestionario && !p.Eliminada),
+                c.FechaCreacion))
+            .ToListAsync(ct);
+
+    // PB-21: detalle de un cuestionario propio (solo Borrador/Publicado; no Eliminado).
+    public Task<CuestionarioRow?> FindDePsicologoAsync(int idCuestionario, int idPsicologo, CancellationToken ct = default)
+        => db.Cuestionarios.AsNoTracking()
+            .Where(c => c.IdCuestionario == idCuestionario && c.IdCreador == idPsicologo
+                && (c.Estado == "Borrador" || c.Estado == "Publicado"))
+            .FirstOrDefaultAsync(ct);
+
+    // PB-21: pasa el cuestionario a Borrador (confirmación del psicólogo antes de editar).
+    public async Task DespublicarAsync(int idCuestionario, CancellationToken ct = default)
+        => await db.Cuestionarios.Where(c => c.IdCuestionario == idCuestionario)
+            .ExecuteUpdateAsync(s => s.SetProperty(c => c.Estado, "Borrador"), ct);
+
+    // PB-21: eliminación lógica del cuestionario (queda fuera de los análisis).
+    public async Task EliminarAsync(int idCuestionario, CancellationToken ct = default)
+        => await db.Cuestionarios.Where(c => c.IdCuestionario == idCuestionario)
+            .ExecuteUpdateAsync(s => s.SetProperty(c => c.Estado, "Eliminado"), ct);
+
+    // PB-21: al eliminar el cuestionario se borran también las observaciones asociadas
+    // (las que referencian eventos de ese cuestionario) antes de declararlo Eliminado.
+    public async Task EliminarObservacionesDeCuestionarioAsync(int idCuestionario, CancellationToken ct = default)
+        => await db.Observaciones
+            .Where(o => o.IdEvento.HasValue && db.Eventos.Any(e => e.IdEvento == o.IdEvento.Value && e.IdCuestionario == idCuestionario))
+            .ExecuteDeleteAsync(ct);
+
+    // PB-21: actualiza datos y preguntas/opciones en una transacción. Las preguntas
+    // existentes se editan en sitio, las nuevas se insertan y las que ya no vienen se
+    // marcan `eliminada` (no se borran si tienen respuestas por FK); sus opciones se
+    // reconstruyen (nada las referencia).
+    public async Task<int> ActualizarAsync(int idCuestionario, string titulo, string? descripcion, string estado, string? modoCalculo, int? umbralBajoMax, int? umbralMedioMax, List<(PreguntaRow Pregunta, List<OpcionPreguntaRow> Opciones)> preguntas, CancellationToken ct = default)
+    {
+        await using var tx = await db.Database.BeginTransactionAsync(ct);
+        try
+        {
+            var fila = await db.Cuestionarios.FirstAsync(c => c.IdCuestionario == idCuestionario, ct);
+            fila.Titulo = titulo;
+            fila.Descripcion = descripcion;
+            fila.Estado = estado;
+            fila.ModoCalculo = modoCalculo;
+            fila.UmbralBajoMax = umbralBajoMax;
+            fila.UmbralMedioMax = umbralMedioMax;
+            await db.SaveChangesAsync(ct);
+
+            // Preguntas que ya no están en la edición -> baja lógica + se limpian sus opciones.
+            var idsRecibidos = preguntas.Where(p => p.Pregunta.IdPregunta > 0).Select(p => p.Pregunta.IdPregunta).ToHashSet();
+            var existentes = await db.Preguntas.Where(p => p.IdCuestionario == idCuestionario && !p.Eliminada).ToListAsync(ct);
+            foreach (var vieja in existentes.Where(e => !idsRecibidos.Contains(e.IdPregunta)))
+            {
+                await db.OpcionesPregunta.Where(o => o.IdPregunta == vieja.IdPregunta).ExecuteDeleteAsync(ct);
+                vieja.Eliminada = true;
+            }
+            await db.SaveChangesAsync(ct);
+
+            var orden = 1;
+            foreach (var (pregunta, opciones) in preguntas)
+            {
+                pregunta.Orden = orden++;
+                if (pregunta.IdPregunta > 0)
+                {
+                    var existente = await db.Preguntas.FirstAsync(x => x.IdPregunta == pregunta.IdPregunta && x.IdCuestionario == idCuestionario, ct);
+                    existente.Texto = pregunta.Texto;
+                    existente.Orden = pregunta.Orden;
+                    existente.Tipo = pregunta.Tipo;
+                    existente.PuntajeMax = pregunta.PuntajeMax;
+                    await db.OpcionesPregunta.Where(o => o.IdPregunta == pregunta.IdPregunta).ExecuteDeleteAsync(ct);
+                    await db.SaveChangesAsync(ct);
+                    foreach (var op in opciones)
+                    {
+                        op.IdPregunta = pregunta.IdPregunta;
+                        db.OpcionesPregunta.Add(op);
+                    }
+                    await db.SaveChangesAsync(ct);
+                }
+                else
+                {
+                    pregunta.IdCuestionario = idCuestionario;
+                    db.Preguntas.Add(pregunta);
+                    await db.SaveChangesAsync(ct);
+                    foreach (var op in opciones)
+                    {
+                        op.IdPregunta = pregunta.IdPregunta;
+                        db.OpcionesPregunta.Add(op);
+                    }
+                    await db.SaveChangesAsync(ct);
+                }
+            }
+            await tx.CommitAsync(ct);
+            return idCuestionario;
+        }
+        catch
+        {
+            await tx.RollbackAsync(ct);
+            throw;
+        }
+    }
+
     // Corrección BD: sp_cuestionario_completo trae preguntas+opciones en 1 round-trip
     // (3 result sets; el 1ro es el cuestionario, ya validado por Find). Multi-result vía reader.
     public async Task<(List<PreguntaRow> Preguntas, List<OpcionPreguntaRow> Opciones)> GetCompletoAsync(int idCuestionario, CancellationToken ct = default)

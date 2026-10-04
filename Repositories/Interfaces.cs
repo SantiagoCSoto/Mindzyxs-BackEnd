@@ -119,6 +119,17 @@ public interface ICuestionarioRepository
     // PB-20 HU1-PB20: crea el cuestionario Personalizado con sus preguntas y opciones
     // en una transacción. Devuelve el id del cuestionario.
     Task<int> CrearAsync(CuestionarioRow cuestionario, List<(PreguntaRow Pregunta, List<OpcionPreguntaRow> Opciones)> preguntas, CancellationToken ct = default);
+
+    // PB-21 HU1-PB21: gestión de los cuestionarios del psicólogo (listar, editar,
+    // despublicar y eliminar). La eliminación es lógica (Estado = "Eliminado") porque
+    // eventos/respuestas apuntan a la fila por FK; lo mismo con preguntas en uso
+    // (marca `eliminada`), mientras las opciones sí se reconstruyen libremente.
+    Task<List<CuestionarioPsicologoListaDto>> GetDePsicologoAsync(int idPsicologo, string? q, CancellationToken ct = default);
+    Task<CuestionarioRow?> FindDePsicologoAsync(int idCuestionario, int idPsicologo, CancellationToken ct = default);
+    Task<int> ActualizarAsync(int idCuestionario, string titulo, string? descripcion, string estado, string? modoCalculo, int? umbralBajoMax, int? umbralMedioMax, List<(PreguntaRow Pregunta, List<OpcionPreguntaRow> Opciones)> preguntas, CancellationToken ct = default);
+    Task DespublicarAsync(int idCuestionario, CancellationToken ct = default);
+    Task EliminarAsync(int idCuestionario, CancellationToken ct = default);
+    Task EliminarObservacionesDeCuestionarioAsync(int idCuestionario, CancellationToken ct = default);
 }
 
 // PB-08: líneas de ayuda activas para invitados y pacientes (las administra el admin, PB-29).
