@@ -303,6 +303,26 @@ GET {{Host}}/api/progreso/8
 Authorization: Bearer <token-psicologo>
 Accept: application/json
 
+### PB-23 pacientes autorizados para estadísticas (HU1-PB23, selector en pantalla)
+GET {{Host}}/api/progreso/pacientes
+Authorization: Bearer <token-psicologo>
+Accept: application/json
+
+### PB-23 estadísticas del paciente (HU1-PB23, rango fechas + Generar)
+GET {{Host}}/api/progreso/6?desde=2026-09-01&hasta=2026-09-30
+Authorization: Bearer <token-psicologo>
+Accept: application/json
+
+### PB-23 estadísticas sin rango (HU1-PB23, todo el historial)
+GET {{Host}}/api/progreso/6
+Authorization: Bearer <token-psicologo>
+Accept: application/json
+
+### PB-23 paciente no autorizado - 403 (HU1-PB23)
+GET {{Host}}/api/progreso/8
+Authorization: Bearer <token-psicologo>
+Accept: application/json
+
 ### PB-15 mi configuracion - 204 si nunca configure (HU1-PB15, Bearer paciente)
 GET {{Host}}/api/recordatorios
 Authorization: Bearer <token-paciente>

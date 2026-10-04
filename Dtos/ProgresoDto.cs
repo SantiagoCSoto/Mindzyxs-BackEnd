@@ -36,7 +36,7 @@ public class ProgresoSemanaDto
     public double? Promedio { get; set; }
 }
 
-/// <summary>Progreso de un paciente: <c>GET /api/progreso/{idPaciente}</c> (PB-14 HU1-PB14).</summary>
+/// <summary>Progreso de un paciente: <c>GET /api/progreso/{idPaciente}</c> (PB-14 HU1-PB14 / PB-23 HU1-PB23).</summary>
 public class ProgresoDto
 {
     /// <summary>Promedio de estado emocional (si aplica).</summary>
@@ -54,9 +54,28 @@ public class ProgresoDto
     /// <summary>Agregados por semana.</summary>
     public List<ProgresoSemanaDto> PorSemana { get; set; } = [];
 
+    /// <summary>Agregados por mes.</summary>
+    public List<ProgresoMesDto> PorMes { get; set; } = [];
+
     /// <summary>Serie temporal para el gráfico.</summary>
     public List<ProgresoPuntoDto> Serie { get; set; } = [];
 
-    /// <summary>False con pocos datos: el front muestra "No tienes registros suficientes para generar gráficos".</summary>
+    /// <summary>Nivel más frecuente en el rango (Bajo/Medio/Alto).</summary>
+    public string? NivelFrecuente { get; set; }
+
+    /// <summary>False con pocos datos: el front muestra "El paciente no tiene datos suficientes para generar estadísticas".</summary>
     public bool Suficientes { get; set; }
+}
+
+/// <summary>Agregado mensual.</summary>
+public class ProgresoMesDto
+{
+    /// <summary>Mes (aaaa-MM).</summary>
+    public string Mes { get; set; } = "";
+
+    /// <summary>Cantidad de registros.</summary>
+    public int Registros { get; set; }
+
+    /// <summary>Promedio de puntaje (si aplica).</summary>
+    public double? Promedio { get; set; }
 }
