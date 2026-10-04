@@ -1122,3 +1122,72 @@ curl --location "http://localhost:5015/api/riesgo/paciente/alerta" -H "Authoriza
 * Logs `ALERTA_RIESGO_ALTO_VISTA` y `ALERTA_RIESGO_ALTO_ACCION` en `dbo.auth`
 
 * Rama actual `PB16`, BD `SANTI/Mindzyxs`. Sin DDL nuevo (el nivel de riesgo ya se guarda en el evento con PB-11/PB-12).
+
+# Mindzyxs-API - Guía PB-21 (Gestión de cuestionarios del psicólogo)
+
+API REST `Mindzyxs 1.1` - solo back-end. El psicólogo autenticado toca **Cuestionarios** en su panel → pantalla **Gestión de cuestionarios** con la lista de los suyos (Borrador o Publicado) en orden y con **búsqueda** (`GET` con `q`). Selecciona uno para ver su **detalle** (título, descripción, estado y preguntas). Si está **Publicado** y quiere editarlo, el front pide **confirmación** y `POST .../{id}/despublicar` lo pasa a **Borrador** antes de habilitar el editor. Al **Guardar como borrador** o **Publicar**, el back valida que quede **al menos una pregunta** (`El cuestionario debe tener al menos una pregunta`), guarda los cambios y responde `Cuestionario actualizado correctamente`. Puede **eliminar** con confirmación extra (baja lógica `Eliminado`, fuera de los análisis; se eliminan también las observaciones asociadas). Las ediciones/eliminaciones quedan en `dbo.auth`.
+
+Todo vive en `Controllers/PsicologoCuestionariosController.cs` → `Services/PsicologoCuestionariosService.cs` → `ICuestionarioRepository` (`EfCuestionarioRepository`) + `IAuthLogRepository`.
+
+**DDL necesario** (`Minzyxs-DB/sql/04_pb21_editar_cuestionarios.sql`): columna `preguntas.eliminada` (baja lógica de preguntas en uso) y recrea `sp_cuestionario_completo` filtrando preguntas eliminadas (el orden de columnas no cambia).
+
+## Endpoints PB-21 (HU1-PB21)
+
+| Método | Ruta | Descripción | Auth |
+|--------|------|-------------|------|
+| `GET` | `/api/psicologo/cuestionarios?q=` | Mis cuestionarios (Borrador/Publicado) con búsqueda, recientes primero | Bearer psicólogo |
+| `GET` | `/api/psicologo/cuestionarios/{id}` | Detalle editable (preguntas/opciones con ids) | Bearer psicólogo (dueño) |
+| `POST` | `/api/psicologo/cuestionarios/{id}/despublicar` | Confirmación: Publicado → Borrador + log | Bearer psicólogo (dueño) |
+| `PUT` | `/api/psicologo/cuestionarios/{id}` | Guarda edición (Borrador o Publicado) + log | Bearer psicólogo (dueño) |
+| `DELETE` | `/api/psicologo/cuestionarios/{id}?confirmar=true` | Elimina (baja lógica + observaciones) + log | Bearer psicólogo (dueño) |
+
+### 12.1 `GET /api/psicologo/cuestionarios` - lista con búsqueda
+
+```bash
+curl --location "http://localhost:5015/api/psicologo/cuestionarios?q=ansiedad" -H "Authorization: Bearer <token-psicologo>"
+```
+
+`200 [{id, titulo, descripcion, estado, numPreguntas, fechaCreacion}]` ordenado por `fechaCreacion DESC`. `q` filtra por título. No salen los `Eliminado`.
+
+### 12.2 `GET /api/psicologo/cuestionarios/{id}` - detalle (prellena el editor)
+
+`200 {id, titulo, descripcion, estado, modoCalculo, umbralBajoMax, umbralMedioMax, fechaCreacion, preguntas:[{id, texto, orden, tipo, opciones:[{id, texto, valor, orden}]}]}`. Los `id` de preguntas/opciones permiten mapear la edición. `404 "Cuestionario no encontrado."` si no existe o no es mío.
+
+### 12.3 `POST /api/psicologo/cuestionarios/{id}/despublicar` - confirmación de editar un publicado
+
+```bash
+curl --location -X POST "http://localhost:5015/api/psicologo/cuestionarios/7/despublicar" -H "Authorization: Bearer <token-psicologo>"
+```
+
+`200 {mensaje:"El cuestionario ahora es un borrador"}`. Si ya está Borrador → `400 "El cuestionario no está publicado."`. Guardo `CUESTIONARIO_EDITADO`. Con esto el front habilita el editor.
+
+### 12.4 `PUT /api/psicologo/cuestionarios/{id}` - guardar borrador/publicar
+
+```bash
+curl --location -X PUT "http://localhost:5015/api/psicologo/cuestionarios/7" -H "Authorization: Bearer <token-psicologo>" -H "Content-Type: application/json" -d '{"titulo":"Ansiedad semanal (revisado)","publicar":false,"umbrales":{"bajoMax":6,"medioMax":12},"preguntas":[{"id":10,"texto":"¿Con qué frecuencia se sintió nervioso/a?","tipo":"opcion_multiple","opciones":[{"texto":"Nunca","valor":0},{"texto":"A veces","valor":2},{"texto":"Siempre","valor":4}]},{"texto":"¿Le costó conciliar el sueño?","tipo":"opcion_multiple","opciones":[{"texto":"No","valor":0},{"texto":"A veces","valor":2},{"texto":"Casi siempre","valor":4}]}]}'
+```
+
+Mismo cuerpo que crear + `id` por pregunta (nulo = nueva; el `id` de una pregunta que ya no venga se da de baja con `eliminada`). `200 {id, mensaje:"Cuestionario actualizado correctamente"}`. Cero preguntas → `400 "El cuestionario debe tener al menos una pregunta"`. Publicar (`publicar:true`) lo deja **disponible para asignar a pacientes**. Si el cuestionario está Publicado → `400 "Para modificar un cuestionario publicado pásalo primero a borrador."`.
+
+### 12.5 `DELETE /api/psicologo/cuestionarios/{id}?confirmar=true` - eliminar con confirmación
+
+```bash
+curl --location -X DELETE "http://localhost:5015/api/psicologo/cuestionarios/7?confirmar=true" -H "Authorization: Bearer <token-psicologo>"
+```
+
+`200 {mensaje:"Cuestionario eliminado correctamente"}`. Sin `confirmar=true` → `400 "Debes confirmar la eliminación del cuestionario."`. Pasa a `Estado = Eliminado` (sale de las listas y de los análisis; los eventos ya respondidos se conservan por FK) y borra las **observaciones asociadas** a sus eventos.
+
+## Mensajes exactos PB-21
+
+* `"El cuestionario ahora es un borrador"` (200, despublicar)
+* `"El cuestionario no está publicado."` (400, despublicar algo no publicado)
+* `"Cuestionario actualizado correctamente"` (200, guardar edición)
+* `"El cuestionario debe tener al menos una pregunta"` (400, al guardar sin preguntas)
+* `"Para modificar un cuestionario publicado pásalo primero a borrador."` (400, editar un publicado sin despublicar)
+* `"Debes confirmar la eliminación del cuestionario."` (400, borrar sin `confirmar=true`)
+* `"Cuestionario eliminado correctamente"` (200, eliminar)
+* `"Cuestionario no encontrado."` (404, no existe o no es mío)
+* Validaciones compartidas con crear: `"Cada pregunta debe tener texto."`, `"Cada pregunta debe tener al menos dos opciones."`, `"Cada opción debe tener texto."`, `"El valor de cada opción debe ser mayor o igual a cero."`, `"El título es obligatorio."`
+* Logs `CUESTIONARIO_EDITADO` y `CUESTIONARIO_ELIMINADO` en `dbo.auth`
+
+* Rama actual `PB-21-EditarCuestionario`, BD `SANTI/Mindzyxs`. DDL nuevo: `Minzyxs-DB/sql/04_pb21_editar_cuestionarios.sql` (columna `preguntas.eliminada` + `sp_cuestionario_completo` filtrado).

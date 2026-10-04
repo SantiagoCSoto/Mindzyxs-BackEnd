@@ -29,9 +29,12 @@ public class UmbralesRiesgoDto
     public int MedioMax { get; set; }
 }
 
-/// <summary>Pregunta con sus opciones (PB-20).</summary>
+/// <summary>Pregunta con sus opciones (PB-20 crear; PB-21 editar si trae <see cref="Id"/>).</summary>
 public class PreguntaCrearDto
 {
+    /// <summary>Id al EDITAR (PB-21): nulo en preguntas nuevas, presente en las que ya existen.</summary>
+    public int? Id { get; set; }
+
     /// <summary>Texto de la pregunta (obligatorio).</summary>
     public string Texto { get; set; } = string.Empty;
 

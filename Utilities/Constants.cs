@@ -120,4 +120,10 @@ public static class LogAcciones
 
     // PB-20 HU1-PB20: el psicólogo crea un cuestionario personalizado.
     public const string CuestionarioCreado = "CUESTIONARIO_CREADO";
+
+    // PB-21 HU1-PB21: el psicólogo edita (incluye despublicar por confirmación) o elimina
+    // un cuestionario propio; la eliminación es lógica (estado Eliminado) y deja de
+    // contarse en los análisis.
+    public const string CuestionarioEditado = "CUESTIONARIO_EDITADO";
+    public const string CuestionarioEliminado = "CUESTIONARIO_ELIMINADO";
 }

@@ -124,6 +124,8 @@ public class PsicologoEspecialidadRow
 
 // PB-07: dbo.preguntas. Todas son siempre obligatorias (sin flag).
 // tipo: 'escala' (entra al promedio de puntaje) u otros ('binaria', 'opcion_multiple').
+// PB-21: `eliminada` = baja lógica (las respuestas guardan el id de la pregunta por FK,
+// así que al editar no se borra físicamente la pregunta en uso).
 public class PreguntaRow
 {
     public int IdPregunta { get; set; }
@@ -132,6 +134,7 @@ public class PreguntaRow
     public int Orden { get; set; }
     public string? Tipo { get; set; }
     public int? PuntajeMax { get; set; }
+    public bool Eliminada { get; set; }
 }
 
 // PB-07: dbo.opciones_pregunta (texto, valor numérico para el puntaje, orden).
