@@ -41,3 +41,39 @@ public class OpcionPsicologoDto
     public int Valor { get; set; }
     public int Orden { get; set; }
 }
+
+/// <summary>Paciente autorizado para asignarle un cuestionario (pantalla "Asignar cuestionario", PB-22).</summary>
+public class PacienteAsignarDto
+{
+    public int Id { get; set; }
+    public string Nombre { get; set; } = "";
+
+    /// <summary>Si ya tiene este cuestionario asignado pendiente (el front lo deshabilita).</summary>
+    public bool YaAsignado { get; set; }
+}
+
+/// <summary>Pantalla "Asignar cuestionario": datos del cuestionario a asignar + pacientes autorizados (PB-22).</summary>
+public class AsignarCuestionarioPantallaDto
+{
+    public int Id { get; set; }
+    public string Titulo { get; set; } = "";
+    public string Estado { get; set; } = "";
+    public List<PacienteAsignarDto> Pacientes { get; set; } = [];
+}
+
+/// <summary>Cuerpo de <c>POST /api/psicologo/cuestionarios/{id}/asignar</c> (PB-22).</summary>
+public class AsignarCuestionarioRequest
+{
+    /// <summary>Ids de los pacientes autorizados a asignar el cuestionario (al menos uno).</summary>
+    public List<int> PacientesIds { get; set; } = [];
+}
+
+/// <summary>Respuesta de <c>POST /api/psicologo/cuestionarios/{id}/asignar</c> (PB-22).</summary>
+public class AsignarCuestionarioResult
+{
+    /// <summary>Mensaje de confirmación exacto del HU.</summary>
+    public string Mensaje { get; set; } = "";
+
+    /// <summary>Cantidad de asignaciones registradas (paciente-cuestionario).</summary>
+    public int Asignados { get; set; }
+}

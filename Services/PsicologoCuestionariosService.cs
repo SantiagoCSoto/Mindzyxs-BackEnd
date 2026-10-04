@@ -10,7 +10,8 @@ public class PsicologoCuestionariosService(
     IUserRepository users,
     ICatalogRepository catalogs,
     ISesionRepository sesiones,
-    IAuthLogRepository authLogs)
+    IAuthLogRepository authLogs,
+    IHistorialRepository historial)
 {
     // PB-20 HU1-PB20: crea el cuestionario Personalizado (Borrador o Publicado)
     // con preguntas, opciones con valor e intervalos de riesgo configurables.
@@ -149,6 +150,64 @@ public class PsicologoCuestionariosService(
         await authLogs.LogAsync(yo.IdUsuario, yo.IdUsuario, LogAcciones.CuestionarioEliminado,
             $"Psicólogo:{yo.IdUsuario} eliminó el cuestionario {id} \"{c.Titulo}\" (pasa a Eliminado, no se usa en los análisis)", ip, ct);
         return "Cuestionario eliminado correctamente";
+    }
+
+    // PB-22 HU1-PB22: pantalla "Asignar cuestionario" (lista de pacientes autorizados
+    // con casillas; los que ya tienen el cuestionario asignado salen deshabilitados).
+    // Solo cuestionarios propios. No bloquea si es Borrador: la asignación misma
+    // (POST) valida que esté Publicado.
+    public async Task<AsignarCuestionarioPantallaDto> ObtenerPantallaAsignarAsync(string? tokenRaw, int id, CancellationToken ct = default)
+    {
+        var yo = await RequirePsicologoAsync(tokenRaw, ct);
+        var c = await cuestionarios.FindDePsicologoAsync(id, yo.IdUsuario, ct)
+            ?? throw new InvalidOperationException("Cuestionario no encontrado.");
+
+        var idAut = await historial.GetEstadoIdAsync("Autorizado", ct) ?? -1;
+        var pacientes = await historial.GetPacientesAutorizadosAsync(yo.IdUsuario, idAut, ct);
+        var yaAsignados = (await cuestionarios.GetPacientesConAsignacionPendienteAsync(id, ct)).ToHashSet();
+
+        return new AsignarCuestionarioPantallaDto
+        {
+            Id = c.IdCuestionario,
+            Titulo = c.Titulo,
+            Estado = c.Estado,
+            Pacientes = pacientes.Select(p => new PacienteAsignarDto
+            {
+                Id = p.IdUsuario,
+                Nombre = $"{p.Nombre} {p.Apellido}".Trim(),
+                YaAsignado = yaAsignados.Contains(p.IdUsuario)
+            }).ToList()
+        };
+    }
+
+    // PB-22 HU1-PB22: registra la asignación del cuestionario a uno o varios pacientes
+    // autorizados. Restringe la asignación a cuestionarios Publicado, valida al menos
+    // un paciente ("Debes seleccionar al menos un paciente") y guarda CUESTIONARIO_ASIGNADO
+    // en dbo.auth. El cuestionario queda disponible de inmediato para el paciente.
+    public async Task<int> AsignarAsync(string? tokenRaw, int id, AsignarCuestionarioRequest request, string? ip, CancellationToken ct = default)
+    {
+        var yo = await RequirePsicologoAsync(tokenRaw, ct);
+        var c = await cuestionarios.FindDePsicologoAsync(id, yo.IdUsuario, ct)
+            ?? throw new InvalidOperationException("Cuestionario no encontrado.");
+        if (!string.Equals(c.Estado, "Publicado", StringComparison.OrdinalIgnoreCase))
+            throw new InvalidOperationException("Solo puedes asignar cuestionarios publicados.");
+        if (request.PacientesIds is null || request.PacientesIds.Count == 0)
+            throw new InvalidOperationException("Debes seleccionar al menos un paciente");
+
+        var idAut = await historial.GetEstadoIdAsync("Autorizado", ct) ?? -1;
+        var autorizados = (await historial.GetPacientesAutorizadosAsync(yo.IdUsuario, idAut, ct))
+            .Select(p => p.IdUsuario).ToHashSet();
+        // La pantalla ya lista solo autorizados; el back valida de nuevo (solo asignables).
+        var ids = request.PacientesIds.Distinct().ToList();
+        if (ids.Any(idP => !autorizados.Contains(idP)))
+            throw new InvalidOperationException("Solo puedes asignar a pacientes que te hayan autorizado.");
+
+        var asignaciones = await cuestionarios.AsignarAsync(id, yo.IdUsuario, ids, ct);
+
+        await authLogs.LogAsync(yo.IdUsuario, yo.IdUsuario, LogAcciones.CuestionarioAsignado,
+            $"Psicólogo:{yo.IdUsuario} asignó el cuestionario {id} \"{c.Titulo}\" a los pacientes [{string.Join(",", ids)}] ({asignaciones.Count} asignación(es))", ip, ct);
+
+        return asignaciones.Count;
     }
 
     // Valida título no, preguntas: texto, mínimo 2 opciones y valores >= 0 (PB-20/21).

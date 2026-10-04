@@ -701,3 +701,36 @@ Authorization: Bearer <token-psicologo>
 ### PB-21 eliminar sin confirmar - 400 (HU1-PB21)
 DELETE {{Host}}/api/psicologo/cuestionarios/7
 Authorization: Bearer <token-psicologo>
+
+### PB-22 pantalla asignar cuestionario (HU1-PB22, solo pacientes autorizados, yaAsignado deshabilita)
+GET {{Host}}/api/psicologo/cuestionarios/7/asignar
+Authorization: Bearer <token-psicologo>
+Accept: application/json
+
+### PB-22 asignar a pacientes (HU1-PB22, cuestionario Publicado, log CUESTIONARIO_ASIGNADO)
+POST {{Host}}/api/psicologo/cuestionarios/7/asignar
+Authorization: Bearer <token-psicologo>
+Content-Type: application/json
+Accept: application/json
+
+{
+  "pacientesIds": [2, 3]
+}
+
+### PB-22 asignar sin pacientes - 400 (HU1-PB22, "Debes seleccionar al menos un paciente")
+POST {{Host}}/api/psicologo/cuestionarios/7/asignar
+Authorization: Bearer <token-psicologo>
+Content-Type: application/json
+
+{
+  "pacientesIds": []
+}
+
+### PB-22 asignar cuestionario en Borrador - 400 (HU1-PB22, "Solo puedes asignar cuestionarios publicados.")
+POST {{Host}}/api/psicologo/cuestionarios/1/asignar
+Authorization: Bearer <token-psicologo>
+Content-Type: application/json
+
+{
+  "pacientesIds": [2]
+}

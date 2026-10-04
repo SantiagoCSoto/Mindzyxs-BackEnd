@@ -595,6 +595,45 @@ public class EfCuestionarioRepository(MindzyxsDbContext db) : ICuestionarioRepos
         => await db.Asignaciones.Where(a => a.IdAsignacion == idAsignacion)
             .ExecuteUpdateAsync(s => s.SetProperty(a => a.Estado, "Completada"), ct);
 
+    // PB-22: el psicólogo asigna su cuestionario a los pacientes autorizados. Crea una
+    // fila por paciente (Pendiente) y evita duplicar si ya existe una asignación
+    // Pendiente del mismo cuestionario para ese paciente. Devuelve los ids creados.
+    public async Task<List<int>> AsignarAsync(int idCuestionario, int idPsicologo, List<int> idsPacientes, CancellationToken ct = default)
+    {
+        var idsUnicos = idsPacientes.Distinct().ToList();
+        var existentes = await db.Asignaciones.AsNoTracking()
+            .Where(a => a.IdCuestionario == idCuestionario
+                && (a.Estado == "Pendiente" || a.Estado == "Asignado")
+                && idsUnicos.Contains(a.IdPaciente))
+            .Select(a => a.IdPaciente)
+            .ToListAsync(ct);
+
+        var aInsertar = idsUnicos.Except(existentes).ToList();
+        if (aInsertar.Count == 0) return [];
+
+        var filas = aInsertar.Select(idPac => new AsignacionRow
+        {
+            IdCuestionario = idCuestionario,
+            IdPaciente = idPac,
+            IdPsicologo = idPsicologo,
+            Estado = "Pendiente"
+        }).ToList();
+
+        db.Asignaciones.AddRange(filas);
+        await db.SaveChangesAsync(ct);
+        return filas.Select(f => f.IdAsignacion).ToList();
+    }
+
+    // PB-22: pacientes con asignación Pendiente/Asignado de un cuestionario (para
+    // deshabilitarlos en la pantalla de asignación).
+    public Task<List<int>> GetPacientesConAsignacionPendienteAsync(int idCuestionario, CancellationToken ct = default)
+        => db.Asignaciones.AsNoTracking()
+            .Where(a => a.IdCuestionario == idCuestionario
+                && (a.Estado == "Pendiente" || a.Estado == "Asignado"))
+            .Select(a => a.IdPaciente)
+            .Distinct()
+            .ToListAsync(ct);
+
     public Task<CuestionarioRow?> FindByIdAsync(int idCuestionario, CancellationToken ct = default)
         => db.Cuestionarios.AsNoTracking()
             .Where(c => c.IdCuestionario == idCuestionario)
