@@ -943,6 +943,47 @@ API REST `Mindzyxs 1.1` — solo back-end. Lista de pacientes que autorizaron al
 
 * Rama actual `PB14` (apilada sobre `PB13`).
 
+---
+# Mindzyxs-API - Guía PB-23 (Estadísticas de pacientes autorizados)
+
+Extiende **PB-14**: pantalla **Estadísticas de pacientes** en el panel del psicólogo. Lista pacientes autorizados (selector), controles de rango de fechas (`desde`/`hasta`), y al presionar **Generar** calcula y muestra: **promedio** de estado emocional, **tendencia** (Sube/Baja/Estable), **registros por semana**, **registros por mes**, **distribución por niveles** y **nivel más frecuente**. Si el paciente tiene `< 3` registros → `suficientes:false` y el front muestra "El paciente no tiene datos suficientes para generar estadísticas". Sin autorización → 403. Log `ESTADISTICAS_CONSULTA` en `dbo.auth`.
+
+Mismos endpoints que PB-14 (`/api/progreso`), respuesta extendida con `nivelFrecuente` y `porMes`.
+
+Todo vive en `Controllers/ProgresoController.cs` → `Services/ProgresoService.cs` → `IHistorialRepository` + `IAuthLogRepository` (log `ESTADISTICAS_CONSULTA` en `dbo.auth`).
+
+## Endpoints PB-23 (HU1-PB23)
+
+| Método | Ruta | Descripción | Auth |
+|--------|------|-------------|------|
+| `GET` | `/api/progreso/pacientes` | Mis pacientes autorizados (selector) | Bearer psicólogo |
+| `GET` | `/api/progreso/{idPaciente}?desde=&hasta=` | Estadísticas completas (promedio, tendencia, por semana/mes, distribución, nivel frecuente) | Bearer psicólogo autorizado |
+
+### 12.1 `GET /api/progreso/pacientes` - selector de pacientes autorizados
+
+```bash
+curl --location "http://localhost:5015/api/progreso/pacientes" -H "Authorization: Bearer <token-psicologo>"
+```
+
+`200 [{id, nombre}]`. Vacía → front muestra "No tienes pacientes autorizados en este momento".
+
+### 12.2 `GET /api/progreso/{idPaciente}?desde=&hasta=` - estadísticas completas
+
+```bash
+curl --location "http://localhost:5015/api/progreso/6?desde=2026-09-01&hasta=2026-09-30" -H "Authorization: Bearer <token-psicologo>"
+```
+
+`200 { promedio, tendencia, totalRegistros, distribucion, porSemana, porMes, serie, nivelFrecuente, suficientes }`. `suficientes:false` (menos de 3 registros) → front muestra "El paciente no tiene datos suficientes para generar estadísticas". Sin autorización → `403 "No tienes autorización para ver los registros de este paciente."`.
+
+## Mensajes exactos PB-23
+
+* `"No tienes pacientes autorizados en este momento"` (front, lista vacía)
+* `"El paciente no tiene datos suficientes para generar estadísticas"` (front, `suficientes:false`)
+* `"No tienes autorización para ver los registros de este paciente."` (403)
+* Consulta registrada como `ESTADISTICAS_CONSULTA` en `dbo.auth`
+
+---
+
 # Mindzyxs-API - Guía PB-15 (Recordatorios del paciente)
 
 API REST `Mindzyxs 1.1` - solo back-end. Configuración de frecuencia y horario para el registro emocional (upsert por paciente), con activación/desactivación y endpoint de avisos vencidos-hoy para polling del front. Todo vive en `Controllers/RecordatorioController.cs` → `Services/RecordatorioService.cs` → `IRecordatorioRepository` + `IAuthLogRepository` (log en `dbo.auth`).

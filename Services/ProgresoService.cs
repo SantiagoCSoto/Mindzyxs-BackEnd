@@ -82,10 +82,30 @@ public class ProgresoService(
             dto.Distribucion[nivel] = dto.Distribucion.TryGetValue(nivel, out var c) ? c + 1 : 1;
         }
 
+        // PB-23: nivel más frecuente
+        if (dto.Distribucion.Count > 0)
+            dto.NivelFrecuente = dto.Distribucion.OrderByDescending(kv => kv.Value).First().Key;
+
+        // PB-23: agregados por mes
+        if (puntajes.Count > 0)
+        {
+            dto.PorMes = puntos
+                .Where(p => p.Puntaje.HasValue)
+                .GroupBy(p => new { p.Fecha.Year, p.Fecha.Month })
+                .OrderBy(g => g.Key.Year).ThenBy(g => g.Key.Month)
+                .Select(g => new ProgresoMesDto
+                {
+                    Mes = $"{g.Key.Year:D4}-{g.Key.Month:D2}",
+                    Registros = g.Count(),
+                    Promedio = Math.Round(g.Average(p => (double)p.Puntaje!.Value), 2)
+                })
+                .ToList();
+        }
+
         dto.Suficientes = eventos.Count >= 3;
 
-        await authLogs.LogAsync(yo.IdUsuario, idPaciente, LogAcciones.ProgresoConsulta,
-            $"Psicólogo:{yo.IdUsuario} consultó el progreso del paciente:{idPaciente} ({eventos.Count} registros)", ip, ct);
+        await authLogs.LogAsync(yo.IdUsuario, idPaciente, LogAcciones.EstadisticasConsulta,
+            $"Psicólogo:{yo.IdUsuario} consultó estadísticas del paciente:{idPaciente} ({eventos.Count} registros)", ip, ct);
 
         return dto;
     }
