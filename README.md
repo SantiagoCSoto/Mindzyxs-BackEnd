@@ -1191,3 +1191,44 @@ curl --location -X DELETE "http://localhost:5015/api/psicologo/cuestionarios/7?c
 * Logs `CUESTIONARIO_EDITADO` y `CUESTIONARIO_ELIMINADO` en `dbo.auth`
 
 * Rama actual `PB-21-EditarCuestionario`, BD `SANTI/Mindzyxs`. DDL nuevo: `Minzyxs-DB/sql/04_pb21_editar_cuestionarios.sql` (columna `preguntas.eliminada` + `sp_cuestionario_completo` filtrado).
+
+---
+# Mindzyxs-API - Guía PB-22 (Asignación de cuestionarios a pacientes)
+
+El psicólogo autorizado toca **Cuestionarios** en su panel → elige **Asignar** en un cuestionario **Publicado** → pantalla **Asignar cuestionario** con la lista de **pacientes que le hayan autorizado** con casillas de verificación (los que ya tienen ese cuestionario asignado pendiente salen deshabilitados). Al marcar uno o varios y presionar **Asignar cuestionario**, el back registra las asignaciones (una fila por paciente en `asignaciones_cuestionario`, estado `Pendiente`), lo que hace el cuestionario **disponible de inmediato** en la cuenta del paciente (`GET /api/cuestionario/paciente/asignados`). Responde `Cuestionario asignado correctamente`, guarda `CUESTIONARIO_ASIGNADO` en `dbo.auth` y loguea en el mensaje los pacientes asignados.
+
+Todo vive en `Controllers/PsicologoCuestionariosController.cs` → `Services/PsicologoCuestionariosService.cs` → `ICuestionarioRepository` (`EfCuestionarioRepository`, método `AsignarAsync`) + `IHistorialRepository` (pacientes autorizados, `GetPacientesAutorizadosAsync`/`GetEstadoIdAsync("Autorizado")`) + `IAuthLogRepository`.
+
+**Sin DDL nuevo**: la tabla `dbo.asignaciones_cuestionario` y el lado paciente (PB-22) ya existen en `Minzyxs-DB/sql/01_create_tables_sqlserver.sql`.
+
+## Endpoints PB-22 (HU1-PB22)
+
+| Método | Ruta | Descripción | Auth |
+|--------|------|-------------|------|
+| `GET` | `/api/psicologo/cuestionarios/{id}/asignar` | Pantalla: cuestionario + pacientes autorizados (`yaAsignado` deshabilita casilla) | Bearer psicólogo (dueño) |
+| `POST` | `/api/psicologo/cuestionarios/{id}/asignar` | Asigna a uno o varios pacientes autorizados (solo Publicado) + log | Bearer psicólogo (dueño) |
+
+### 13.1 `GET /api/psicologo/cuestionarios/{id}/asignar` - pantalla de asignación
+
+```bash
+curl --location "http://localhost:5015/api/psicologo/cuestionarios/7/asignar" -H "Authorization: Bearer <token-psicologo>"
+```
+
+`200 {id, titulo, estado, pacientes:[{id, nombre, yaAsignado}]}`. Solo salen los pacientes que **autorizaron** al psicólogo (PB-18). `404 "Cuestionario no encontrado."` si no existe o no es mío.
+
+### 13.2 `POST /api/psicologo/cuestionarios/{id}/asignar` - registrar la asignación
+
+```bash
+curl --location -X POST "http://localhost:5015/api/psicologo/cuestionarios/7/asignar" -H "Authorization: Bearer <token-psicologo>" -H "Content-Type: application/json" -d '{"pacientesIds":[2,3]}'
+```
+
+`200 {mensaje:"Cuestionario asignado correctamente", asignados:2}`. La asignación queda `Pendiente` y el paciente la ve de inmediato. No se duplica si el paciente ya tenía ese cuestionario asignado pendiente.
+
+## Mensajes exactos PB-22
+
+* `"Cuestionario asignado correctamente"` (200, asignación registrada)
+* `"Debes seleccionar al menos un paciente"` (400, sin pacientes o solo no autorizados)
+* `"Solo puedes asignar cuestionarios publicados."` (400, cuestionario no Publicado)
+* `"Solo puedes asignar a pacientes que te hayan autorizado."` (400, algún id no autorizado)
+* `"Cuestionario no encontrado."` (404, no existe o no es mío)
+* Log `CUESTIONARIO_ASIGNADO` en `dbo.auth`

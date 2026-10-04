@@ -294,6 +294,96 @@ public class PsicologoCuestionariosController(PsicologoCuestionariosService cues
         }
     }
 
+    /// <summary>Pantalla "Asignar cuestionario" (PB-22 HU1-PB22): cuestionario + pacientes autorizados.</summary>
+    /// <remarks>
+    /// Requiere psicólogo dueño. Devuelve los pacientes que le hayan autorizado el acceso
+    /// (solo esos se pueden seleccionar). Los que ya tienen este cuestionario asignado
+    /// pendiente salen con `yaAsignado:true` para deshabilitar su casilla.
+    ///
+    /// Respuestas:
+    /// - `200` — `{ "id", "titulo", "estado", "pacientes": [{ "id", "nombre", "yaAsignado" }] }`
+    /// - `401` — sin sesión.
+    /// - `403` — sin rol/autorización.
+    /// - `404` — no existe o no es mío.
+    /// </remarks>
+    /// <response code="200">Pantalla de asignación.</response>
+    /// <response code="401">Sesión requerida.</response>
+    /// <response code="403">Solo psicólogos.</response>
+    /// <response code="404">No existe o no es mío.</response>
+    [HttpGet("{id:int}/asignar")]
+    [ProducesResponseType(typeof(AsignarCuestionarioPantallaDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ErrorResult), StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> PantallaAsignar(int id, CancellationToken ct)
+    {
+        try
+        {
+            return Ok(await cuestionarios.ObtenerPantallaAsignarAsync(ReadOptionalBearerToken(), id, ct));
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            return Unauthorized(new { error = ex.Message });
+        }
+        catch (InvalidOperationException ex) when (EsSinPermisos(ex.Message))
+        {
+            return StatusCode(StatusCodes.Status403Forbidden, new { error = ex.Message });
+        }
+        catch (InvalidOperationException ex) when (ex.Message == "Cuestionario no encontrado.")
+        {
+            return NotFound(new { error = ex.Message });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { error = ex.Message });
+        }
+    }
+
+    /// <summary>Asigna un cuestionario publicado a uno o varios pacientes autorizados (PB-22 HU1-PB22).</summary>
+    /// <remarks>
+    /// Registra la asignación (queda Pendiente y disponible de inmediato para el paciente),
+    /// valida que el cuestionario esté Publicado y que los pacientes seleccionados le hayan
+    /// autorizado el acceso. Guarda `CUESTIONARIO_ASIGNADO` en `dbo.auth`.
+    ///
+    /// Respuestas:
+    /// - `200` — `{ "mensaje": "Cuestionario asignado correctamente", "asignados": n }`
+    /// - `400` — `"Solo puedes asignar cuestionarios publicados."` / `"Debes seleccionar al menos un paciente"` / `"Solo puedes asignar a pacientes que te hayan autorizado."`
+    /// - `401` — sin sesión.
+    /// - `403` — sin rol/autorización.
+    /// - `404` — no existe o no es mío.
+    /// </remarks>
+    /// <response code="200">Asignado correctamente.</response>
+    /// <response code="400">Validación HU.</response>
+    /// <response code="401">Sesión requerida.</response>
+    /// <response code="403">Solo psicólogos.</response>
+    /// <response code="404">No existe o no es mío.</response>
+    [HttpPost("{id:int}/asignar")]
+    [ProducesResponseType(typeof(AsignarCuestionarioResult), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ErrorResult), StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> Asignar(int id, [FromBody] AsignarCuestionarioRequest request, CancellationToken ct)
+    {
+        try
+        {
+            var ip = HttpContext.Connection.RemoteIpAddress?.ToString();
+            var asignados = await cuestionarios.AsignarAsync(ReadOptionalBearerToken(), id, request, ip, ct);
+            return Ok(new AsignarCuestionarioResult { Mensaje = "Cuestionario asignado correctamente", Asignados = asignados });
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            return Unauthorized(new { error = ex.Message });
+        }
+        catch (InvalidOperationException ex) when (EsSinPermisos(ex.Message))
+        {
+            return StatusCode(StatusCodes.Status403Forbidden, new { error = ex.Message });
+        }
+        catch (InvalidOperationException ex) when (ex.Message == "Cuestionario no encontrado.")
+        {
+            return NotFound(new { error = ex.Message });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { error = ex.Message });
+        }
+    }
+
     /// <summary>True para mensajes de permisos que deben responder 403 (PB-20/21).</summary>
     private static bool EsSinPermisos(string mensaje) => mensaje is "No tienes permisos para acceder a esta función"
         or "La cuenta no está activa." or "El psicólogo aún no está aprobado.";

@@ -116,6 +116,15 @@ public interface ICuestionarioRepository
     Task MarcarAsignacionCompletadaAsync(int idAsignacion, CancellationToken ct = default);
     Task<CuestionarioRow?> FindByIdAsync(int idCuestionario, CancellationToken ct = default);
 
+    // PB-22 HU1-PB22: ids de pacientes con asignación Pendiente/Asignado de un
+    // cuestionario, para prellenar la pantalla (deshabilitar ya asignados).
+    Task<List<int>> GetPacientesConAsignacionPendienteAsync(int idCuestionario, CancellationToken ct = default);
+
+    // PB-22 HU1-PB22: el psicólogo asigna un cuestionario propio Publicado a los
+    // pacientes autorizados indicados (una fila por paciente). Devuelve los ids de
+    // las asignaciones creadas.
+    Task<List<int>> AsignarAsync(int idCuestionario, int idPsicologo, List<int> idsPacientes, CancellationToken ct = default);
+
     // PB-20 HU1-PB20: crea el cuestionario Personalizado con sus preguntas y opciones
     // en una transacción. Devuelve el id del cuestionario.
     Task<int> CrearAsync(CuestionarioRow cuestionario, List<(PreguntaRow Pregunta, List<OpcionPreguntaRow> Opciones)> preguntas, CancellationToken ct = default);

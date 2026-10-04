@@ -126,4 +126,8 @@ public static class LogAcciones
     // contarse en los análisis.
     public const string CuestionarioEditado = "CUESTIONARIO_EDITADO";
     public const string CuestionarioEliminado = "CUESTIONARIO_ELIMINADO";
+
+    // PB-22 HU1-PB22: el psicólogo asigna un cuestionario publicado a uno o varios
+    // pacientes que le hayan autorizado (queda disponible de inmediato para el paciente).
+    public const string CuestionarioAsignado = "CUESTIONARIO_ASIGNADO";
 }
