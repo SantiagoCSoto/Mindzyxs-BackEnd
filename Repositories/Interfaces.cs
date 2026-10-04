@@ -21,6 +21,10 @@ public interface IUserRepository
     // PB-especialidades: reemplaza las especialidades del psicólogo (vacío = ninguna).
     Task GuardarEspecialidadesAsync(int idPsicologo, List<int> idsEspecialidad, CancellationToken ct = default);
     Task<List<PsicologoDirectorioRow>> GetDirectorioPsicologosAsync(int idRolPsicologo, int idEstadoActiva, int idEstadoAprobado, int idEstadoAutorizado, string? q, int? idEspecialidad, CancellationToken ct = default);
+
+    // PB-24 HU1-PB24: perfil profesional del psicólogo.
+    Task<UsuarioDto?> FindPerfilProfesionalAsync(int idUsuario, CancellationToken ct = default);
+    Task ActualizarPerfilProfesionalAsync(int idUsuario, int? añosExperiencia, string? descripcionProfesional, string? datosContacto, bool tarjetaProfesionalVerificada, List<int> idsEspecialidad, CancellationToken ct = default);
 }
 
 // PB-especialidades: directorio para pacientes (nombre, especialidades, pacientes asignados).

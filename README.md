@@ -1273,3 +1273,53 @@ curl --location -X POST "http://localhost:5015/api/psicologo/cuestionarios/7/asi
 * `"Solo puedes asignar a pacientes que te hayan autorizado."` (400, algún id no autorizado)
 * `"Cuestionario no encontrado."` (404, no existe o no es mío)
 * Log `CUESTIONARIO_ASIGNADO` en `dbo.auth`
+
+---
+# Mindzyxs-API - Guía PB-24 (Perfil profesional del psicólogo)
+
+El psicólogo autenticado y aprobado toca **Perfil profesional** en su panel → pantalla **Perfil profesional** con su información actual (especialidades, años de experiencia, descripción, datos de contacto, tarjeta profesional) y botón **Editar**. Al presionar **Editar** se habilita el formulario con los datos actuales. Al modificar y presionar **Guardar cambios**, el sistema valida:
+- Años de experiencia ≥ 0
+- Correo válido y único (si se modifica)
+- Especialidades existentes
+Si todo es válido, guarda los cambios, registra `PERFIL_PROFESIONAL_ACTUALIZADO` en `dbo.auth` y responde `Información profesional actualizada correctamente`. Al presionar **Cancelar** se descartan los cambios (lógica de front, el back no recibe petición).
+
+Todo vive en `Controllers/PsicologoPerfilController.cs` → `Services/PsicologoService.cs` → `IUserRepository` (`EfUserRepository`) + `IAuthLogRepository`. Requiere psicólogo **activo** y **aprobado**. Sin DDL nuevo (DDL en `Minzyxs-DB/sql/24_pb24_perfil_profesional.sql`: columnas en `dbo.usuarios`).
+
+## Endpoints PB-24 (HU1-PB24)
+
+| Método | Ruta | Descripción | Auth |
+|--------|------|-------------|------|
+| `GET` | `/api/psicologo/perfil-profesional` | Ver perfil profesional (vista) | Bearer psicólogo (activo y aprobado) |
+| `PUT` | `/api/psicologo/perfil-profesional` | Actualizar perfil profesional + log | Bearer psicólogo (activo y aprobado) |
+
+### 14.1 `GET /api/psicologo/perfil-profesional` - ver perfil profesional
+
+```bash
+curl --location "http://localhost:5015/api/psicologo/perfil-profesional" -H "Authorization: Bearer <token-psicologo>"
+```
+
+`200 { id, nombre, correo, añosExperiencia, descripcionProfesional, datosContacto, tarjetaProfesionalVerificada, especialidades, tieneTarjetaArchivo }`.
+
+### 14.2 `PUT /api/psicologo/perfil-profesional` - actualizar perfil profesional
+
+```bash
+curl --location -X PUT "http://localhost:5015/api/psicologo/perfil-profesional" -H "Authorization: Bearer <token-psicologo>" -H "Content-Type: application/json" -d '{"añosExperiencia":10,"descripcionProfesional":"Psicólogo clínico con enfoque en ansiedad y trauma.","datosContacto":"Tel: 3001234567, Clínica Central, Bogotá","tarjetaProfesionalVerificada":true,"especialidades":[1,3],"correo":"nuevo@correo.com"}'
+```
+
+`200 { mensaje: "Información profesional actualizada correctamente" }`. Guarda `PERFIL_PROFESIONAL_ACTUALIZADO` en `dbo.auth`.
+
+Validaciones:
+- `añosExperiencia` ≥ 0 → si no: `400 "Los años de experiencia no pueden ser negativos"`
+- `correo` válido y único → si no: `400 "Ingresa un correo válido"` / `400 "El correo ya se encuentra registrado"`
+- `especialidades` deben existir → si no: `400 "La especialidad X no existe"`
+
+## Mensajes exactos PB-24
+
+* `"Información profesional actualizada correctamente"` (200)
+* `"Los años de experiencia no pueden ser negativos"` (400)
+* `"Ingresa un correo válido"` (400, formato inválido)
+* `"El correo ya se encuentra registrado"` (400, duplicado)
+* `"La especialidad X no existe"` (400, ID no existe)
+* Log `PERFIL_PROFESIONAL_ACTUALIZADO` en `dbo.auth`
+
+* DDL nuevo: `Minzyxs-DB/sql/24_pb24_perfil_profesional.sql` (columnas `años_experiencia`, `descripcion_profesional`, `datos_contacto`, `tarjeta_profesional_verificada` en `dbo.usuarios`).

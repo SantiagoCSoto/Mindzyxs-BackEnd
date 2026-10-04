@@ -103,6 +103,9 @@ public static class LogAcciones
     // PB-23 HU1-PB23: consulta de estadísticas de pacientes autorizados.
     public const string EstadisticasConsulta = "ESTADISTICAS_CONSULTA";
 
+    // PB-24 HU1-PB24: actualización del perfil profesional del psicólogo.
+    public const string PerfilProfesionalActualizado = "PERFIL_PROFESIONAL_ACTUALIZADO";
+
     // PB-18 HU1-PB18: consulta de registros y detalle de pacientes autorizados.
     public const string RegistrosConsulta = "REGISTROS_CONSULTA";
     public const string RegistroDetalle = "REGISTRO_DETALLE";
