@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using Mindzyxs_API.Dtos;
 using Mindzyxs_API.Services;
 
@@ -16,7 +17,8 @@ public class AccountController(
     VerificationService verification,
     CatalogService catalogs,
     LoginService login,
-    PasswordRecoveryService recovery) : ControllerBase
+    PasswordRecoveryService recovery,
+    PerfilService perfil) : ControllerBase
 {
     /// <summary>Obtiene los catálogos del formulario de registro (tipos de cuenta y géneros).</summary>
     /// <remarks>
@@ -47,6 +49,7 @@ public class AccountController(
     /// <response code="201">Usuario creado; espera verificación de correo.</response>
     /// <response code="400">Datos inválidos u obligatorios faltantes.</response>
     /// <response code="409">El correo ya está registrado.</response>
+    [EnableRateLimiting("auth")]
     [HttpPost("register")]
     [Consumes("multipart/form-data")]
     [ProducesResponseType(typeof(RegisterResult), StatusCodes.Status201Created)]
@@ -84,6 +87,7 @@ public class AccountController(
     /// <response code="200">Código válido; la cuenta queda verificada.</response>
     /// <response code="400">Código incorrecto o datos inválidos.</response>
     /// <response code="410">El código expiró; reenviar.</response>
+    [EnableRateLimiting("codigos")]
     [HttpPost("verify")]
     [ProducesResponseType(typeof(VerifyResult), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ErrorResult), StatusCodes.Status400BadRequest)]
@@ -104,22 +108,19 @@ public class AccountController(
     /// <remarks>
     /// PB-01 HU4. Devuelve `200` aunque el correo no exista, para no revelar qué cuentas están registradas.
     /// Respuestas:
-    /// - `200` — `{ "mensaje": "Código reenviado" }`
+    /// - `200` — `{ "mensaje": "Código reenviado" }` o genérico anti-enumeración
     /// - `400` — `{ "error": "Ingresa un correo válido" }` / `{ "error": "Este campo es obligatorio" }`
-    /// - `404` — `{ "error": "No fue posible reenviar el código" }`
     /// </remarks>
-    /// <response code="200">Código reenviado.</response>
+    /// <response code="200">Código reenviado (o genérico).</response>
     /// <response code="400">Correo inválido u obligatorio.</response>
-    /// <response code="404">Cuenta en estado que no permite reenvío.</response>
+    [EnableRateLimiting("codigos")]
     [HttpPost("resend")]
     [ProducesResponseType(typeof(MessageResult), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ErrorResult), StatusCodes.Status400BadRequest)]
-    [ProducesResponseType(typeof(ErrorResult), StatusCodes.Status404NotFound)]
     public async Task<IActionResult> Resend([FromBody] ResendVm vm, CancellationToken ct)
     {
         if (!ModelState.IsValid) return BadRequest(new { error = "Este campo es obligatorio" });
         var r = await verification.ResendAsync(vm.Correo, ct);
-        if (!r.Success) return NotFound(new { error = r.Message });
         return Ok(new { mensaje = r.Message });
     }
 
@@ -141,6 +142,7 @@ public class AccountController(
     /// <response code="400">Datos de entrada inválidos.</response>
     /// <response code="401">Credenciales incorrectas.</response>
     /// <response code="403">Cuenta suspendida o pendiente de aprobación.</response>
+    [EnableRateLimiting("auth")]
     [HttpPost("login")]
     [ProducesResponseType(typeof(LoginResult), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ErrorResult), StatusCodes.Status400BadRequest)]
@@ -179,15 +181,6 @@ public class AccountController(
         });
     }
 
-    /// <summary>Eco de depuración del header Authorization recibido (no funcional en producción).</summary>
-    /// <remarks>
-    /// Devuelve el valor de `Authorization`, todos los headers y el token vía `?token=` para
-    /// diagnosticar problemas de autenticación en Postman/curl.
-    /// </remarks>
-    /// <response code="200">Información de depuración del request.</response>
-    [HttpGet("echo")]
-    [ProducesResponseType(typeof(object), StatusCodes.Status200OK)]
-    public IActionResult Echo() => Ok(new { auth = Request.Headers.Authorization.ToString(), allHeaders = Request.Headers.ToDictionary(h => h.Key, h => h.Value.ToString()), queryToken = Request.Query["token"].ToString() });
 
     /// <summary>Valida la sesión activa del token de sesión.</summary>
     /// <remarks>
@@ -244,26 +237,13 @@ public class AccountController(
         return Ok(new { mensaje = r.Message });
     }
 
-    /// <summary>Lee el token de sesión de forma robusta: Authorization Bearer &lt;token&gt;, sin prefijo, con comillas o minúsculas, o `?token=` para pruebas.</summary>
+    /// <summary>Lee el token solo de `Authorization: Bearer &lt;token&gt;` (sin query ni headers alternos).</summary>
     private string? ReadBearerToken()
     {
-        var authHeader = "";
-        if (Request.Headers.TryGetValue("Authorization", out var v1)) authHeader = v1.ToString();
-        if (string.IsNullOrWhiteSpace(authHeader) && Request.Headers.TryGetValue("authorization", out var v2)) authHeader = v2.ToString();
-        if (string.IsNullOrWhiteSpace(authHeader) && Request.Headers.TryGetValue("X-Auth-Token", out var v3)) authHeader = v3.ToString();
-
-        if (!string.IsNullOrWhiteSpace(authHeader))
-        {
-            // Permite "Bearer <token>", "<token>", "'<token>'", "\"<token>\""
-            var parts = authHeader.Trim().Split(' ', StringSplitOptions.RemoveEmptyEntries);
-            var token = parts.Length == 1 ? parts[0] : parts[^1];
-            return token.Trim().Trim('"').Trim('\'');
-        }
-
-        // También soporta ?token=xxx para pruebas rápidas
-        if (Request.Query.TryGetValue("token", out var q))
-            return q.ToString().Trim().Trim('"').Trim('\'');
-
+        if (!Request.Headers.TryGetValue("Authorization", out var v)) return null;
+        var authHeader = v.ToString().Trim();
+        if (authHeader.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase))
+            return authHeader["Bearer ".Length..].Trim().Trim('"').Trim('\'');
         return null;
     }
 
@@ -279,6 +259,7 @@ public class AccountController(
     /// </remarks>
     /// <response code="200">Código enviado (o respuesta genérica por seguridad).</response>
     /// <response code="400">Correo inválido u obligatorio.</response>
+    [EnableRateLimiting("auth")]
     [HttpPost("forgot")]
     [ProducesResponseType(typeof(MessageResult), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ErrorResult), StatusCodes.Status400BadRequest)]
@@ -306,6 +287,7 @@ public class AccountController(
     /// <response code="200">Código correcto; permite continuar a la nueva contraseña.</response>
     /// <response code="400">Código incorrecto o datos inválidos.</response>
     /// <response code="410">El código expiró; reenviar.</response>
+    [EnableRateLimiting("codigos")]
     [HttpPost("forgot/verify")]
     [ProducesResponseType(typeof(MessageResult), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ErrorResult), StatusCodes.Status400BadRequest)]
@@ -333,6 +315,7 @@ public class AccountController(
     /// <response code="200">Contraseña actualizada.</response>
     /// <response code="400">Código incorrecto, contraseña débil o datos inválidos.</response>
     /// <response code="410">El código expiró; reenviar.</response>
+    [EnableRateLimiting("auth")]
     [HttpPost("forgot/reset")]
     [ProducesResponseType(typeof(MessageResult), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ErrorResult), StatusCodes.Status400BadRequest)]
@@ -359,6 +342,7 @@ public class AccountController(
     /// </remarks>
     /// <response code="200">Código reenviado (respuesta genérica por seguridad).</response>
     /// <response code="400">Correo inválido u obligatorio.</response>
+    [EnableRateLimiting("auth")]
     [HttpPost("forgot/resend")]
     [ProducesResponseType(typeof(MessageResult), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ErrorResult), StatusCodes.Status400BadRequest)]
@@ -368,5 +352,180 @@ public class AccountController(
         var r = await recovery.ResendAsync(vm.Correo, ct);
         if (!r.Success) return BadRequest(new { error = r.Message });
         return Ok(new { mensaje = r.Message });
+    }
+
+    /// <summary>Devuelve el perfil del usuario autenticado.</summary>
+    /// <remarks>
+    /// PB-10 HU1-PB10. Requiere sesión. Lee nombres, apellidos, fecha de
+    /// nacimiento, género y correo desde `dbo.usuarios`.
+    ///
+    /// Respuestas:
+    /// - `200` — `{ "nombres", "apellidos", "fechaNacimiento", "idGenero", "genero", "correo" }`
+    /// - `401` — sin sesión.
+    /// </remarks>
+    /// <response code="200">Perfil del usuario.</response>
+    /// <response code="401">Sesión requerida.</response>
+    [HttpGet("perfil")]
+    [ProducesResponseType(typeof(PerfilVm), StatusCodes.Status200OK)]
+    public async Task<IActionResult> ObtenerPerfil(CancellationToken ct)
+    {
+        try
+        {
+            var datos = await perfil.ObtenerAsync(ReadBearerToken(), ct);
+            return Ok(datos);
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            return Unauthorized(new { error = ex.Message });
+        }
+    }
+
+    /// <summary>Actualiza nombres, apellidos, fecha de nacimiento y género.</summary>
+    /// <remarks>
+    /// PB-10 HU1-PB10. Requiere sesión. Valida obligatorios, fecha válida
+    /// (no futura, mayor de 14) y género existente. Guarda `PERFIL_ACTUALIZADO`.
+    ///
+    /// Respuestas:
+    /// - `200` — `{ "mensaje": "Perfil actualizado correctamente" }`
+    /// - `400` — `{ "error": "Este campo es obligatorio" }` / `Ingresa una fecha válida` / `Ingresa una edad válida` / `Selecciona un género válido`
+    /// - `401` — sin sesión.
+    /// </remarks>
+    /// <response code="200">Perfil actualizado.</response>
+    /// <response code="400">Validación.</response>
+    /// <response code="401">Sesión requerida.</response>
+    [HttpPut("perfil")]
+    [ProducesResponseType(typeof(MessageResult), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ErrorResult), StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> ActualizarPerfil([FromBody] ActualizarPerfilVm vm, CancellationToken ct)
+    {
+        if (!ModelState.IsValid || vm is null)
+            return BadRequest(new { error = "Este campo es obligatorio" });
+        try
+        {
+            var ip = HttpContext.Connection.RemoteIpAddress?.ToString();
+            var mensaje = await perfil.ActualizarAsync(ReadBearerToken(), vm, ip, ct);
+            return Ok(new { mensaje });
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            return Unauthorized(new { error = ex.Message });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { error = ex.Message });
+        }
+    }
+
+    /// <summary>Envía código de verificación al nuevo correo.</summary>
+    /// <remarks>
+    /// PB-10 HU1-PB10. Requiere sesión. Si el correo ya existe → 409.
+    ///
+    /// Respuestas:
+    /// - `200` — `{ "mensaje": "Código enviado" }`
+    /// - `400` — `{ "error": "Ingresa un correo válido" }`
+    /// - `401` — sin sesión.
+    /// - `409` — `{ "error": "El correo ya se encuentra registrado" }`
+    /// </remarks>
+    /// <response code="200">Código enviado al nuevo correo.</response>
+    /// <response code="400">Correo inválido.</response>
+    /// <response code="401">Sesión requerida.</response>
+    /// <response code="409">Correo duplicado.</response>
+    [EnableRateLimiting("codigos")]
+    [HttpPost("correo/solicitar")]
+    [ProducesResponseType(typeof(MessageResult), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ErrorResult), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ErrorResult), StatusCodes.Status409Conflict)]
+    public async Task<IActionResult> SolicitarCambioCorreo([FromBody] SolicitarCambioCorreoVm vm, CancellationToken ct)
+    {
+        if (!ModelState.IsValid || vm is null)
+            return BadRequest(new { error = "Este campo es obligatorio" });
+        try
+        {
+            var ip = HttpContext.Connection.RemoteIpAddress?.ToString();
+            var mensaje = await perfil.SolicitarCambioAsync(ReadBearerToken(), vm.NuevoCorreo, ip, ct);
+            return Ok(new { mensaje });
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            return Unauthorized(new { error = ex.Message });
+        }
+        catch (InvalidOperationException ex) when (ex.Message == "El correo ya se encuentra registrado")
+        {
+            return Conflict(new { error = ex.Message });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { error = ex.Message });
+        }
+    }
+
+    /// <summary>Valida el código y aplica el cambio de correo.</summary>
+    /// <remarks>
+    /// PB-10 HU1-PB10. Requiere sesión. Guarda `CORREO_ACTUALIZADO`.
+    ///
+    /// Respuestas:
+    /// - `200` — `{ "mensaje": "Correo actualizado correctamente" }`
+    /// - `400` — código incorrecto o datos inválidos.
+    /// - `401` — sin sesión.
+    /// - `409` — correo tomado entretanto.
+    /// - `410` — `{ "error": "El código expiró. Reenvía el código" }`
+    /// </remarks>
+    /// <response code="200">Correo actualizado.</response>
+    /// <response code="400">Código incorrecto o datos inválidos.</response>
+    /// <response code="401">Sesión requerida.</response>
+    /// <response code="409">Correo duplicado.</response>
+    /// <response code="410">Código expirado.</response>
+    [EnableRateLimiting("codigos")]
+    [HttpPost("correo/confirmar")]
+    [ProducesResponseType(typeof(MessageResult), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ErrorResult), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ErrorResult), StatusCodes.Status410Gone)]
+    [ProducesResponseType(typeof(ErrorResult), StatusCodes.Status409Conflict)]
+    public async Task<IActionResult> ConfirmarCambioCorreo([FromBody] ConfirmarCambioCorreoVm vm, CancellationToken ct)
+    {
+        if (!ModelState.IsValid || vm is null)
+            return BadRequest(new { error = "Este campo es obligatorio" });
+        try
+        {
+            var ip = HttpContext.Connection.RemoteIpAddress?.ToString();
+            var mensaje = await perfil.ConfirmarCambioAsync(ReadBearerToken(), vm.NuevoCorreo, vm.Codigo, ip, ct);
+            return Ok(new { mensaje });
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            return Unauthorized(new { error = ex.Message });
+        }
+        catch (InvalidOperationException ex) when (ex.Message == "El correo ya se encuentra registrado")
+        {
+            return Conflict(new { error = ex.Message });
+        }
+        catch (InvalidOperationException ex)
+        {
+            var status = ex.Message.StartsWith("El código expiró") ? 410 : 400;
+            return StatusCode(status, new { error = ex.Message });
+        }
+    }
+
+    /// <summary>Reanuda una verificación inconclusa (registro sin verificar).</summary>
+    /// <remarks>
+    /// Si el correo sigue en `PendienteVerificacion`, reenvía código y avisa para
+    /// continuar; si no, mensaje genérico (sin revelar estados).
+    ///
+    /// Respuestas:
+    /// - `200` — `{ "mensaje": ..., "requiereVerificacion": true|false }`
+    /// - `400` — correo inválido.
+    /// </remarks>
+    /// <response code="200">Estado de verificación.</response>
+    /// <response code="400">Correo inválido.</response>
+    [EnableRateLimiting("codigos")]
+    [HttpPost("verificacion/reanudar")]
+    [ProducesResponseType(typeof(MessageResult), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ErrorResult), StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> ReanudarVerificacion([FromBody] ReanudarVerificacionVm vm, CancellationToken ct)
+    {
+        if (!ModelState.IsValid || vm is null || string.IsNullOrWhiteSpace(vm.Correo))
+            return BadRequest(new { error = "Ingresa un correo válido" });
+        var (requiere, mensaje) = await perfil.ReanudarAsync(vm.Correo, ct);
+        return Ok(new { mensaje, requiereVerificacion = requiere });
     }
 }

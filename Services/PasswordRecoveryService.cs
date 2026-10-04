@@ -11,6 +11,7 @@ namespace Mindzyxs_API.Services;
 public class PasswordRecoveryService(
     IUserRepository users,
     ICodigoRepository codes,
+    ISesionRepository sesiones,
     IAuthLogRepository authLogs,
     IEmailSender email,
     IOptions<RegistroOptions> registroOptions,
@@ -41,10 +42,11 @@ public class PasswordRecoveryService(
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "No se pudo enviar el código de recuperación a {Correo}", user.Correo);
+            logger.LogError(ex, "No se pudo enviar el código de recuperación");
         }
 
-        return OperationResult.Ok("Código enviado a tu correo");
+        // Anti-enumeración: mismo mensaje exista o no la cuenta.
+        return OperationResult.Ok("Si el correo está registrado, recibirás un código");
     }
 
     // HU2-PB5: validar el código antes de mostrar la pantalla Nueva contraseña.
@@ -90,10 +92,12 @@ public class PasswordRecoveryService(
         {
             await users.SetPasswordAsync(user.IdUsuario, PasswordHelper.Hash(password), ct);
             await codes.ConsumirAsync(ultimo.IdCodigo, ct);
+            // Seguridad: al cambiar la contraseña se revocan todas las sesiones activas.
+            await sesiones.DeleteByUsuarioAsync(user.IdUsuario, ct);
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "No se pudo actualizar la contraseña de {Correo}", correo);
+            logger.LogError(ex, "No se pudo actualizar la contraseña");
             return OperationResult.Fail("No fue posible actualizar la contraseña. Intenta nuevamente");
         }
 
@@ -104,7 +108,7 @@ public class PasswordRecoveryService(
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "No se pudo registrar {Accion} de {Correo}", LogAcciones.PasswordReset, correo);
+            logger.LogError(ex, "No se pudo registrar {Accion}", LogAcciones.PasswordReset);
         }
 
         return OperationResult.Ok("Contraseña actualizada exitosamente");

@@ -1,12 +1,16 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.OpenApi.Models;
 using Mindzyxs_API.Repositories;
 using Mindzyxs_API.Repositories.Models;
 using Mindzyxs_API.Services;
 using Mindzyxs_API.Utilities;
+using System.Threading.RateLimiting;
 
 var builder = WebApplication.CreateBuilder(args);
+
+LoadDotEnv();
 
 builder.Services.AddControllers()
     .ConfigureApiBehaviorOptions(o =>
@@ -19,7 +23,27 @@ builder.Services.AddControllers()
         };
     });
 builder.Services.AddProblemDetails();
-builder.Services.AddCors(o => o.AddDefaultPolicy(p => p.AllowAnyOrigin().AllowAnyHeader().AllowAnyMethod()));
+builder.Services.AddCors(o => o.AddDefaultPolicy(p => p
+    .WithOrigins("http://localhost:3000", "http://127.0.0.1:3000", "http://localhost:5500", "http://127.0.0.1:5500")
+    .AllowAnyHeader().AllowAnyMethod()));
+
+// Rate limiting: frena fuerza bruta en login/registro/recuperación y spam de códigos.
+builder.Services.AddRateLimiter(o =>
+{
+    o.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+    o.AddFixedWindowLimiter("auth", x =>
+    {
+        x.PermitLimit = 10;
+        x.Window = TimeSpan.FromMinutes(1);
+        x.QueueLimit = 0;
+    });
+    o.AddFixedWindowLimiter("codigos", x =>
+    {
+        x.PermitLimit = 5;
+        x.Window = TimeSpan.FromMinutes(1);
+        x.QueueLimit = 0;
+    });
+});
 
 // BD (todo el acceso vive en Repositories/Models + Ef*).
 builder.Services.AddDbContext<MindzyxsDbContext>(o =>
@@ -30,6 +54,9 @@ builder.Services.Configure<StorageOptions>(builder.Configuration.GetSection("Sto
 builder.Services.Configure<RegistroOptions>(builder.Configuration.GetSection("Registro"));
 builder.Services.Configure<SesionOptions>(builder.Configuration.GetSection("Sesion"));
 builder.Services.Configure<AdminOptions>(builder.Configuration.GetSection("Admin"));
+builder.Services.Configure<FirebaseOptions>(builder.Configuration.GetSection("Firebase"));
+builder.Services.AddHttpClient();
+builder.Services.AddSingleton<FirebaseService>();
 
 builder.Services.AddScoped<IUserRepository, EfUserRepository>();
 builder.Services.AddScoped<ICatalogRepository, EfCatalogRepository>();
@@ -39,6 +66,9 @@ builder.Services.AddScoped<IAuthLogRepository, EfAuthLogRepository>();
 builder.Services.AddScoped<ICuestionarioRepository, EfCuestionarioRepository>();
 builder.Services.AddScoped<ILineaAyudaRepository, EfLineaAyudaRepository>();
 builder.Services.AddScoped<IRecomendacionRepository, EfRecomendacionRepository>();
+builder.Services.AddScoped<IHistorialRepository, EfHistorialRepository>();
+builder.Services.AddScoped<IRecordatorioRepository, EfRecordatorioRepository>();
+builder.Services.AddScoped<IChatRepository, EfChatRepository>();
 builder.Services.AddScoped<IAdminRepository, EfAdminRepository>();
 builder.Services.AddScoped<ITarjetaStorage, FileSystemTarjetaStorage>();
 builder.Services.AddScoped<IEmailSender, SmtpEmailSender>();
@@ -53,6 +83,16 @@ builder.Services.AddScoped<InvitadoService>();
 builder.Services.AddScoped<CuestionarioService>();
 builder.Services.AddScoped<RiesgoService>();
 builder.Services.AddScoped<RecomendacionService>();
+builder.Services.AddScoped<HistorialService>();
+builder.Services.AddScoped<ProgresoService>();
+builder.Services.AddScoped<RecordatorioService>();
+builder.Services.AddScoped<PerfilService>();
+builder.Services.AddScoped<ChatService>();
+builder.Services.AddScoped<PsicologoService>();
+builder.Services.AddScoped<PsicologoCuestionariosService>();
+builder.Services.AddScoped<ObservacionesService>();
+builder.Services.AddScoped<PsicologoRegistrosService>();
+builder.Services.AddScoped<AccesosService>();
 
 // Swagger: documentación interactiva en /swagger (Swagger UI) y spec en /swagger/v1/swagger.json.
 builder.Services.AddSwaggerGen(o =>
@@ -72,6 +112,10 @@ builder.Services.AddSwaggerGen(o =>
             - **PB-07**: Cuestionario emocional del invitado (catálogo dinámico desde BD, inicio/fin al 100% con puntaje y nivel).
             - **PB-08**: Riesgo emocional del invitado (cálculo Bajo/Medio/Alto, alerta si Alto, líneas de ayuda).
             - **PB-09**: Recomendaciones básicas del invitado (lista priorizada por nivel, detalle con pasos).
+            - **PB-13**: Historial emocional del paciente (lista con filtro de fechas, detalle con nota/respuestas/apoyo).
+            - **PB-14**: Progreso de pacientes autorizados (promedio, tendencia, semanas, distribución, serie).
+            - **PB-15**: Recordatorios (frecuencia/horario/días, upsert, avisos de hoy para polling).
+            - **PB-31**: Chat realtime (token Firebase para el front; reglas en `Firebase/database.rules.json`).
             - **PB-27**: Administración de BD (respaldos `.bak`, descarga y mantenimiento).
             - **PB-04**: Mensaje aclaratorio (aviso de que el sistema no realiza diagnósticos clínicos).
 
@@ -118,18 +162,53 @@ builder.Services.AddSwaggerGen(o =>
 
 var app = builder.Build();
 
-// Swagger UI siempre disponible: http://localhost:5015/swagger
-app.UseSwagger();
-app.UseSwaggerUI(o =>
+// Swagger UI solo en desarrollo: http://localhost:5015/swagger
+if (app.Environment.IsDevelopment())
 {
-    o.SwaggerEndpoint("/swagger/v1/swagger.json", "Mindzyxs API v1");
-    o.DocumentTitle = "Mindzyxs API — Documentación";
-    o.DisplayRequestDuration();
-});
+    app.UseSwagger();
+    app.UseSwaggerUI(o =>
+    {
+        o.SwaggerEndpoint("/swagger/v1/swagger.json", "Mindzyxs API v1");
+        o.DocumentTitle = "Mindzyxs API — Documentación";
+        o.DisplayRequestDuration();
+    });
+}
 
 app.UseCors();
-// Desactivado en dev para que Postman Agent no pierda Authorization en redirect http->https
-// app.UseHttpsRedirection();
+app.UseRateLimiter();
+if (!app.Environment.IsDevelopment())
+{
+    app.UseHttpsRedirection();
+    app.UseHsts();
+}
 app.UseAuthorization();
 app.MapControllers();
 app.Run();
+
+// Carga .env local (desarrollo): GOOGLE_APPLICATION_CREDENTIALS, etc.
+// No pisa variables de entorno reales ya definidas. Las rutas relativas
+// (ej. la clave de Firebase) se resuelven contra la carpeta del .env.
+static void LoadDotEnv()
+{
+    var dir = Directory.GetCurrentDirectory();
+    var path = Path.Combine(dir, ".env");
+    if (!File.Exists(path))
+    {
+        dir = AppContext.BaseDirectory;
+        path = Path.Combine(dir, ".env");
+        if (!File.Exists(path)) return;
+    }
+    foreach (var raw in File.ReadAllLines(path))
+    {
+        var line = raw.Trim();
+        if (line.Length == 0 || line.StartsWith('#')) continue;
+        var idx = line.IndexOf('=');
+        if (idx <= 0) continue;
+        var key = line[..idx].Trim();
+        var val = line[(idx + 1)..].Trim().Trim('"').Trim('\'');
+        if (key == "GOOGLE_APPLICATION_CREDENTIALS" && !Path.IsPathRooted(val))
+            val = Path.GetFullPath(Path.Combine(dir, val));
+        if (string.IsNullOrEmpty(Environment.GetEnvironmentVariable(key)))
+            Environment.SetEnvironmentVariable(key, val);
+    }
+}

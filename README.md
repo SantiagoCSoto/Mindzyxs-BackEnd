@@ -1,4 +1,4 @@
-﻿# Mindzyxs-API — Guía Back-End (PB-01, PB-02, PB-03, PB-04, PB-05, PB-06, PB-07, PB-08, PB-09, PB-27)
+﻿# Mindzyxs-API — Guía Back-End (PB-01 a PB-09, PB-13 a PB-15, PB-27)
 
 API REST `Mindzyxs 1.1` — solo back-end. Front en `Mindzyxs-FrontEnd` (`develop`) nunca toca BD. Todo pasa por `Controllers/*` → `Services/*` → `Repositories/*` (EF Core a `SANTI/Mindzyxs`).
 
@@ -21,6 +21,9 @@ Mindzyxs-API/
 │   ├── InvitadoController.cs      # PB-06: modo invitado (acceso, panel, bloqueo de exclusivas, salida)
 │   ├── CuestionarioController.cs    # PB-07: cuestionario del invitado (pendiente, inicio, finalizar al 100%)
 │   ├── RiesgoController.cs          # PB-08: cálculo del riesgo emocional del invitado
+│   ├── HistorialController.cs       # PB-13: historial emocional (lista con filtro, detalle)
+│   ├── ProgresoController.cs         # PB-14: progreso de autorizados (agregados + serie)
+│   ├── RecomendacionController.cs   # PB-09: recomendaciones básicas (lista priorizada, detalle)
 │   ├── AyudaController.cs           # PB-08: líneas de ayuda activas
 │   ├── RecomendacionController.cs   # PB-09: recomendaciones básicas (lista priorizada, detalle)
 │
@@ -33,6 +36,9 @@ Mindzyxs-API/
 │   ├── AvisoService.cs            # PB-04: contenido del mensaje aclaratorio y log de visualización
 │   ├── InvitadoService.cs         # PB-06: panel de invitado y registro de acceso/salida/bloqueos
 │   ├── CuestionarioService.cs       # PB-07: cuestionario pendiente, validación 100% y puntaje/nivel
+│   ├── HistorialService.cs          # PB-13: historial propio, detalle con nota/respuestas/apoyo
+│   ├── ProgresoService.cs           # PB-14: agregados de autorizados (promedio, tendencia, serie)
+│   ├── RecomendacionService.cs      # PB-09: lista priorizada por nivel y detalle con pasos
 │   ├── RiesgoService.cs             # PB-08: cálculo de riesgo y líneas de ayuda activas
 │   ├── RecomendacionService.cs      # PB-09: lista priorizada por nivel y detalle con pasos
 │   └── AdminService.cs            # Respaldos nativos SQL (.bak), listado, descarga y mantenimiento
@@ -50,6 +56,9 @@ Mindzyxs-API/
 │   ├── CuestionarioDto.cs           # PB-07: catálogo, inicio/finalizar y resultado con puntaje/nivel
 │   ├── RiesgoDto.cs                 # PB-08: cálculo de riesgo, alerta y líneas de ayuda
 │   ├── RecomendacionDto.cs          # PB-09: lista priorizada y detalle con pasos/duración
+│   ├── HistorialDto.cs              # PB-13: lista, detalle con nota/respuestas/apoyo
+│   ├── ProgresoDto.cs               # PB-14: agregados de autorizados y serie temporal
+│   ├── RecordatorioDto.cs           # PB-15: config, guardado y avisos de hoy
 │   ├── AdminDto.cs                # DTOs de administración / respaldos
 │   ├── CatalogDto.cs              # Catálogos (tipos de cuenta, géneros)
 │   ├── UserDto.cs                 # Datos de usuario expuestos por la API
@@ -66,7 +75,7 @@ Mindzyxs-API/
     └── TokenHelper.cs             # Generación/hashing de tokens de sesión
 ```
 
-Dependencias principales registradas en `Program.cs`: repositorios EF (`IUserRepository`, `ICatalogRepository`, `ICodigoRepository`, `ISesionRepository`, `IAuthLogRepository`, `IAdminRepository`, `ICuestionarioRepository`, `ILineaAyudaRepository`, `IRecomendacionRepository`), almacenamiento (`ITarjetaStorage`), correo (`IEmailSender`) y servicios de negocio.
+Dependencias principales registradas en `Program.cs`: repositorios EF (`IUserRepository`, `ICatalogRepository`, `ICodigoRepository`, `ISesionRepository`, `IAuthLogRepository`, `IAdminRepository`, `ICuestionarioRepository`, `ILineaAyudaRepository`, `IRecomendacionRepository`, `IHistorialRepository`, `IChatRepository`), almacenamiento (`ITarjetaStorage`), correo (`IEmailSender`) y servicios de negocio.
 
 ## Swagger (documentación interactiva)
 
@@ -79,7 +88,7 @@ Cada endpoint documenta las HUs que cubre, los mensajes exactos de error y los c
 
 **Probar un endpoint autenticado desde Swagger:**
 
-1. `POST /api/account/login` con las credenciales (ej. admin real de prueba `sankie453@gmail.com` / `abc123`).
+1. `POST /api/account/login` con las credenciales de tu usuario de prueba (ej. `admin@test.local` / `<tu-password>`).
 2. Copia el `token` de la respuesta.
 3. Click en **Authorize** (botón arriba a la derecha) y pega el token como `Bearer <token>` (el prefijo `Bearer ` se añade automáticamente por el esquema).
 4. Ejecuta el endpoint protegido (p.ej. `GET /api/account/me`, o `POST /api/admin/backup` para PB-27).
@@ -128,6 +137,7 @@ Campos exactos `Dtos/AuthVm.cs:RegisterVm`:
 | `Correo` | string | → `400 "Este campo es obligatorio"` / `400 "Ingresa un correo válido"` / `409 "El correo ya se encuentra registrado"` |
 | `Password` | string | HU2 → `400 "La contraseña debe tener mínimo 6 caracteres e incluir al menos una letra y un número"` (`Utilities/SecurityHelper.cs:PasswordHelper`) |
 | `TarjetaProfesional` | `File` PDF ≤5MB | HU3 solo `Psicologo` → `400 "La tarjeta profesional es obligatoria para registrarse como psicólogo"` / `"El archivo debe estar en formato PDF"` / `"El archivo supera el tamaño máximo permitido de 5MB"` (`Utilities/FileHelper.cs` verifica `%PDF`, guarda en `Storage:TarjetasPath` + `dbo.usuarios.file_path`) |
+| `Especialidades` | int[] (de catalogos) | Solo `Psicologo` (una, varias o ninguna; vacío = ninguna) → `400 "Las especialidades son solo para psicólogos"` / `"Selecciona especialidades válidas"`. Se guarda en `dbo.psicologo_especialidades` |
 
 **JS front (fetch + FormData):**
 
@@ -141,6 +151,7 @@ fd.append("IdGenero", generoId);
 fd.append("Correo", correo);
 fd.append("Password", password);
 if (tipo === "Psicologo") fd.append("TarjetaProfesional", fileInput.files[0]);
+if (tipo === "Psicologo") especialidadesIds.forEach(id => fd.append("Especialidades", id)); // checklist: una, varias o ninguna
 
 const res = await fetch("http://localhost:5015/api/account/register", { method:"POST", body: fd });
 const data = await res.json();
@@ -265,6 +276,7 @@ Campos exactos `Dtos/AuthVm.cs:RegisterVm`:
 | `Correo` | string | → `400 "Este campo es obligatorio"` / `400 "Ingresa un correo válido"` / `409 "El correo ya se encuentra registrado"` |
 | `Password` | string | HU2 → `400 "La contraseña debe tener mínimo 6 caracteres e incluir al menos una letra y un número"` (`Utilities/SecurityHelper.cs:PasswordHelper`) |
 | `TarjetaProfesional` | `File` PDF ≤5MB | HU3 solo `Psicologo` → `400 "La tarjeta profesional es obligatoria para registrarse como psicólogo"` / `"El archivo debe estar en formato PDF"` / `"El archivo supera el tamaño máximo permitido de 5MB"` (`Utilities/FileHelper.cs` verifica `%PDF`, guarda en `Storage:TarjetasPath` + `dbo.usuarios.file_path`) |
+| `Especialidades` | int[] (de catalogos) | Solo `Psicologo` (una, varias o ninguna; vacío = ninguna) → `400 "Las especialidades son solo para psicólogos"` / `"Selecciona especialidades válidas"`. Se guarda en `dbo.psicologo_especialidades` |
 
 **JS front (fetch + FormData):**
 
@@ -278,6 +290,7 @@ fd.append("IdGenero", generoId);
 fd.append("Correo", correo);
 fd.append("Password", password);
 if (tipo === "Psicologo") fd.append("TarjetaProfesional", fileInput.files[0]);
+if (tipo === "Psicologo") especialidadesIds.forEach(id => fd.append("Especialidades", id)); // checklist: una, varias o ninguna
 
 const res = await fetch("http://localhost:5015/api/account/register", { method:"POST", body: fd });
 const data = await res.json();
@@ -772,6 +785,10 @@ curl http://localhost:5015/api/ayuda/lineas
 
 `200`: `[ { "id": 1, "nombre": "Línea Prueba 123", "telefono": "123", "url": "...", "horario": ..., "cobertura": ..., "descripcion": ... } ]`. El contenido real lo administra el admin (PB-29).
 
+> **Diseño futuro (decisión de producto): el cálculo de riesgo NO es fijo.** Hoy está quemado en `Services/CuestionarioService.cs` (promedio 1-5: ≤2 Bajo, 3 Medio, ≥4 Alto). A futuro el psicólogo debe poder elegir la escala (rango, ej. 1-4/1-5/1-10) y cómo se calcula el riesgo (umbrales por nivel, por cuestionario). No quemar más umbrales en código: toda lógica nueva de riesgo debe salir de configuración (BD), no de constantes.
+>
+> **Cuestionarios: no todos son de escala.** Los hay de opción múltiple donde el psicólogo define absolutamente todo (preguntas, opciones, valores, rangos). **Jamás se permiten respuestas abiertas.** El front no debe asumir escala fija ni textos de opciones (las opciones siempre vienen del backend por cuestionario).
+
 ## Mensajes exactos PB-08
 
 * `"No se encontraron respuestas para calcular el riesgo. Por favor responde el cuestionario nuevamente"` (400; el front redirige al panel/cuestionario)
@@ -814,7 +831,6 @@ curl http://localhost:5015/api/recomendaciones/invitado/4
 * Consulta (lista y detalle) registrada como `RECOMENDACION_INVITADO_CONSULTA` en `dbo.auth`
 
 * Rama actual `correccion-base-de-datos`, BD `SANTI/Mindzyxs`.
-
 # Corrección base de datos (triggers + SPs + purga)
 
 Rama `correccion-base-de-datos` (BD y back). Todo objeto SQL lleva encabezado-tabla (`Objeto | Fecha | Autor=Santiago Cortes | Cambio | Hace | Afecta`).
@@ -841,3 +857,378 @@ Elimina usuarios de prueba sin hash PBKDF2 (seed 03: ids 1–5) y su rastro: rea
 | `sp_cuestionario_completo` | `EfCuestionarioRepository.GetCompletoAsync` (preguntas+opciones en 1 round-trip, reader multi-set) |
 | `sp_dashboard_admin` | Sin consumidor aún: base de la consola admin (PB-25) |
 | `sp_recomendaciones_priorizadas` | `EfRecomendacionRepository.GetPriorizadasAsync` vía `FromSqlRaw` (el `OrderBy` salió del Service) |
+
+# PB-31 Chat psicólogo-paciente (realtime Firebase + SQL)
+
+Híbrido: **RTDB** para mensajes en vivo (`/conversaciones/{id}/meta|mensajes|presencia`), **SQL** para ciclo de vida (`dbo.conversaciones`: solicitud/aceptación/rechazo/bloqueo) y auditoría en `dbo.auth`. Reglas en `Firebase/database.rules.json` (participantes + `Aceptada` + bloqueo + texto 1-1000). Clave serviceAccount **nunca** en el repo (`GOOGLE_APPLICATION_CREDENTIALS` + `.env` local).
+
+| Método | Ruta | Quién | Descripción |
+|--------|------|-------|-------------|
+| `POST` | `/api/chat/token` | sesión | Token Firebase (`uid`, claim `rol`, 1h) + `databaseUrl` |
+| `GET` | `/api/chat/conversaciones` | sesión | Propias (pendientes = notificaciones internas) |
+| `GET` | `/api/chat/pacientes?q=&nivel=&minCuestionarios=&tienePsicologo=` | psicólogo | Buscador multifiltro (nombre opcional, exige ≥1) con último riesgo + conteos |
+| `POST` | `/api/chat/solicitudes {idPaciente}` | psicólogo aprobado/activo | Ofrece chat (reactiva Rechazada/Cerrada) |
+| `POST` | `/api/chat/solicitudes/paciente {idPsicologo}` | paciente | Solicita chat al psicólogo (doble vía); el psicólogo acepta/rechaza |
+| `POST` | `/api/chat/solicitudes/{id}/aceptar-psicologo\|rechazar-psicologo` | psicólogo dueño | Responde solicitud del paciente; al aceptar otorga autorización |
+| `POST` | `/api/chat/conversaciones/{id}/bloqueo/solicitar {motivo}` | paciente dueño | Solicita bloqueo con motivo: queda `BloqueoPendiente` (mensajes congelados), log `ALERTA_BLOQUEO` |
+| `POST` | `/api/chat/conversaciones/{id}/bloqueo/resolver {aceptar}` | psicólogo dueño o admin (paciente cancela con `false`) | Confirma (`Bloqueada`) o rechaza (`Aceptada`) |
+| `POST` | `/api/chat/solicitudes/{id}/aceptar\|rechazar` | paciente dueño | Aceptar escribe `meta` Aceptada en RTDB **y otorga autorización al psicólogo** (aceptar el chat cuenta como autorizarlo); rechazar no toca la autorización |
+| `POST` | `/api/chat/conversaciones/{id}/bloqueo` | paciente dueño | Bloquea (meta Bloqueada); bloqueado → 403 + aviso |
+| `DELETE` | `/api/chat/conversaciones/{id}/bloqueo` | paciente que bloqueó | Desbloquea (vuelve a Aceptada) |
+| `POST` | `/api/chat/conversaciones/{id}/mensajes/aviso` | participante | Auditoría best-effort tras el `push()` a RTDB |
+
+Mensajes: 401 sin sesión; 403 bloqueado que no bloqueó; 404 inexistente; resto 400. Acciones `CHAT_SOLICITUD/ACEPTADO/RECHAZADO/BLOQUEO/DESBLOQUEO/MENSAJE` + `AUTORIZACION_OTORGADA` al aceptar. Nota: el envío entre psicólogo y paciente presupone además la autorización PB-17 (se integra en Sprint 4).
+
+### Directorio de psicólogos (solo pacientes)
+
+| Método | Ruta | Quién | Descripción |
+|--------|------|-------|-------------|
+| `GET` | `/api/psicologos` | paciente | Tarjetas con nombre, especialidades (vacía si ninguna) y pacientes asignados (autorizados) + log `DIRECTORIO_CONSULTA` |
+
+Respuestas: `200` — `[ { "id", "nombre", "especialidades": [], "pacientesAsignados": 0 } ]`; `401` — sin sesión; `403` — sin rol Paciente. Solo psicólogos con cuenta Activa y aprobada (o legacy sin aprobación).
+# Mindzyxs-API - Guía PB-13 (Historial emocional del paciente)
+
+API REST `Mindzyxs 1.1` - solo back-end. Lista del paciente ordenada por fecha (recientes primero) con filtro por rango, y detalle con nota propia ("Cómo me sentí"), respuestas del cuestionario y apoyo del psicólogo. Todo vive en `Controllers/HistorialController.cs` → `Services/HistorialService.cs` → `IHistorialRepository` + `IAuthLogRepository` (log en `dbo.auth`). Solo el dueño ve lo suyo (ajeno = 404).
+
+## Endpoints PB-13 (HU1-PB13)
+
+| Método | Ruta | Descripción | Auth |
+|--------|------|-------------|------|
+| `GET` | `/api/historial?desde=aaaa-MM-dd&hasta=aaaa-MM-dd` | Mi historial (recientes primero) + log | Bearer paciente |
+| `GET` | `/api/historial/{id}` | Detalle: nota + respuestas + apoyo + log | Bearer paciente (dueño) |
+
+### 7.1 `GET /api/historial` - lista con filtro
+
+```bash
+curl "http://localhost:5015/api/historial?desde=2026-09-01&hasta=2026-09-30" -H "Authorization: Bearer <token>"
+```
+
+`200`: `[{ "id": 3, "fecha": ..., "tipo": "Cuestionario", "puntaje": 3, "nivel": "Medio", "cuestionario": "Cuestionario de bienestar emocional", "resumen": "..." }]`. Vacío (`[]`): el front muestra "Aún no tienes registros emocionales" con el botón Registrar estado emocional.
+
+### 7.2 `GET /api/historial/{id}` - detalle
+
+```bash
+curl http://localhost:5015/api/historial/3 -H "Authorization: Bearer <token>"
+```
+
+`200`: lista + `"nota": "Cómo me sentí…"`, `"respuestas": [{ "pregunta", "valor", "texto" }]`, `"observaciones": [{ "contenido", "firma", "fecha" }]` (apoyo del psicólogo, PB-19). Inexistente o ajeno → `404 "Registro no encontrado."`.
+
+## Mensajes exactos PB-13
+
+* `"Aún no tienes registros emocionales"` (front, lista vacía)
+* `"Registro no encontrado."` (404)
+* Consulta (lista y detalle) registrada como `HISTORIAL_CONSULTA` en `dbo.auth`
+
+* Rama actual `PB13`, BD `SANTI/Mindzyxs` (DDL + seed `Mindzyxs-BD/sql/16_historial_nota.sql`: `nota VARCHAR(MAX)` + 2 eventos demo con respuestas y apoyo).
+
+# Mindzyxs-API - Guía PB-14 (Progreso de pacientes autorizados)
+
+API REST `Mindzyxs 1.1` — solo back-end. Lista de pacientes que autorizaron al psicólogo + agregados (promedio, tendencia, semanas, distribución) y serie temporal para gráficos. Todo vive en `Controllers/ProgresoController.cs` → `Services/ProgresoService.cs` → `IHistorialRepository` + `IAuthLogRepository` (log en `dbo.auth`). Sin autorización → 403.
+
+## Endpoints PB-14 (HU1-PB14)
+
+| Método | Ruta | Descripción | Auth |
+|--------|------|-------------|------|
+| `GET` | `/api/progreso/pacientes` | Mis pacientes autorizados + log | Bearer psicólogo |
+| `GET` | `/api/progreso/{idPaciente}?desde=&hasta=` | Agregados + serie + log | Bearer psicólogo autorizado |
+
+`200`: `{ "promedio": 2.5, "tendencia": "Sube|Baja|Estable", "totalRegistros": 2, "distribucion": {"Medio":1}, "porSemana": [...], "serie": [...], "suficientes": false }`. Tendencia = 2da mitad vs 1ra (±0.5). `suficientes:false` (menos de 3) → el front muestra "No tienes registros suficientes para generar gráficos".
+
+## Mensajes exactos PB-14
+
+* `"No tienes pacientes autorizados en este momento"` (front, lista vacía)
+* `"No tienes registros suficientes para generar gráficos"` (front, `suficientes:false`)
+* `"No tienes autorización para ver los registros de este paciente."` (403)
+* Consulta registrada como `PROGRESO_CONSULTA` en `dbo.auth`
+
+* Rama actual `PB14` (apilada sobre `PB13`).
+
+# Mindzyxs-API - Guía PB-15 (Recordatorios del paciente)
+
+API REST `Mindzyxs 1.1` - solo back-end. Configuración de frecuencia y horario para el registro emocional (upsert por paciente), con activación/desactivación y endpoint de avisos vencidos-hoy para polling del front. Todo vive en `Controllers/RecordatorioController.cs` → `Services/RecordatorioService.cs` → `IRecordatorioRepository` + `IAuthLogRepository` (log en `dbo.auth`).
+
+## Endpoints PB-15 (HU1-PB15)
+
+| Método | Ruta | Descripción | Auth |
+|--------|------|-------------|------|
+| `GET` | `/api/recordatorios` | Mi configuración (204 si nunca configuré) | Bearer paciente |
+| `POST` | `/api/recordatorios` | Guarda/actualiza (upsert) + log | Bearer paciente |
+| `GET` | `/api/recordatorios/hoy` | Avisos vencidos hoy (activos, día aplica, hora pasada) | Bearer paciente |
+
+### 8.1 `POST /api/recordatorios` - guardar
+
+```bash
+curl --location "http://localhost:5015/api/recordatorios" -H "Authorization: Bearer <token>" -H "Content-Type: application/json" -d "{\"frecuencia\":\"Semanal\",\"hora\":\"08:00\",\"dias\":[1,3,5],\"activo\":true}"
+```
+
+`200 {mensaje:"Recordatorios configurados correctamente", ...}`. Sin frecuencia/hora (o Semanal sin días) → `400 "Debes seleccionar frecuencia y hora"`. Días 1=Lunes..7=Domingo; en Diaria se ignoran (todos implícitos). Desactivar guarda `activo:false`.
+
+### 8.2 `GET /api/recordatorios/hoy` - polling del front
+
+El front lo consulta cada minuto y dispara el aviso en el momento exacto programado. `200 [{titulo, mensaje, hora}]` (vacío si nada vence).
+
+## Mensajes exactos PB-15
+
+* `"Recordatorios configurados correctamente"` (200)
+* `"Debes seleccionar frecuencia y hora"` (400)
+* Guardado registrado como `RECORDATORIO_CONFIG` en `dbo.auth`
+
+* Rama actual `PB15`, BD `SANTI/Mindzyxs` (DDL `Mindzyxs-BD/sql/17_recordatorios_frecuencia.sql`: `frecuencia VARCHAR(20) DEFAULT Diaria`).
+
+# Mindzyxs-API - Guía PB-10 (Editar perfil) + reanudar verificación
+
+Solo back-end. Edición de perfil con validaciones, cambio de correo con código y reanudación de registros inconclusos. Todo vive en `Controllers/AccountController.cs` (4 endpoints nuevos) → `Services/PerfilService.cs` + `Services/VerificationService.cs` → repositorios existentes (sin DDL) + `IAuthLogRepository`.
+
+## Endpoints PB-10 (HU1-PB10)
+
+| Método | Ruta | Descripción | Auth |
+|--------|------|-------------|------|
+| `GET` | `/api/account/perfil` | Devuelve nombres/apellidos/fecha/género/correo | Bearer |
+| `PUT` | `/api/account/perfil` | Actualiza nombres/apellidos/fecha/género + log | Bearer |
+| `POST` | `/api/account/correo/solicitar` | Código al nuevo correo (409 si existe) | Bearer |
+| `POST` | `/api/account/correo/confirmar` | Valida código y cambia el correo + log | Bearer |
+| `POST` | `/api/account/verificacion/reanudar` | Si sigue pendiente, reenvía y avisa continuar | no |
+
+Validaciones perfil: obligatorios (`"Este campo es obligatorio"`), fecha no futura y mayor de 14 (`"Ingresa una fecha válida"` / `"Ingresa una edad válida"`), género existente (`"Selecciona un género válido"`). Correo: formato (`"Ingresa un correo válido"`), duplicado → 409 `"El correo ya se encuentra registrado"`, código con expiración de 15 min (410 `"El código expiró. Reenvía el código"`).
+
+Reanudar: `200 {"mensaje", "requiereVerificacion": true}` solo si sigue en `PendienteVerificacion`; si no, mensaje genérico sin revelar estados.
+
+## Mensajes exactos PB-10
+
+* `"Perfil actualizado correctamente"` (200) / `"Correo actualizado correctamente"` (200) / `"Código enviado"` (200)
+* `"El correo ya se encuentra registrado"` (409)
+* Logs `PERFIL_ACTUALIZADO`, `CORREO_SOLICITADO`, `CORREO_ACTUALIZADO` en `dbo.auth`
+
+## Nota: cookie de riesgo del invitado
+
+Sin cambios de back: `POST /api/cuestionario/invitado/finalizar` ya devuelve `{mensaje, cuestionarioId, puntaje, nivel, totalPreguntas, respondidas}` — el front guarda `puntaje/nivel` en la cookie de sesión del invitado y la reusa en PB-08. Si al reentrar no hay riesgo previo, es que el front no persistió esa respuesta.
+
+* Rama actual `PB10` (sin DDL).
+
+# Mindzyxs-API - Guía PB-11 (Cuestionario emocional del paciente)
+
+API REST `Mindzyxs 1.1` - solo back-end. El paciente autenticado presiona **Responder cuestionario** (panel del paciente), el back le entrega un cuestionario pendiente (del mismo catálogo que el invitado: `Predeterminado` + `Publicado`, sin entregar los que el paciente ya respondió ni devolver nunca el mismo dos veces), valida que responda **el 100%** de las preguntas y al terminar **guarda las respuestas y el resultado en su historial** (`eventos_bienestar` + `respuestas`, los mismos que lee PB-13) y registra el inicio y la finalización en `dbo.auth`. Todo vive en `Controllers/CuestionarioController.cs` → `Services/CuestionarioService.cs` → `ICuestionarioRepository` + `IHistorialRepository` + `IAuthLogRepository`.
+
+## Endpoints PB-11 (HU1-PB11)
+
+| Método | Ruta | Descripción | Auth |
+|--------|------|-------------|------|
+| `GET`  | `/api/cuestionario/paciente/pendiente` | El siguiente cuestionario que el paciente aún no ha respondido | Bearer paciente |
+| `POST` | `/api/cuestionario/paciente/inicio` | Registrar inicio del cuestionario en `dbo.auth` | Bearer paciente |
+| `POST` | `/api/cuestionario/paciente/finalizar` | Validar 100%, calcular puntaje/nivel y guardar respuestas + resultado en el historial + log | Bearer paciente |
+| `GET`  | `/api/cuestionario/paciente/asignados` | Cuestionarios asignados al paciente (`dbo.asignaciones_cuestionario`, recientes primero) + log | Bearer paciente |
+| `GET`  | `/api/cuestionario/paciente/asignados/{idAsignacion}` | Asignado completo (preguntas+opciones) para responderlo + log | Bearer paciente |
+
+### 9.1 `GET /api/cuestionario/paciente/pendiente` - el cuestionario que me toca responder
+
+```bash
+curl "http://localhost:5015/api/cuestionario/paciente/pendiente" -H "Authorization: Bearer <token>"
+```
+
+`200` con pendiente: `{ "disponible": true, "id": 1, "titulo": "Cuestionario Base Prueba", "avisoObligatorio": true, "preguntas": [{ "id": 1, "texto": "En las ultimas 2 semanas, me he sentido nervioso/a?", "orden": 1, "opciones": [{ "id": 1, "texto": "Nunca", "valor": 0, "orden": 1 }, ...] }] }`. Sin pendientes: `{ "disponible": false, "mensaje": "No tienes cuestionarios pendientes por responder." }`. Sin sesión → `401 "Sesión requerida"`.
+
+### 9.2 `POST /api/cuestionario/paciente/inicio` - registrar inicio
+
+```bash
+curl --location "http://localhost:5015/api/cuestionario/paciente/inicio" -H "Authorization: Bearer <token>" -H "Content-Type: application/json" -d "{\"cuestionarioId\":1}"
+```
+
+`200 {mensaje:"Inicio registrado"}` → log `CUESTIONARIO_PACIENTE_INICIO`. No bloquea la UI.
+
+### 9.3 `POST /api/cuestionario/paciente/finalizar` - validar 100% + guardar en historial
+
+El front envía TODAS las respuestas (avance secuencial con Siguiente + Finalizar). El back valida que cada pregunta tenga respuesta y que cada opción pertenezca a su pregunta, calcula `puntaje = promedio(valores de escala, redondeado)` y `nivel` (1-2 Bajo, 3 Medio, 4-5 Alto, helper compartido `CuestionarioService.CalcularPuntaje`), **inserta el evento en `eventos_bienestar` (tipo Cuestionario) y cada respuesta en `respuestas`** en una transacción, y registra `CUESTIONARIO_PACIENTE_FIN`. La fila queda visible en `GET /api/historial` (PB-13) para alertas, recomendaciones y seguimiento.
+
+```bash
+curl --location "http://localhost:5015/api/cuestionario/paciente/finalizar" -H "Authorization: Bearer <token>" -H "Content-Type: application/json" -d "{\"cuestionarioId\":1,\"respuestas\":[{\"preguntaId\":1,\"opcionId\":3}]}"
+```
+
+`200 {mensaje:"Cuestionario completado", idEvento, cuestionarioId, puntaje, nivel, totalPreguntas, respondidas}`.
+
+## Mensajes exactos PB-11
+
+* `"Cuestionario completado"` (200) / `"Inicio registrado"` (200) / `"Sesión requerida"` (401)
+* `"Debes seleccionar una respuesta para continuar"` (400) si falta alguna (todas son obligatorias)
+* `"La respuesta seleccionada no es válida"` (400) si la opción no pertenece a su pregunta
+* `"Cuestionario no disponible."` (404) si no está publicado
+* `"Este campo es obligatorio"` (400) si el body llega vacío/inválido
+* `"No tienes cuestionarios pendientes por responder."` (200 con `disponible:false`)
+* Logs `CUESTIONARIO_PACIENTE_INICIO` y `CUESTIONARIO_PACIENTE_FIN` en `dbo.auth`
+
+* Rama actual `PB11`, BD `SANTI/Mindzyxs` (seed `Minzyxs-DB/sql/03_seed_datos_prueba.sql`: cuestionario `Cuestionario Base Prueba`, Predeterminado/Publicado, 3 preguntas `opcion_multiple` 0-3). El resultado persiste con el seed de pruebas; el aviso aclaratorio (configurable) se sirve desde `GET /api/aviso` (PB-04) con `avisoObligatorio:true`.
+
+# Mindzyxs-API - Guía PB-12 (Registrar estado emocional)
+
+API REST `Mindzyxs 1.1` - solo back-end. El paciente autenticado presiona **Registrar estado emocional** (panel del paciente), el back recibe la escala seleccionada (1-5) y una nota opcional, valida que exista la escala, guarda el registro con fecha y hora **automáticas** en `eventos_bienestar` (visible luego en `GET /api/historial`, PB-13) y registra la creación en `dbo.auth`. Todo vive en `Controllers/HistorialController.cs` → `Services/HistorialService.cs` → `IHistorialRepository` + `IAuthLogRepository`.
+
+El formulario (según mockup del PB) es una escala 1-5 con etiquetas: `1 Muy mal`, `2 Mal`, `3 Regular`, `4 Bien`, `5 Excelente`, un campo **Notas** opcional y los botones **Guardar** y **Cancelar / Volver** (cancelar es front y no guarda nada).
+
+## Endpoints PB-12 (HU1-PB12)
+
+| Método | Ruta | Descripción | Auth |
+|--------|------|-------------|------|
+| `POST` | `/api/historial` | Guarda el estado emocional (escala 1-5 + nota opcional) con fecha/hora automática + log | Bearer paciente |
+
+### 10.1 `POST /api/historial` - guardar registro emocional
+
+```bash
+curl --location "http://localhost:5015/api/historial" -H "Authorization: Bearer <token-paciente>" -H "Content-Type: application/json" -d "{\"puntaje\":4,\"nota\":\"Me sentí bien hoy\"}"
+```
+
+`200 {mensaje:"Registro guardado correctamente", idEvento, fecha, puntaje, nivel, nota}`. `nivel` se deriva igual que el cuestionario (1-2 Bajo, 3 Medio, 4-5 Alto) y se guarda con el riesgo en el evento (lo usan PB-14 y PB-31). Sin escala o con escala inválida → `400 "Debes seleccionar un estado emocional para guardar"` y **no guarda**. El registro aparece al instante en `GET /api/historial`.
+
+## Mensajes exactos PB-12
+
+* `"Registro guardado correctamente"` (200)
+* `"Debes seleccionar un estado emocional para guardar"` (400, si falta o es inválida; no guarda)
+* `"Este campo es obligatorio"` (400, body vacío/inválido)
+* `"Sesión requerida"` (401)
+* Log `REGISTRO_EMOCIONAL_CREADO` en `dbo.auth`
+
+* Rama actual `PB12` (apilada sobre `PB11`), BD `SANTI/Mindzyxs`. Sin DDL nuevo: la columna `nota` de `eventos_bienestar` ya existe (PB-13).
+
+# Mindzyxs-API - Guía PB-16 (Alerta de riesgo alto)
+
+API REST `Mindzyxs 1.1` - solo back-end. Cuando un paciente finaliza un cuestionario emocional (PB-11) o registra un estado emocional (PB-12), el back ya determina su nivel de riesgo (`nivel` en la respuesta). Si es **Alto**, el front muestra una alerta visible (modal/banner) con el mensaje fijo de la HU — "Riesgo alto detectado. Busca ayuda profesional. Si te sientes en peligro, contacta una línea de ayuda" — y los botones **Líneas de ayuda**, **Ver recomendaciones** y **Entendido**. El back aporta aquí el **registro en logs** de la **generación y visualización** de la alerta y de la **acción** que eligió el paciente. Con nivel Bajo o Medio la alerta no se muestra (el front solo invoca el endpoint cuando `nivel == "Alto"`). Todo vive en `Controllers/RiesgoController.cs` → `Services/RiesgoService.cs` → `IAuthLogRepository` + `IUserRepository`.
+
+Líneas de ayuda y recomendaciones ya tienen sus endpoints: `GET /api/ayuda/lineas` (público, PB-08) y `GET /api/recomendaciones/invitado...` (PB-09). La redirección a esas secciones es del front: "Líneas de ayuda" y "Ver recomendaciones" navegan, "Entendido" cierra el modal y el paciente continúa.
+
+## Endpoints PB-16 (HU1-PB16)
+
+| Método | Ruta | Descripción | Auth |
+|--------|------|-------------|------|
+| `POST` | `/api/riesgo/paciente/alerta` | Registra la alerta: `"vista"` (se generó y visualizó) o la acción elegida (`lineas`, `recomendaciones`, `entendido`) + log en `dbo.auth` | Bearer paciente |
+
+### 11.1 `POST /api/riesgo/paciente/alerta` - registro de la alerta en logs
+
+```bash
+# Generación + visualización del modal (nivel Alto)
+curl --location "http://localhost:5015/api/riesgo/paciente/alerta" -H "Authorization: Bearer <token-paciente>" -H "Content-Type: application/json" -d "{\"accion\":\"vista\",\"origen\":\"cuestionario\"}"
+
+# Acción: botón Líneas de ayuda / Ver recomendaciones / Entendido
+curl --location "http://localhost:5015/api/riesgo/paciente/alerta" -H "Authorization: Bearer <token-paciente>" -H "Content-Type: application/json" -d "{\"accion\":\"lineas\",\"origen\":\"cuestionario\"}"
+curl --location "http://localhost:5015/api/riesgo/paciente/alerta" -H "Authorization: Bearer <token-paciente>" -H "Content-Type: application/json" -d "{\"accion\":\"recomendaciones\",\"origen\":\"registro\"}"
+curl --location "http://localhost:5015/api/riesgo/paciente/alerta" -H "Authorization: Bearer <token-paciente>" -H "Content-Type: application/json" -d "{\"accion\":\"entendido\",\"origen\":\"cuestionario\"}"
+```
+
+`origen` es opcional (solo describe qué disparó la alerta: `cuestionario` o `registro`) y va en el detalle del log. Respuesta `200 {mensaje:"Alerta registrada"}`. Guarda en `dbo.auth`: `ALERTA_RIESGO_ALTO_VISTA` (cuando `accion = "vista"`) o `ALERTA_RIESGO_ALTO_ACCION` (para `lineas`/`recomendaciones`/`entendido`).
+
+## Mensajes exactos PB-16
+
+* `"Alerta registrada"` (200)
+* `"Debes seleccionar una opción de la alerta de riesgo"` (400, falta `accion`)
+* `"Acción de la alerta no válida"` (400, `accion` fuera de `vista|lineas|recomendaciones|entendido`)
+* `"Sesión requerida"` (401)
+* Logs `ALERTA_RIESGO_ALTO_VISTA` y `ALERTA_RIESGO_ALTO_ACCION` en `dbo.auth`
+
+* Rama actual `PB16`, BD `SANTI/Mindzyxs`. Sin DDL nuevo (el nivel de riesgo ya se guarda en el evento con PB-11/PB-12).
+
+# Mindzyxs-API - Guía PB-21 (Gestión de cuestionarios del psicólogo)
+
+API REST `Mindzyxs 1.1` - solo back-end. El psicólogo autenticado toca **Cuestionarios** en su panel → pantalla **Gestión de cuestionarios** con la lista de los suyos (Borrador o Publicado) en orden y con **búsqueda** (`GET` con `q`). Selecciona uno para ver su **detalle** (título, descripción, estado y preguntas). Si está **Publicado** y quiere editarlo, el front pide **confirmación** y `POST .../{id}/despublicar` lo pasa a **Borrador** antes de habilitar el editor. Al **Guardar como borrador** o **Publicar**, el back valida que quede **al menos una pregunta** (`El cuestionario debe tener al menos una pregunta`), guarda los cambios y responde `Cuestionario actualizado correctamente`. Puede **eliminar** con confirmación extra (baja lógica `Eliminado`, fuera de los análisis; se eliminan también las observaciones asociadas). Las ediciones/eliminaciones quedan en `dbo.auth`.
+
+Todo vive en `Controllers/PsicologoCuestionariosController.cs` → `Services/PsicologoCuestionariosService.cs` → `ICuestionarioRepository` (`EfCuestionarioRepository`) + `IAuthLogRepository`.
+
+**DDL necesario** (`Minzyxs-DB/sql/04_pb21_editar_cuestionarios.sql`): columna `preguntas.eliminada` (baja lógica de preguntas en uso) y recrea `sp_cuestionario_completo` filtrando preguntas eliminadas (el orden de columnas no cambia).
+
+## Endpoints PB-21 (HU1-PB21)
+
+| Método | Ruta | Descripción | Auth |
+|--------|------|-------------|------|
+| `GET` | `/api/psicologo/cuestionarios?q=` | Mis cuestionarios (Borrador/Publicado) con búsqueda, recientes primero | Bearer psicólogo |
+| `GET` | `/api/psicologo/cuestionarios/{id}` | Detalle editable (preguntas/opciones con ids) | Bearer psicólogo (dueño) |
+| `POST` | `/api/psicologo/cuestionarios/{id}/despublicar` | Confirmación: Publicado → Borrador + log | Bearer psicólogo (dueño) |
+| `PUT` | `/api/psicologo/cuestionarios/{id}` | Guarda edición (Borrador o Publicado) + log | Bearer psicólogo (dueño) |
+| `DELETE` | `/api/psicologo/cuestionarios/{id}?confirmar=true` | Elimina (baja lógica + observaciones) + log | Bearer psicólogo (dueño) |
+
+### 12.1 `GET /api/psicologo/cuestionarios` - lista con búsqueda
+
+```bash
+curl --location "http://localhost:5015/api/psicologo/cuestionarios?q=ansiedad" -H "Authorization: Bearer <token-psicologo>"
+```
+
+`200 [{id, titulo, descripcion, estado, numPreguntas, fechaCreacion}]` ordenado por `fechaCreacion DESC`. `q` filtra por título. No salen los `Eliminado`.
+
+### 12.2 `GET /api/psicologo/cuestionarios/{id}` - detalle (prellena el editor)
+
+`200 {id, titulo, descripcion, estado, modoCalculo, umbralBajoMax, umbralMedioMax, fechaCreacion, preguntas:[{id, texto, orden, tipo, opciones:[{id, texto, valor, orden}]}]}`. Los `id` de preguntas/opciones permiten mapear la edición. `404 "Cuestionario no encontrado."` si no existe o no es mío.
+
+### 12.3 `POST /api/psicologo/cuestionarios/{id}/despublicar` - confirmación de editar un publicado
+
+```bash
+curl --location -X POST "http://localhost:5015/api/psicologo/cuestionarios/7/despublicar" -H "Authorization: Bearer <token-psicologo>"
+```
+
+`200 {mensaje:"El cuestionario ahora es un borrador"}`. Si ya está Borrador → `400 "El cuestionario no está publicado."`. Guardo `CUESTIONARIO_EDITADO`. Con esto el front habilita el editor.
+
+### 12.4 `PUT /api/psicologo/cuestionarios/{id}` - guardar borrador/publicar
+
+```bash
+curl --location -X PUT "http://localhost:5015/api/psicologo/cuestionarios/7" -H "Authorization: Bearer <token-psicologo>" -H "Content-Type: application/json" -d '{"titulo":"Ansiedad semanal (revisado)","publicar":false,"umbrales":{"bajoMax":6,"medioMax":12},"preguntas":[{"id":10,"texto":"¿Con qué frecuencia se sintió nervioso/a?","tipo":"opcion_multiple","opciones":[{"texto":"Nunca","valor":0},{"texto":"A veces","valor":2},{"texto":"Siempre","valor":4}]},{"texto":"¿Le costó conciliar el sueño?","tipo":"opcion_multiple","opciones":[{"texto":"No","valor":0},{"texto":"A veces","valor":2},{"texto":"Casi siempre","valor":4}]}]}'
+```
+
+Mismo cuerpo que crear + `id` por pregunta (nulo = nueva; el `id` de una pregunta que ya no venga se da de baja con `eliminada`). `200 {id, mensaje:"Cuestionario actualizado correctamente"}`. Cero preguntas → `400 "El cuestionario debe tener al menos una pregunta"`. Publicar (`publicar:true`) lo deja **disponible para asignar a pacientes**. Si el cuestionario está Publicado → `400 "Para modificar un cuestionario publicado pásalo primero a borrador."`.
+
+### 12.5 `DELETE /api/psicologo/cuestionarios/{id}?confirmar=true` - eliminar con confirmación
+
+```bash
+curl --location -X DELETE "http://localhost:5015/api/psicologo/cuestionarios/7?confirmar=true" -H "Authorization: Bearer <token-psicologo>"
+```
+
+`200 {mensaje:"Cuestionario eliminado correctamente"}`. Sin `confirmar=true` → `400 "Debes confirmar la eliminación del cuestionario."`. Pasa a `Estado = Eliminado` (sale de las listas y de los análisis; los eventos ya respondidos se conservan por FK) y borra las **observaciones asociadas** a sus eventos.
+
+## Mensajes exactos PB-21
+
+* `"El cuestionario ahora es un borrador"` (200, despublicar)
+* `"El cuestionario no está publicado."` (400, despublicar algo no publicado)
+* `"Cuestionario actualizado correctamente"` (200, guardar edición)
+* `"El cuestionario debe tener al menos una pregunta"` (400, al guardar sin preguntas)
+* `"Para modificar un cuestionario publicado pásalo primero a borrador."` (400, editar un publicado sin despublicar)
+* `"Debes confirmar la eliminación del cuestionario."` (400, borrar sin `confirmar=true`)
+* `"Cuestionario eliminado correctamente"` (200, eliminar)
+* `"Cuestionario no encontrado."` (404, no existe o no es mío)
+* Validaciones compartidas con crear: `"Cada pregunta debe tener texto."`, `"Cada pregunta debe tener al menos dos opciones."`, `"Cada opción debe tener texto."`, `"El valor de cada opción debe ser mayor o igual a cero."`, `"El título es obligatorio."`
+* Logs `CUESTIONARIO_EDITADO` y `CUESTIONARIO_ELIMINADO` en `dbo.auth`
+
+* Rama actual `PB-21-EditarCuestionario`, BD `SANTI/Mindzyxs`. DDL nuevo: `Minzyxs-DB/sql/04_pb21_editar_cuestionarios.sql` (columna `preguntas.eliminada` + `sp_cuestionario_completo` filtrado).
+
+---
+# Mindzyxs-API - Guía PB-22 (Asignación de cuestionarios a pacientes)
+
+El psicólogo autorizado toca **Cuestionarios** en su panel → elige **Asignar** en un cuestionario **Publicado** → pantalla **Asignar cuestionario** con la lista de **pacientes que le hayan autorizado** con casillas de verificación (los que ya tienen ese cuestionario asignado pendiente salen deshabilitados). Al marcar uno o varios y presionar **Asignar cuestionario**, el back registra las asignaciones (una fila por paciente en `asignaciones_cuestionario`, estado `Pendiente`), lo que hace el cuestionario **disponible de inmediato** en la cuenta del paciente (`GET /api/cuestionario/paciente/asignados`). Responde `Cuestionario asignado correctamente`, guarda `CUESTIONARIO_ASIGNADO` en `dbo.auth` y loguea en el mensaje los pacientes asignados.
+
+Todo vive en `Controllers/PsicologoCuestionariosController.cs` → `Services/PsicologoCuestionariosService.cs` → `ICuestionarioRepository` (`EfCuestionarioRepository`, método `AsignarAsync`) + `IHistorialRepository` (pacientes autorizados, `GetPacientesAutorizadosAsync`/`GetEstadoIdAsync("Autorizado")`) + `IAuthLogRepository`.
+
+**Sin DDL nuevo**: la tabla `dbo.asignaciones_cuestionario` y el lado paciente (PB-22) ya existen en `Minzyxs-DB/sql/01_create_tables_sqlserver.sql`.
+
+## Endpoints PB-22 (HU1-PB22)
+
+| Método | Ruta | Descripción | Auth |
+|--------|------|-------------|------|
+| `GET` | `/api/psicologo/cuestionarios/{id}/asignar` | Pantalla: cuestionario + pacientes autorizados (`yaAsignado` deshabilita casilla) | Bearer psicólogo (dueño) |
+| `POST` | `/api/psicologo/cuestionarios/{id}/asignar` | Asigna a uno o varios pacientes autorizados (solo Publicado) + log | Bearer psicólogo (dueño) |
+
+### 13.1 `GET /api/psicologo/cuestionarios/{id}/asignar` - pantalla de asignación
+
+```bash
+curl --location "http://localhost:5015/api/psicologo/cuestionarios/7/asignar" -H "Authorization: Bearer <token-psicologo>"
+```
+
+`200 {id, titulo, estado, pacientes:[{id, nombre, yaAsignado}]}`. Solo salen los pacientes que **autorizaron** al psicólogo (PB-18). `404 "Cuestionario no encontrado."` si no existe o no es mío.
+
+### 13.2 `POST /api/psicologo/cuestionarios/{id}/asignar` - registrar la asignación
+
+```bash
+curl --location -X POST "http://localhost:5015/api/psicologo/cuestionarios/7/asignar" -H "Authorization: Bearer <token-psicologo>" -H "Content-Type: application/json" -d '{"pacientesIds":[2,3]}'
+```
+
+`200 {mensaje:"Cuestionario asignado correctamente", asignados:2}`. La asignación queda `Pendiente` y el paciente la ve de inmediato. No se duplica si el paciente ya tenía ese cuestionario asignado pendiente.
+
+## Mensajes exactos PB-22
+
+* `"Cuestionario asignado correctamente"` (200, asignación registrada)
+* `"Debes seleccionar al menos un paciente"` (400, sin pacientes o solo no autorizados)
+* `"Solo puedes asignar cuestionarios publicados."` (400, cuestionario no Publicado)
+* `"Solo puedes asignar a pacientes que te hayan autorizado."` (400, algún id no autorizado)
+* `"Cuestionario no encontrado."` (404, no existe o no es mío)
+* Log `CUESTIONARIO_ASIGNADO` en `dbo.auth`
