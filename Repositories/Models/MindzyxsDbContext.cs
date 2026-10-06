@@ -63,6 +63,8 @@ public class MindzyxsDbContext(DbContextOptions<MindzyxsDbContext> options) : Db
             e.Property(x => x.IdEstadoCuenta).HasColumnName("id_estado_cuenta");
             e.Property(x => x.IdEstadoAprobacion).HasColumnName("id_estado_aprobacion");
             e.Property(x => x.IdGenero).HasColumnName("id_genero");
+            e.Property(x => x.IdInstitucion).HasColumnName("id_institucion");
+            e.Property(x => x.IdEspecialidad).HasColumnName("id_especialidad");
             e.Property(x => x.FilePath).HasColumnName("file_path").HasMaxLength(500).IsUnicode(false);
             e.Property(x => x.FechaRegistro).HasColumnName("fecha_registro");
             e.Property(x => x.UltimoAcceso).HasColumnName("ultimo_acceso");
