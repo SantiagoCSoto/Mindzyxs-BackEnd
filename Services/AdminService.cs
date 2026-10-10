@@ -21,6 +21,7 @@ public class AdminService(
     ICatalogRepository catalogs,
     IAuthLogRepository authLogs,
     LoginService login,
+    PasswordRecoveryService recovery,
     IEmailSender email,
     IOptions<AdminOptions> options,
     ILogger<AdminService> logger)
@@ -312,5 +313,141 @@ public class AdminService(
         await authLogs.LogAsync(adminId, idPsicologo, LogAcciones.ValidacionRechazada,
             $"Admin:{adminId} rechazó al psicólogo:{idPsicologo}. Motivo: {(string.IsNullOrWhiteSpace(motivo) ? "-" : motivo.Trim())}", ip, ct);
         return new OperationResult<string> { Success = true, Message = "Validación registrada correctamente." };
+    }
+
+    // PB-25 HU1-PB25: lista de usuarios con filtros (fiel a v1 CU25, sin admins).
+    public async Task<OperationResult<List<UsuarioAdminDto>>> UsuariosAsync(string? q, string? rol, string? estado, CancellationToken ct = default)
+    {
+        var idRolAdmin = await catalogs.GetRolIdAsync(AppRoles.Administrador, ct);
+        int? idRol = null;
+        if (!string.IsNullOrWhiteSpace(rol))
+        {
+            if (string.Equals(rol.Trim(), AppRoles.Administrador, StringComparison.OrdinalIgnoreCase))
+                return OperationResult<List<UsuarioAdminDto>>.Fail("No puedes administrar usuarios administradores.");
+            idRol = await catalogs.GetRolIdAsync(rol.Trim(), ct);
+        }
+        int? idEstado = null;
+        if (!string.IsNullOrWhiteSpace(estado))
+            idEstado = await catalogs.GetEstadoIdAsync(estado.Trim(), ct);
+
+        var filas = await users.GetUsuariosAsync(idRolAdmin, q, idRol, idEstado, ct);
+        return OperationResult<List<UsuarioAdminDto>>.Ok(filas
+            .Select(f => new UsuarioAdminDto
+            {
+                Id = f.Id,
+                Nombre = $"{f.Nombre} {f.Apellido}".Trim(),
+                Correo = f.Correo,
+                Rol = f.Rol,
+                Estado = f.Estado,
+                Aprobacion = f.Aprobacion,
+                FechaRegistro = f.FechaRegistro
+            }).ToList());
+    }
+
+    // PB-25 HU1-PB25: detalle del usuario (fiel a v1, sin password).
+    public async Task<OperationResult<UsuarioDetalleDto>> DetalleUsuarioAsync(int idUsuario, CancellationToken ct = default)
+    {
+        var u = await users.FindByIdAsync(idUsuario, ct);
+        if (u is null)
+            return OperationResult<UsuarioDetalleDto>.Fail("Usuario no encontrado.");
+        var rol = await users.GetRolNombreAsync(u.IdRol, ct) ?? "";
+        if (string.Equals(rol, AppRoles.Administrador, StringComparison.OrdinalIgnoreCase))
+            return OperationResult<UsuarioDetalleDto>.Fail("No puedes administrar usuarios administradores.");
+
+        var generos = await catalogs.GetGenerosAsync(ct);
+        return OperationResult<UsuarioDetalleDto>.Ok(new UsuarioDetalleDto
+        {
+            Id = u.IdUsuario,
+            Nombres = u.Nombre,
+            Apellidos = u.Apellido,
+            Nombre = $"{u.Nombre} {u.Apellido}".Trim(),
+            Correo = u.Correo,
+            Rol = rol,
+            Estado = await users.GetEstadoCuentaNombreAsync(u.IdEstadoCuenta, ct) ?? "",
+            Aprobacion = u.IdEstadoAprobacion.HasValue ? await catalogs.GetEstadoNombreAsync(u.IdEstadoAprobacion.Value, ct) : null,
+            FechaRegistro = u.FechaRegistro,
+            FechaNacimiento = u.FechaNacimiento,
+            Genero = u.IdGenero.HasValue ? generos.FirstOrDefault(g => g.Id == u.IdGenero.Value)?.Nombre : null
+        });
+    }
+
+    // PB-25 HU1-PB25: edita datos básicos (fiel a v1 CU25).
+    public async Task<OperationResult<string>> ActualizarUsuarioAsync(int adminId, int idUsuario, ActualizarUsuarioVm vm, string? ip, CancellationToken ct = default)
+    {
+        if (string.IsNullOrWhiteSpace(vm.Nombres))
+            return OperationResult<string>.Fail("El nombre es obligatorio.");
+        if (string.IsNullOrWhiteSpace(vm.Correo))
+            return OperationResult<string>.Fail("El correo es obligatorio.");
+        var correo = ContactHelper.Normalize(vm.Correo);
+        if (!ContactHelper.IsEmail(correo))
+            return OperationResult<string>.Fail("Ingresa un correo válido.");
+
+        var u = await users.FindByIdAsync(idUsuario, ct);
+        if (u is null)
+            return OperationResult<string>.Fail("Usuario no encontrado.");
+        var rol = await users.GetRolNombreAsync(u.IdRol, ct) ?? "";
+        if (string.Equals(rol, AppRoles.Administrador, StringComparison.OrdinalIgnoreCase))
+            return OperationResult<string>.Fail("No puedes administrar usuarios administradores.");
+
+        var otro = await users.FindByCorreoAsync(correo, ct);
+        if (otro is not null && otro.IdUsuario != idUsuario)
+            return OperationResult<string>.Fail("El correo ya está registrado por otro usuario.");
+
+        if (vm.IdGenero.HasValue && !await catalogs.ExisteGeneroAsync(vm.IdGenero.Value, ct))
+            return OperationResult<string>.Fail("Género no válido.");
+
+        await users.ActualizarPerfilAsync(idUsuario, vm.Nombres.Trim(), (vm.Apellidos ?? "").Trim(), vm.FechaNacimiento, vm.IdGenero, ct);
+        if (!string.Equals(correo, u.Correo, StringComparison.OrdinalIgnoreCase))
+            await users.ActualizarCorreoAsync(idUsuario, correo, ct);
+
+        await authLogs.LogAsync(adminId, idUsuario, LogAcciones.UsuarioActualizado,
+            $"Admin:{adminId} editó al usuario:{idUsuario}", ip, ct);
+        return new OperationResult<string> { Success = true, Message = "Cambios guardados correctamente." };
+    }
+
+    // PB-25 HU1-PB25: cambia el estado de la cuenta (fiel a v1 CU25).
+    public async Task<OperationResult<string>> CambiarEstadoAsync(int adminId, int idUsuario, string nuevoEstado, string? ip, CancellationToken ct = default)
+    {
+        if (string.IsNullOrWhiteSpace(nuevoEstado))
+            return OperationResult<string>.Fail("Debes seleccionar un estado.");
+        var u = await users.FindByIdAsync(idUsuario, ct);
+        if (u is null)
+            return OperationResult<string>.Fail("Usuario no encontrado.");
+        var rol = await users.GetRolNombreAsync(u.IdRol, ct) ?? "";
+        if (string.Equals(rol, AppRoles.Administrador, StringComparison.OrdinalIgnoreCase))
+            return OperationResult<string>.Fail("No puedes administrar usuarios administradores.");
+
+        int idEstado;
+        try
+        {
+            idEstado = await catalogs.GetEstadoIdAsync(nuevoEstado.Trim(), ct);
+        }
+        catch
+        {
+            return OperationResult<string>.Fail("Estado no válido.");
+        }
+
+        await users.SetEstadoCuentaAsync(idUsuario, idEstado, ct);
+        await authLogs.LogAsync(adminId, idUsuario, LogAcciones.UsuarioEstadoCambiado,
+            $"Admin:{adminId} cambió el estado del usuario:{idUsuario} a {nuevoEstado.Trim()}", ip, ct);
+        return new OperationResult<string> { Success = true, Message = "Estado actualizado correctamente." };
+    }
+
+    // PB-25 HU1-PB25: fuerza restablecimiento (código + correo, sin exponer nada).
+    public async Task<OperationResult<string>> ForzarResetAsync(int adminId, int idUsuario, string? ip, CancellationToken ct = default)
+    {
+        var u = await users.FindByIdAsync(idUsuario, ct);
+        if (u is null)
+            return OperationResult<string>.Fail("Usuario no encontrado.");
+        var rol = await users.GetRolNombreAsync(u.IdRol, ct) ?? "";
+        if (string.Equals(rol, AppRoles.Administrador, StringComparison.OrdinalIgnoreCase))
+            return OperationResult<string>.Fail("No puedes administrar usuarios administradores.");
+
+        var r = await recovery.ForgotAsync(u.Correo, ct);
+        if (!r.Success)
+            return OperationResult<string>.Fail("No fue posible enviar el código. Intente nuevamente.");
+        await authLogs.LogAsync(adminId, idUsuario, LogAcciones.PasswordForzado,
+            $"Admin:{adminId} forzó restablecimiento para el usuario:{idUsuario}", ip, ct);
+        return new OperationResult<string> { Success = true, Message = "Se envió un código de restablecimiento al correo del usuario." };
     }
 }

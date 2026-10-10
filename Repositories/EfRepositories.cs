@@ -78,6 +78,33 @@ public class EfUserRepository(MindzyxsDbContext db) : IUserRepository
         => await db.Usuarios.Where(x => x.IdUsuario == idUsuario)
             .ExecuteUpdateAsync(s => s.SetProperty(x => x.Correo, nuevoCorreo), ct);
 
+    // PB-25 HU1-PB25: gestión de usuarios (excluye admins; filtros q/rol/estado).
+    public async Task<List<UsuarioAdminRow>> GetUsuariosAsync(int idRolAdmin, string? q, int? idRol, int? idEstadoCuenta, CancellationToken ct = default)
+    {
+        var query = db.Usuarios.AsNoTracking().Where(u => u.IdRol != idRolAdmin);
+        if (idRol.HasValue)
+            query = query.Where(u => u.IdRol == idRol.Value);
+        if (idEstadoCuenta.HasValue)
+            query = query.Where(u => u.IdEstadoCuenta == idEstadoCuenta.Value);
+        if (!string.IsNullOrWhiteSpace(q))
+        {
+            var t = q.Trim().ToLower();
+            query = query.Where(u => (u.Nombre + " " + u.Apellido).ToLower().Contains(t) || u.Correo.ToLower().Contains(t));
+        }
+        var filas = await query.OrderByDescending(u => u.FechaRegistro).ToListAsync(ct);
+        if (filas.Count == 0) return [];
+        var roles = await db.Roles.AsNoTracking().ToDictionaryAsync(r => r.IdRol, r => r.Nombre, ct);
+        var estados = await db.Estados.AsNoTracking().ToDictionaryAsync(e => e.IdEstado, e => e.Nombre, ct);
+        return filas.Select(u => new UsuarioAdminRow(
+            u.IdUsuario, u.Nombre, u.Apellido, u.Correo, u.IdRol,
+            roles.TryGetValue(u.IdRol, out var r) ? r : "",
+            u.IdEstadoCuenta,
+            estados.TryGetValue(u.IdEstadoCuenta, out var e) ? e : "",
+            u.IdEstadoAprobacion,
+            u.IdEstadoAprobacion.HasValue && estados.TryGetValue(u.IdEstadoAprobacion.Value, out var a) ? a : null,
+            u.FechaRegistro)).ToList();
+    }
+
     // PB-especialidades: reemplaza las especialidades del psicólogo (vacío = ninguna).
     public async Task GuardarEspecialidadesAsync(int idPsicologo, List<int> idsEspecialidad, CancellationToken ct = default)
     {
@@ -299,6 +326,7 @@ public class EfUserRepository(MindzyxsDbContext db) : IUserRepository
         Correo = u.Correo,
         PasswordHash = u.PasswordHash,
         FechaNacimiento = u.FechaNacimiento,
+        FechaRegistro = u.FechaRegistro,
         IdGenero = u.IdGenero,
         FilePath = u.FilePath
     };

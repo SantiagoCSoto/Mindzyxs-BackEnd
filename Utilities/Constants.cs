@@ -138,6 +138,12 @@ public static class LogAcciones
     public const string TarjetaSubida = "TARJETA_SUBIDA";
     public const string TarjetaVerificada = "TARJETA_VERIFICADA";
 
+    // PB-25 HU1-PB25: gestión de cuentas de usuarios (fiel a v1 CU25).
+    public const string UsuariosConsulta = "USUARIOS_CONSULTA";
+    public const string UsuarioActualizado = "USUARIO_ACTUALIZADO";
+    public const string UsuarioEstadoCambiado = "USUARIO_ESTADO_CAMBIADO";
+    public const string PasswordForzado = "PASSWORD_FORZADO";
+
     // PB-21 HU1-PB21: el psicólogo edita (incluye despublicar por confirmación) o elimina
     // un cuestionario propio; la eliminación es lógica (estado Eliminado) y deja de
     // contarse en los análisis.
