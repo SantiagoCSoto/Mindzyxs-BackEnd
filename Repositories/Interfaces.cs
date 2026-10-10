@@ -18,7 +18,9 @@ public interface IUserRepository
     Task ActualizarCorreoAsync(int idUsuario, string nuevoCorreo, CancellationToken ct = default);
     Task<string?> GetRolNombreAsync(int idRol, CancellationToken ct = default);
     Task<string?> GetEstadoCuentaNombreAsync(int idEstadoCuenta, CancellationToken ct = default);
-    // PB-especialidades: reemplaza las especialidades del psicólogo (vacío = ninguna).
+    // PB-25 HU1-PB25: gestión de usuarios (excluye admins; filtros q/rol/estado).
+    Task<List<UsuarioAdminRow>> GetUsuariosAsync(int idRolAdmin, string? q, int? idRol, int? idEstadoCuenta, CancellationToken ct = default);
+    // PB-especialidades: reemplaza las especialidades del psicólogo (vacío = ninguna, verificadas).
     Task GuardarEspecialidadesAsync(int idPsicologo, List<int> idsEspecialidad, CancellationToken ct = default);
     // PB-25: reemplaza conservando verificación; las agregadas quedan ocultas (false).
     // Devuelve true si hubo cambios (agregadas o quitadas).
@@ -41,6 +43,9 @@ public interface IUserRepository
 
 // PB-especialidades: directorio para pacientes (nombre, especialidades, pacientes asignados).
 public record PsicologoDirectorioRow(int Id, string Nombre, List<string> Especialidades, int PacientesAsignados);
+
+// PB-25 HU1-PB25: fila de gestión de usuarios (sin admins).
+public record UsuarioAdminRow(int Id, string Nombre, string Apellido, string Correo, int IdRol, string Rol, int IdEstadoCuenta, string Estado, int? IdEstadoAprobacion, string? Aprobacion, DateTime FechaRegistro);
 
 // PB-25: cola del admin para verificar tarjetas/especialidades.
 public record PsicologoTarjetaPendienteRow(int Id, string Nombre, string Correo, bool TarjetaVerificada, int Pendientes);

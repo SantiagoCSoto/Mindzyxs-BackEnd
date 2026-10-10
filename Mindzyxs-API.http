@@ -827,3 +827,40 @@ Accept: application/json
 PUT {{Host}}/api/admin/psicologos/15/tarjeta-verificada
 Authorization: Bearer <token-admin>
 Accept: application/json
+
+### PB-25 usuarios con filtros (requiere Bearer admin)
+GET {{Host}}/api/admin/usuarios?q=santi&rol=Paciente&estado=Activa
+Authorization: Bearer <token-admin>
+Accept: application/json
+
+### PB-25 detalle de usuario (requiere Bearer admin)
+GET {{Host}}/api/admin/usuarios/12
+Authorization: Bearer <token-admin>
+Accept: application/json
+
+### PB-25 editar usuario (requiere Bearer admin)
+PUT {{Host}}/api/admin/usuarios/12
+Authorization: Bearer <token-admin>
+Content-Type: application/json
+Accept: application/json
+
+{
+  "nombres": "Santiago",
+  "apellidos": "Cortes Soto",
+  "correo": "santiagocortessoto435@gmail.com"
+}
+
+### PB-25 cambiar estado (requiere Bearer admin)
+PUT {{Host}}/api/admin/usuarios/6/estado
+Authorization: Bearer <token-admin>
+Content-Type: application/json
+Accept: application/json
+
+{
+  "nuevoEstado": "Suspendida"
+}
+
+### PB-25 forzar reset (requiere Bearer admin)
+POST {{Host}}/api/admin/usuarios/6/reset-password
+Authorization: Bearer <token-admin>
+Accept: application/json
