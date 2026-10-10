@@ -133,6 +133,18 @@ public class PsicologoEspecialidadRow
     public bool Verificada { get; set; } = true;
 }
 
+// PB-30: dbo.notificaciones_config (catálogo de eventos + plantillas del admin).
+public class NotificacionRow
+{
+    public int IdConfig { get; set; }
+    public int IdAdmin { get; set; }
+    public string Tipo { get; set; } = string.Empty;
+    public string Canales { get; set; } = "correo";
+    public string? Asunto { get; set; }
+    public string? Cuerpo { get; set; }
+    public bool Activo { get; set; } = true;
+}
+
 // PB-07: dbo.preguntas. Todas son siempre obligatorias (sin flag).
 // tipo: 'escala' (entra al promedio de puntaje) u otros ('binaria', 'opcion_multiple').
 // PB-21: `eliminada` = baja lógica (las respuestas guardan el id de la pregunta por FK,

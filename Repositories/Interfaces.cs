@@ -187,6 +187,14 @@ public interface IChatRepository
 
 public record PacienteBusquedaDto(int Id, string Nombre, string Correo, int? UltimoPuntaje, string? UltimoNivel, DateTime? UltimaFecha, int CuestionariosRespondidos, int Psicologos);
 
+// PB-30: catálogo de notificaciones del admin.
+public interface INotificacionRepository
+{
+    Task<List<NotificacionRow>> GetAllAsync(CancellationToken ct = default);
+    Task<NotificacionRow?> FindByTipoAsync(string tipo, CancellationToken ct = default);
+    Task GuardarAsync(string tipo, string canales, bool activo, string? asunto, string? cuerpo, int idAdmin, CancellationToken ct = default);
+}
+
 public interface IAdminRepository
 {
     Task<List<RespaldoDto>> ListRespaldosAsync(CancellationToken ct = default);

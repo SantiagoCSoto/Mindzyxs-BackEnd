@@ -827,3 +827,37 @@ Accept: application/json
 PUT {{Host}}/api/admin/psicologos/15/tarjeta-verificada
 Authorization: Bearer <token-admin>
 Accept: application/json
+
+### PB-30 catálogo de notificaciones (requiere Bearer admin)
+GET {{Host}}/api/admin/notificaciones
+Authorization: Bearer <token-admin>
+Accept: application/json
+
+### PB-30 detalle de evento (requiere Bearer admin)
+GET {{Host}}/api/admin/notificaciones/PASSWORD_RECOVERY
+Authorization: Bearer <token-admin>
+Accept: application/json
+
+### PB-30 actualizar evento (requiere Bearer admin)
+PUT {{Host}}/api/admin/notificaciones/PASSWORD_RECOVERY
+Authorization: Bearer <token-admin>
+Content-Type: application/json
+Accept: application/json
+
+{
+  "canales": ["correo"],
+  "activo": true,
+  "asunto": "Mindzyxs - Código de recuperación",
+  "cuerpo": "<div><p>Hola {nombre},</p><p>Tu código es:</p><div>{codigo}</div></div>"
+}
+
+### PB-30 preview (requiere Bearer admin, no envía)
+POST {{Host}}/api/admin/notificaciones/PASSWORD_RECOVERY/preview
+Authorization: Bearer <token-admin>
+Content-Type: application/json
+Accept: application/json
+
+{
+  "nombre": "Camila",
+  "codigo": "123456"
+}

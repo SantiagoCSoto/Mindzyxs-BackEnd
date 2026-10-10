@@ -17,6 +17,8 @@ public class MindzyxsDbContext(DbContextOptions<MindzyxsDbContext> options) : Db
     public DbSet<AsignacionRow> Asignaciones => Set<AsignacionRow>();
     public DbSet<EspecialidadRow> Especialidades => Set<EspecialidadRow>();
     public DbSet<PsicologoEspecialidadRow> PsicologoEspecialidades => Set<PsicologoEspecialidadRow>();
+    // PB-30: catálogo de notificaciones del admin.
+    public DbSet<NotificacionRow> Notificaciones => Set<NotificacionRow>();
     public DbSet<PreguntaRow> Preguntas => Set<PreguntaRow>();
     public DbSet<OpcionPreguntaRow> OpcionesPregunta => Set<OpcionPreguntaRow>();
     public DbSet<LineaAyudaRow> LineasAyuda => Set<LineaAyudaRow>();
@@ -141,6 +143,18 @@ public class MindzyxsDbContext(DbContextOptions<MindzyxsDbContext> options) : Db
             e.Property(x => x.FechaAsignacion).HasColumnName("fecha_asignacion");
             e.Property(x => x.FechaLimite).HasColumnName("fecha_limite");
             e.Property(x => x.Estado).HasColumnName("estado").HasMaxLength(20).IsUnicode(false);
+        });
+        // PB-30: catálogo de notificaciones del admin.
+        b.Entity<NotificacionRow>(e =>
+        {
+            e.ToTable("notificaciones_config", "dbo").HasKey(x => x.IdConfig);
+            e.Property(x => x.IdConfig).HasColumnName("id_config");
+            e.Property(x => x.IdAdmin).HasColumnName("id_admin");
+            e.Property(x => x.Tipo).HasColumnName("tipo").HasMaxLength(50).IsUnicode(false);
+            e.Property(x => x.Canales).HasColumnName("canales").HasMaxLength(100).IsUnicode(false);
+            e.Property(x => x.Asunto).HasColumnName("asunto").HasMaxLength(255).IsUnicode(false);
+            e.Property(x => x.Cuerpo).HasColumnName("cuerpo").HasColumnType("text").IsUnicode(false);
+            e.Property(x => x.Activo).HasColumnName("activo");
         });
         b.Entity<EspecialidadRow>(e =>
         {

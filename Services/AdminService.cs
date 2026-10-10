@@ -19,6 +19,7 @@ public class AdminService(
     IAdminRepository admin,
     IUserRepository users,
     ICatalogRepository catalogs,
+    INotificacionRepository notificaciones,
     IAuthLogRepository authLogs,
     LoginService login,
     IOptions<AdminOptions> options,
@@ -198,6 +199,101 @@ public class AdminService(
         await users.SetTarjetaVerificadaAsync(idPsicologo, true, ct);
         await authLogs.LogAsync(adminId, idPsicologo, LogAcciones.TarjetaVerificada,
             $"Admin:{adminId} verificó la tarjeta del psicólogo:{idPsicologo} ({n} especialidades visibles)", ip, ct);
-        return OperationResult<string>.Ok($"Tarjeta verificada correctamente. {n} especialidades visibles para los usuarios.");
+        return new OperationResult<string> { Success = true, Message = $"Tarjeta verificada correctamente. {n} especialidades visibles para los usuarios." };
     }
+
+    // PB-30: catálogo de notificaciones (6 eventos v1).
+    public async Task<OperationResult<List<NotificacionDto>>> NotificacionesAsync(CancellationToken ct = default)
+    {
+        var filas = await notificaciones.GetAllAsync(ct);
+        return OperationResult<List<NotificacionDto>>.Ok(filas.Select(f => new NotificacionDto
+        {
+            Tipo = f.Tipo,
+            Nombre = NombreEvento(f.Tipo),
+            Canales = (f.Canales ?? "correo").Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToList(),
+            Activo = f.Activo,
+            Asunto = f.Asunto,
+            Cuerpo = f.Cuerpo
+        }).ToList());
+    }
+
+    // PB-30: detalle de un evento del catálogo.
+    public async Task<OperationResult<NotificacionDto>> DetalleNotificacionAsync(string tipo, CancellationToken ct = default)
+    {
+        if (!TiposNotificacion.Todos.Contains(tipo, StringComparer.OrdinalIgnoreCase))
+            return OperationResult<NotificacionDto>.Fail("Evento no encontrado.");
+        var f = await notificaciones.FindByTipoAsync(NormalizarTipo(tipo), ct);
+        if (f is null)
+            return OperationResult<NotificacionDto>.Fail("Evento no encontrado.");
+        return OperationResult<NotificacionDto>.Ok(new NotificacionDto
+        {
+            Tipo = f.Tipo,
+            Nombre = NombreEvento(f.Tipo),
+            Canales = (f.Canales ?? "correo").Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToList(),
+            Activo = f.Activo,
+            Asunto = f.Asunto,
+            Cuerpo = f.Cuerpo
+        });
+    }
+
+    // PB-30: actualiza la config del evento (validaciones fieles a v1 CU31).
+    public async Task<OperationResult<string>> ActualizarNotificacionAsync(int adminId, string tipo, ActualizarNotificacionVm vm, string? ip, CancellationToken ct = default)
+    {
+        if (!TiposNotificacion.Todos.Contains(tipo, StringComparer.OrdinalIgnoreCase))
+            return OperationResult<string>.Fail("Evento no encontrado.");
+        var canales = (vm.Canales ?? []).Select(c => c.Trim().ToLowerInvariant()).Where(c => c is "correo" or "sms" or "interna").Distinct().ToList();
+        if (vm.Activo && canales.Count == 0)
+            return OperationResult<string>.Fail("Debes habilitar al menos un canal para este evento.");
+        if (vm.Activo && string.IsNullOrWhiteSpace(vm.Cuerpo))
+            return OperationResult<string>.Fail("La plantilla no puede estar vacía.");
+        if (vm.Activo && canales.Contains("correo") && string.IsNullOrWhiteSpace(vm.Asunto))
+            return OperationResult<string>.Fail("El asunto es obligatorio para el canal correo.");
+
+        await notificaciones.GuardarAsync(NormalizarTipo(tipo), string.Join(",", canales), vm.Activo,
+            string.IsNullOrWhiteSpace(vm.Asunto) ? null : vm.Asunto.Trim(),
+            string.IsNullOrWhiteSpace(vm.Cuerpo) ? null : vm.Cuerpo, adminId, ct);
+        await authLogs.LogAsync(adminId, adminId, LogAcciones.NotificacionActualizada,
+            $"Admin:{adminId} actualizó la notificación {NormalizarTipo(tipo)}", ip, ct);
+        return new OperationResult<string> { Success = true, Message = "Notificación actualizada correctamente." };
+    }
+
+    // PB-30: preview con variables de ejemplo (no envía nada).
+    public async Task<OperationResult<NotificacionDto>> PreviewNotificacionAsync(string tipo, PreviewNotificacionVm vm, CancellationToken ct = default)
+    {
+        if (!TiposNotificacion.Todos.Contains(tipo, StringComparer.OrdinalIgnoreCase))
+            return OperationResult<NotificacionDto>.Fail("Evento no encontrado.");
+        var f = await notificaciones.FindByTipoAsync(NormalizarTipo(tipo), ct);
+        if (f is null)
+            return OperationResult<NotificacionDto>.Fail("Evento no encontrado.");
+        var vars = new Dictionary<string, string>
+        {
+            ["nombre"] = string.IsNullOrWhiteSpace(vm.Nombre) ? "María" : vm.Nombre.Trim(),
+            ["codigo"] = string.IsNullOrWhiteSpace(vm.Codigo) ? "482913" : vm.Codigo.Trim(),
+            ["fecha"] = string.IsNullOrWhiteSpace(vm.Fecha) ? DateTime.UtcNow.ToString("dd/MM/yyyy") : vm.Fecha.Trim(),
+            ["motivo"] = string.IsNullOrWhiteSpace(vm.Motivo) ? "Tarjeta ilegible" : vm.Motivo.Trim()
+        };
+        return OperationResult<NotificacionDto>.Ok(new NotificacionDto
+        {
+            Tipo = f.Tipo,
+            Nombre = NombreEvento(f.Tipo),
+            Canales = (f.Canales ?? "correo").Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToList(),
+            Activo = f.Activo,
+            Asunto = NotificationService.Sustituir(f.Asunto ?? "", vars),
+            Cuerpo = NotificationService.Sustituir(f.Cuerpo ?? "", vars)
+        });
+    }
+
+    private static string NormalizarTipo(string tipo)
+        => TiposNotificacion.Todos.First(t => string.Equals(t, tipo, StringComparison.OrdinalIgnoreCase));
+
+    private static string NombreEvento(string tipo) => tipo switch
+    {
+        TiposNotificacion.CodeSent => "Verificación de cuenta",
+        TiposNotificacion.PasswordRecovery => "Recuperación de contraseña",
+        TiposNotificacion.ApprovalGranted => "Aprobación de psicólogo",
+        TiposNotificacion.ApprovalRejected => "Rechazo de psicólogo",
+        TiposNotificacion.Reminder => "Recordatorio diario",
+        TiposNotificacion.RiskHigh => "Alerta de riesgo alto",
+        _ => tipo
+    };
 }

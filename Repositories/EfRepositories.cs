@@ -1185,3 +1185,40 @@ public class EfAdminRepository(MindzyxsDbContext db, IOptions<AdminOptions> admi
         await cmd.ExecuteNonQueryAsync(ct);
     }
 }
+
+// PB-30: catálogo de notificaciones del admin.
+public class EfNotificacionRepository(MindzyxsDbContext db) : INotificacionRepository
+{
+    public Task<List<NotificacionRow>> GetAllAsync(CancellationToken ct = default)
+        => db.Notificaciones.AsNoTracking().OrderBy(n => n.Tipo).ToListAsync(ct);
+
+    public Task<NotificacionRow?> FindByTipoAsync(string tipo, CancellationToken ct = default)
+        => db.Notificaciones.AsNoTracking().Where(n => n.Tipo == tipo).FirstOrDefaultAsync(ct);
+
+    // PB-30: upsert por tipo (un solo renglón por evento).
+    public async Task GuardarAsync(string tipo, string canales, bool activo, string? asunto, string? cuerpo, int idAdmin, CancellationToken ct = default)
+    {
+        var existente = await db.Notificaciones.Where(n => n.Tipo == tipo).FirstOrDefaultAsync(ct);
+        if (existente is null)
+        {
+            db.Notificaciones.Add(new NotificacionRow
+            {
+                IdAdmin = idAdmin,
+                Tipo = tipo,
+                Canales = canales,
+                Activo = activo,
+                Asunto = asunto,
+                Cuerpo = cuerpo
+            });
+        }
+        else
+        {
+            existente.IdAdmin = idAdmin;
+            existente.Canales = canales;
+            existente.Activo = activo;
+            existente.Asunto = asunto;
+            existente.Cuerpo = cuerpo;
+        }
+        await db.SaveChangesAsync(ct);
+    }
+}
