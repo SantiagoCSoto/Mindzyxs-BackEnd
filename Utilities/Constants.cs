@@ -127,6 +127,23 @@ public static class LogAcciones
     // PB-20 HU1-PB20: el psicólogo crea un cuestionario personalizado.
     public const string CuestionarioCreado = "CUESTIONARIO_CREADO";
 
+    // PB-26 HU1-PB26: validación de credenciales de psicólogos (fiel a v1 CU26).
+    public const string ValidacionPendientes = "VALIDACION_PENDIENTES";
+    public const string ValidacionDetalle = "VALIDACION_DETALLE";
+    public const string ValidacionAprobada = "VALIDACION_APROBADA";
+    public const string ValidacionRechazada = "VALIDACION_RECHAZADA";
+
+    // PB-25 tarjeta: el psicólogo sube nueva tarjeta al cambiar/agregar especialidades;
+    // el admin la verifica (las especialidades siguen ocultas hasta entonces).
+    public const string TarjetaSubida = "TARJETA_SUBIDA";
+    public const string TarjetaVerificada = "TARJETA_VERIFICADA";
+
+    // PB-25 HU1-PB25: gestión de cuentas de usuarios (fiel a v1 CU25).
+    public const string UsuariosConsulta = "USUARIOS_CONSULTA";
+    public const string UsuarioActualizado = "USUARIO_ACTUALIZADO";
+    public const string UsuarioEstadoCambiado = "USUARIO_ESTADO_CAMBIADO";
+    public const string PasswordForzado = "PASSWORD_FORZADO";
+
     // PB-21 HU1-PB21: el psicólogo edita (incluye despublicar por confirmación) o elimina
     // un cuestionario propio; la eliminación es lógica (estado Eliminado) y deja de
     // contarse en los análisis.
@@ -148,4 +165,9 @@ public static class LogAcciones
     public const string LineaAyudaActivada = "LINEA_AYUDA_ACTIVADA";
     public const string LineaAyudaInactivada = "LINEA_AYUDA_INACTIVADA";
     public const string LineaAyudaEliminada = "LINEA_AYUDA_ELIMINADA";
+
+    // PB-30: notificaciones del admin (consulta, actualización y omisiones).
+    public const string NotificacionesConsulta = "NOTIFICACIONES_CONSULTA";
+    public const string NotificacionActualizada = "NOTIFICACION_ACTUALIZADA";
+    public const string CorreoOmitido = "CORREO_OMITIDO";
 }

@@ -56,4 +56,7 @@ public class UsuarioDto
 
     /// <summary>Especialidades del psicólogo (nombres).</summary>
     public List<string> Especialidades { get; set; } = [];
+
+    /// <summary>Especialidades ocultas por verificación pendiente (PB-25, nombres).</summary>
+    public List<string> EspecialidadesPendientes { get; set; } = [];
 }

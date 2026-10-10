@@ -70,6 +70,8 @@ builder.Services.AddScoped<IHistorialRepository, EfHistorialRepository>();
 builder.Services.AddScoped<IRecordatorioRepository, EfRecordatorioRepository>();
 builder.Services.AddScoped<IChatRepository, EfChatRepository>();
 builder.Services.AddScoped<IAdminRepository, EfAdminRepository>();
+builder.Services.AddScoped<INotificacionRepository, EfNotificacionRepository>();
+builder.Services.AddScoped<NotificationService>();
 builder.Services.AddScoped<ITarjetaStorage, FileSystemTarjetaStorage>();
 builder.Services.AddScoped<IEmailSender, SmtpEmailSender>();
 builder.Services.AddScoped<CatalogService>();

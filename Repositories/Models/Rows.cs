@@ -128,6 +128,21 @@ public class PsicologoEspecialidadRow
 {
     public int IdPsicologo { get; set; }
     public int IdEspecialidad { get; set; }
+    // PB-25: especialidades nuevas/cambiadas quedan ocultas (false) hasta
+    // que el admin verifique la nueva tarjeta. El psicólogo no pierde acceso.
+    public bool Verificada { get; set; } = true;
+}
+
+// PB-30: dbo.notificaciones_config (catálogo de eventos + plantillas del admin).
+public class NotificacionRow
+{
+    public int IdConfig { get; set; }
+    public int IdAdmin { get; set; }
+    public string Tipo { get; set; } = string.Empty;
+    public string Canales { get; set; } = "correo";
+    public string? Asunto { get; set; }
+    public string? Cuerpo { get; set; }
+    public bool Activo { get; set; } = true;
 }
 
 // PB-07: dbo.preguntas. Todas son siempre obligatorias (sin flag).

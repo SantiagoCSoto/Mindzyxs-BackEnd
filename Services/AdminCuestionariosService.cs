@@ -68,7 +68,7 @@ public class AdminCuestionariosService(
     // Guarda log CUENTIONARIO_PREDETERMINADO_CREADO.
     public async Task<CuestionarioPredeterminadoResultadoDto> CrearAsync(string? tokenRaw, CuestionarioPredeterminadoCrearDto dto, string? ip, CancellationToken ct = default)
     {
-        await RequireAdminAsync(tokenRaw, ct);
+        var adminId = await RequireAdminAsync(tokenRaw, ct);
 
         if (string.IsNullOrWhiteSpace(dto.Titulo))
             throw new InvalidOperationException("Debes completar todos los campos obligatorios");
@@ -85,13 +85,14 @@ public class AdminCuestionariosService(
             Descripcion = string.IsNullOrWhiteSpace(dto.Descripcion) ? null : dto.Descripcion.Trim(),
             Tipo = "Predeterminado",
             Estado = dto.Publicar ? "Publicado" : "Inactivo",
+            IdCreador = adminId ?? 0,
             ModoCalculo = modo,
             UmbralBajoMax = bajoMax,
             UmbralMedioMax = medioMax
         };
         var id = await cuestionarios.CrearPredeterminadoAsync(fila, preguntas, ct);
 
-        await authLogs.LogAsync(null, null, LogAcciones.CuestionarioPredeterminadoCreado,
+        await authLogs.LogAsync(adminId, adminId, LogAcciones.CuestionarioPredeterminadoCreado,
             $"Admin creó el cuestionario predeterminado {id} \"{fila.Titulo}\" ({fila.Estado}" +
             (modo == "suma" ? $", intervalos Bajo≤{bajoMax} Medio≤{medioMax}" : ", regla de riesgo actual") + ")", ip, ct);
 
@@ -102,7 +103,7 @@ public class AdminCuestionariosService(
     // Valida campos obligatorios y log CUENTIONARIO_PREDETERMINADO_EDITADO.
     public async Task<CuestionarioPredeterminadoResultadoDto> ActualizarAsync(string? tokenRaw, int id, CuestionarioPredeterminadoCrearDto dto, string? ip, CancellationToken ct = default)
     {
-        await RequireAdminAsync(tokenRaw, ct);
+        var adminId = await RequireAdminAsync(tokenRaw, ct);
         var c = await cuestionarios.FindPredeterminadoAsync(id, ct)
             ?? throw new InvalidOperationException("Cuestionario predeterminado no encontrado.");
 
@@ -121,7 +122,7 @@ public class AdminCuestionariosService(
             string.IsNullOrWhiteSpace(dto.Descripcion) ? null : dto.Descripcion.Trim(),
             estado, modo, bajoMax, medioMax, preguntas, ct);
 
-        await authLogs.LogAsync(null, null, LogAcciones.CuestionarioPredeterminadoEditado,
+        await authLogs.LogAsync(adminId, adminId, LogAcciones.CuestionarioPredeterminadoEditado,
             $"Admin editó el cuestionario predeterminado {id} \"{titulo}\" ({estado}" +
             (modo == "suma" ? $", intervalos Bajo≤{bajoMax} Medio≤{medioMax})" : ")") + "", ip, ct);
 
@@ -132,12 +133,12 @@ public class AdminCuestionariosService(
     // Log CUENTIONARIO_PREDETERMINADO_DESACTIVADO.
     public async Task<string> DesactivarAsync(string? tokenRaw, int id, string? ip, CancellationToken ct = default)
     {
-        await RequireAdminAsync(tokenRaw, ct);
+        var adminId = await RequireAdminAsync(tokenRaw, ct);
         var c = await cuestionarios.FindPredeterminadoAsync(id, ct)
             ?? throw new InvalidOperationException("Cuestionario predeterminado no encontrado.");
 
         await cuestionarios.DesactivarAsync(id, ct);
-        await authLogs.LogAsync(null, null, LogAcciones.CuestionarioPredeterminadoDesactivado,
+        await authLogs.LogAsync(adminId, adminId, LogAcciones.CuestionarioPredeterminadoDesactivado,
             $"Admin desactivó el cuestionario predeterminado {id} \"{c.Titulo}\"", ip, ct);
         return "Cuestionario predeterminado desactivado correctamente";
     }

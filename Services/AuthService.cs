@@ -16,6 +16,7 @@ public class AuthService(
     ICodigoRepository codes,
     ITarjetaStorage tarjetas,
     IEmailSender email,
+    NotificationService notificaciones,
     IOptions<RegistroOptions> registroOptions,
     ILogger<AuthService> logger)
 {
@@ -111,8 +112,11 @@ public class AuthService(
 
         try
         {
-            await email.SendAsync(correo, "Mindzyxs - Código de verificación",
-                EmailTemplates.VerificationCode(vm.Nombre.Trim(), codigo), ct);
+            // PB-30: respeta la config del admin (CODE_SENT).
+            await notificaciones.EnviarCorreoAsync(TiposNotificacion.CodeSent, correo,
+                new Dictionary<string, string> { ["nombre"] = vm.Nombre.Trim(), ["codigo"] = codigo },
+                "Mindzyxs - Código de verificación",
+                v => EmailTemplates.VerificationCode(v["nombre"], v["codigo"]), id, null, ct);
         }
         catch (Exception ex)
         {

@@ -15,7 +15,7 @@ public class AdminLineasAyudaService(
     // Solo administrador activo.
     public async Task<List<LineaAyudaAdminListaDto>> ListarAsync(string? tokenRaw, string? q, CancellationToken ct = default)
     {
-        await RequireAdminAsync(tokenRaw, ct);
+        var adminId = await RequireAdminAsync(tokenRaw, ct);
         var busqueda = string.IsNullOrWhiteSpace(q) ? null : q.Trim();
         var lista = await lineas.GetAllAsync(ct);
         return lista.Where(l => string.IsNullOrEmpty(busqueda) || l.Nombre.Contains(busqueda, StringComparison.OrdinalIgnoreCase))
@@ -32,7 +32,7 @@ public class AdminLineasAyudaService(
     // PB-29: detalle de una línea de ayuda para editar.
     public async Task<LineaAyudaAdminDetalleDto> ObtenerDetalleAsync(string? tokenRaw, int id, CancellationToken ct = default)
     {
-        await RequireAdminAsync(tokenRaw, ct);
+        var adminId = await RequireAdminAsync(tokenRaw, ct);
         var l = await lineas.FindByIdAsync(id, ct)
             ?? throw new InvalidOperationException("Línea de ayuda no encontrada.");
 
@@ -64,7 +64,7 @@ public class AdminLineasAyudaService(
     // Estado inicial: Activa. Log LINEA_AYUDA_CREADA.
     public async Task<LineaAyudaAdminResultadoDto> CrearAsync(string? tokenRaw, LineaAyudaAdminCrearDto dto, string? ip, CancellationToken ct = default)
     {
-        await RequireAdminAsync(tokenRaw, ct);
+        var adminId = await RequireAdminAsync(tokenRaw, ct);
 
         if (string.IsNullOrWhiteSpace(dto.Nombre))
             throw new InvalidOperationException("Debes ingresar nombre y al menos un medio de contacto (teléfono o URL)");
@@ -94,7 +94,7 @@ public class AdminLineasAyudaService(
 
         var id = await lineas.CrearAsync(linea, ct);
 
-        await authLogs.LogAsync(null, null, LogAcciones.LineaAyudaCreada,
+        await authLogs.LogAsync(adminId, adminId, LogAcciones.LineaAyudaCreada,
             $"Admin creó la línea de ayuda {id} \"{linea.Nombre}\" (Activa)", ip, ct);
 
         return new LineaAyudaAdminResultadoDto { Id = id, Mensaje = "Línea de ayuda creada correctamente" };
@@ -104,7 +104,7 @@ public class AdminLineasAyudaService(
     // Valida nombre y al menos un contacto. Log LINEA_AYUDA_EDITADA.
     public async Task<LineaAyudaAdminResultadoDto> ActualizarAsync(string? tokenRaw, int id, LineaAyudaAdminCrearDto dto, string? ip, CancellationToken ct = default)
     {
-        await RequireAdminAsync(tokenRaw, ct);
+        var adminId = await RequireAdminAsync(tokenRaw, ct);
         var l = await lineas.FindByIdAsync(id, ct)
             ?? throw new InvalidOperationException("Línea de ayuda no encontrada.");
 
@@ -134,7 +134,7 @@ public class AdminLineasAyudaService(
             dto.FechaVerificacion,
             default);
 
-        await authLogs.LogAsync(null, null, LogAcciones.LineaAyudaEditada,
+        await authLogs.LogAsync(adminId, adminId, LogAcciones.LineaAyudaEditada,
             $"Admin editó la línea de ayuda {id} \"{dto.Nombre.Trim()}\"", ip, ct);
 
         return new LineaAyudaAdminResultadoDto { Id = id, Mensaje = "Línea de ayuda actualizada correctamente" };
@@ -143,12 +143,12 @@ public class AdminLineasAyudaService(
     // PB-29: activa una línea (estado = Activa). Log LINEA_AYUDA_ACTIVADA.
     public async Task<string> ActivarAsync(string? tokenRaw, int id, string? ip, CancellationToken ct = default)
     {
-        await RequireAdminAsync(tokenRaw, ct);
+        var adminId = await RequireAdminAsync(tokenRaw, ct);
         var l = await lineas.FindByIdAsync(id, ct)
             ?? throw new InvalidOperationException("Línea de ayuda no encontrada.");
 
         await lineas.ActivarAsync(id, ct);
-        await authLogs.LogAsync(null, null, LogAcciones.LineaAyudaActivada,
+        await authLogs.LogAsync(adminId, adminId, LogAcciones.LineaAyudaActivada,
             $"Admin activó la línea de ayuda {id} \"{l.Nombre}\"", ip, ct);
         return "Línea de ayuda activada correctamente";
     }
@@ -156,12 +156,12 @@ public class AdminLineasAyudaService(
     // PB-29: inactiva una línea (estado = Inactiva). Log LINEA_AYUDA_INACTIVADA.
     public async Task<string> InactivarAsync(string? tokenRaw, int id, string? ip, CancellationToken ct = default)
     {
-        await RequireAdminAsync(tokenRaw, ct);
+        var adminId = await RequireAdminAsync(tokenRaw, ct);
         var l = await lineas.FindByIdAsync(id, ct)
             ?? throw new InvalidOperationException("Línea de ayuda no encontrada.");
 
         await lineas.InactivarAsync(id, ct);
-        await authLogs.LogAsync(null, null, LogAcciones.LineaAyudaInactivada,
+        await authLogs.LogAsync(adminId, adminId, LogAcciones.LineaAyudaInactivada,
             $"Admin inactivó la línea de ayuda {id} \"{l.Nombre}\"", ip, ct);
         return "Línea de ayuda inactivada correctamente";
     }
@@ -169,12 +169,12 @@ public class AdminLineasAyudaService(
     // PB-29: elimina (borrado lógico -> estado Eliminada). Log LINEA_AYUDA_ELIMINADA.
     public async Task<string> EliminarAsync(string? tokenRaw, int id, string? ip, CancellationToken ct = default)
     {
-        await RequireAdminAsync(tokenRaw, ct);
+        var adminId = await RequireAdminAsync(tokenRaw, ct);
         var l = await lineas.FindByIdAsync(id, ct)
             ?? throw new InvalidOperationException("Línea de ayuda no encontrada.");
 
         await lineas.EliminarAsync(id, ct);
-        await authLogs.LogAsync(null, null, LogAcciones.LineaAyudaEliminada,
+        await authLogs.LogAsync(adminId, adminId, LogAcciones.LineaAyudaEliminada,
             $"Admin eliminó la línea de ayuda {id} \"{l.Nombre}\" (borrado lógico)", ip, ct);
         return "Línea de ayuda eliminada correctamente";
     }
