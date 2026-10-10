@@ -154,6 +154,18 @@ public static class LogAcciones
     // pacientes que le hayan autorizado (queda disponible de inmediato para el paciente).
     public const string CuestionarioAsignado = "CUESTIONARIO_ASIGNADO";
 
+    // PB-28 HU1-PB28: admin crea/edita/desactiva cuestionarios predeterminados.
+    public const string CuestionarioPredeterminadoCreado = "CUESTIONARIO_PREDETERMINADO_CREADO";
+    public const string CuestionarioPredeterminadoEditado = "CUESTIONARIO_PREDETERMINADO_EDITADO";
+    public const string CuestionarioPredeterminadoDesactivado = "CUESTIONARIO_PREDETERMINADO_DESACTIVADO";
+
+    // PB-29 HU1-PB29: admin crea/edita/activa/inactiva/elimina líneas de ayuda.
+    public const string LineaAyudaCreada = "LINEA_AYUDA_CREADA";
+    public const string LineaAyudaEditada = "LINEA_AYUDA_EDITADA";
+    public const string LineaAyudaActivada = "LINEA_AYUDA_ACTIVADA";
+    public const string LineaAyudaInactivada = "LINEA_AYUDA_INACTIVADA";
+    public const string LineaAyudaEliminada = "LINEA_AYUDA_ELIMINADA";
+
     // PB-30: notificaciones del admin (consulta, actualización y omisiones).
     public const string NotificacionesConsulta = "NOTIFICACIONES_CONSULTA";
     public const string NotificacionActualizada = "NOTIFICACION_ACTUALIZADA";

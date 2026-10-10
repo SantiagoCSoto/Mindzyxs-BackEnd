@@ -159,6 +159,14 @@ public interface ICuestionarioRepository
     // las asignaciones creadas.
     Task<List<int>> AsignarAsync(int idCuestionario, int idPsicologo, List<int> idsPacientes, CancellationToken ct = default);
 
+    // PB-28 HU1-PB28: admin gestiona cuestionarios Predeterminado (lista, crear,
+    // editar, desactivar). Solo tipo Predeterminado; estado Inactivo = desactivado.
+    Task<List<CuestionarioRow>> GetPredeterminadosAsync(string? q, CancellationToken ct = default);
+    Task<CuestionarioRow?> FindPredeterminadoAsync(int idCuestionario, CancellationToken ct = default);
+    Task<int> CrearPredeterminadoAsync(CuestionarioRow cuestionario, List<(PreguntaRow Pregunta, List<OpcionPreguntaRow> Opciones)> preguntas, CancellationToken ct = default);
+    Task<int> ActualizarPredeterminadoAsync(int idCuestionario, string titulo, string? descripcion, string estado, string? modoCalculo, int? umbralBajoMax, int? umbralMedioMax, List<(PreguntaRow Pregunta, List<OpcionPreguntaRow> Opciones)> preguntas, CancellationToken ct = default);
+    Task DesactivarAsync(int idCuestionario, CancellationToken ct = default);
+
     // PB-20 HU1-PB20: crea el cuestionario Personalizado con sus preguntas y opciones
     // en una transacción. Devuelve el id del cuestionario.
     Task<int> CrearAsync(CuestionarioRow cuestionario, List<(PreguntaRow Pregunta, List<OpcionPreguntaRow> Opciones)> preguntas, CancellationToken ct = default);
@@ -179,6 +187,15 @@ public interface ICuestionarioRepository
 public interface ILineaAyudaRepository
 {
     Task<List<LineaAyudaRow>> GetActivasAsync(CancellationToken ct = default);
+
+    // PB-29 HU1-PB29: admin gestiona líneas de ayuda (lista, crear, editar, activar/inactivar, eliminar).
+    Task<List<LineaAyudaRow>> GetAllAsync(CancellationToken ct = default);
+    Task<LineaAyudaRow?> FindByIdAsync(int idLinea, CancellationToken ct = default);
+    Task<int> CrearAsync(LineaAyudaRow linea, CancellationToken ct = default);
+    Task ActualizarAsync(int idLinea, string nombre, string? descripcion, string? telefono, string? url, string? horario, string? cobertura, string? descripcionCorta, string? whatsapp, string? email, string? chatUrl, string? videollamada, string? tipoAtencion, string? departamento, string? municipio, string? poblacion, string? fuente, DateOnly? fechaVerificacion, CancellationToken ct = default);
+    Task ActivarAsync(int idLinea, CancellationToken ct = default);
+    Task InactivarAsync(int idLinea, CancellationToken ct = default);
+    Task EliminarAsync(int idLinea, CancellationToken ct = default);
 }
 
 // PB-09: recomendaciones básicas de autocuidado (contenido administrable, PB-28).

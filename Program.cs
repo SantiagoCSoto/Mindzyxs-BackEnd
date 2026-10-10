@@ -92,6 +92,8 @@ builder.Services.AddScoped<PerfilService>();
 builder.Services.AddScoped<ChatService>();
 builder.Services.AddScoped<PsicologoService>();
 builder.Services.AddScoped<PsicologoCuestionariosService>();
+builder.Services.AddScoped<AdminCuestionariosService>();
+builder.Services.AddScoped<AdminLineasAyudaService>();
 builder.Services.AddScoped<ObservacionesService>();
 builder.Services.AddScoped<PsicologoRegistrosService>();
 builder.Services.AddScoped<AccesosService>();

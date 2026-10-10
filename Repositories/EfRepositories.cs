@@ -1017,9 +1017,127 @@ public class EfCuestionarioRepository(MindzyxsDbContext db) : ICuestionarioRepos
         }
         return (preguntas, opciones);
     }
-}
 
-// PB-08: líneas de ayuda en estado Activa.
+    // PB-28 HU1-PB28: admin lista cuestionarios Predeterminado (con búsqueda por título).
+    public Task<List<CuestionarioRow>> GetPredeterminadosAsync(string? q, CancellationToken ct = default)
+        => db.Cuestionarios.AsNoTracking()
+            .Where(c => c.Tipo == "Predeterminado"
+                && (string.IsNullOrEmpty(q) || c.Titulo.Contains(q)))
+            .OrderBy(c => c.IdCuestionario)
+            .ToListAsync(ct);
+
+    // PB-28: encuentra un cuestionario Predeterminado por id (cualquier estado).
+    public Task<CuestionarioRow?> FindPredeterminadoAsync(int idCuestionario, CancellationToken ct = default)
+        => db.Cuestionarios.AsNoTracking()
+            .Where(c => c.IdCuestionario == idCuestionario && c.Tipo == "Predeterminado")
+            .FirstOrDefaultAsync(ct);
+
+    // PB-28: crea un cuestionario Predeterminado con preguntas y opciones en transacción.
+    // Respeta el Estado que trae la fila (Publicado o Inactivo según el admin).
+    public async Task<int> CrearPredeterminadoAsync(CuestionarioRow cuestionario, List<(PreguntaRow Pregunta, List<OpcionPreguntaRow> Opciones)> preguntas, CancellationToken ct = default)
+    {
+        await using var tx = await db.Database.BeginTransactionAsync(ct);
+        try
+        {
+            cuestionario.FechaCreacion = DateTime.UtcNow;
+            cuestionario.Tipo = "Predeterminado";
+            db.Cuestionarios.Add(cuestionario);
+            await db.SaveChangesAsync(ct);
+            foreach (var (pregunta, opciones) in preguntas)
+            {
+                pregunta.IdCuestionario = cuestionario.IdCuestionario;
+                db.Preguntas.Add(pregunta);
+                await db.SaveChangesAsync(ct);
+                foreach (var op in opciones)
+                {
+                    op.IdPregunta = pregunta.IdPregunta;
+                    db.OpcionesPregunta.Add(op);
+                }
+                await db.SaveChangesAsync(ct);
+            }
+            await tx.CommitAsync(ct);
+            return cuestionario.IdCuestionario;
+        }
+        catch
+        {
+            await tx.RollbackAsync(ct);
+            throw;
+        }
+    }
+
+    // PB-28: actualiza un cuestionario Predeterminado (titulo, descripcion, estado, preguntas/opciones).
+    public async Task<int> ActualizarPredeterminadoAsync(int idCuestionario, string titulo, string? descripcion, string estado, string? modoCalculo, int? umbralBajoMax, int? umbralMedioMax, List<(PreguntaRow Pregunta, List<OpcionPreguntaRow> Opciones)> preguntas, CancellationToken ct = default)
+    {
+        await using var tx = await db.Database.BeginTransactionAsync(ct);
+        try
+        {
+            var fila = await db.Cuestionarios.FirstAsync(c => c.IdCuestionario == idCuestionario && c.Tipo == "Predeterminado", ct);
+            fila.Titulo = titulo;
+            fila.Descripcion = descripcion;
+            fila.Estado = estado;
+            fila.ModoCalculo = modoCalculo;
+            fila.UmbralBajoMax = umbralBajoMax;
+            fila.UmbralMedioMax = umbralMedioMax;
+            await db.SaveChangesAsync(ct);
+
+            // Preguntas que ya no están en la edición -> baja lógica + se limpian sus opciones.
+            var idsRecibidos = preguntas.Where(p => p.Pregunta.IdPregunta > 0).Select(p => p.Pregunta.IdPregunta).ToHashSet();
+            var existentes = await db.Preguntas.Where(p => p.IdCuestionario == idCuestionario && !p.Eliminada).ToListAsync(ct);
+            foreach (var vieja in existentes.Where(e => !idsRecibidos.Contains(e.IdPregunta)))
+            {
+                await db.OpcionesPregunta.Where(o => o.IdPregunta == vieja.IdPregunta).ExecuteDeleteAsync(ct);
+                vieja.Eliminada = true;
+            }
+            await db.SaveChangesAsync(ct);
+
+            var orden = 1;
+            foreach (var (pregunta, opciones) in preguntas)
+            {
+                pregunta.Orden = orden++;
+                if (pregunta.IdPregunta > 0)
+                {
+                    var existente = await db.Preguntas.FirstAsync(x => x.IdPregunta == pregunta.IdPregunta && x.IdCuestionario == idCuestionario, ct);
+                    existente.Texto = pregunta.Texto;
+                    existente.Orden = pregunta.Orden;
+                    existente.Tipo = pregunta.Tipo;
+                    existente.PuntajeMax = pregunta.PuntajeMax;
+                    await db.OpcionesPregunta.Where(o => o.IdPregunta == pregunta.IdPregunta).ExecuteDeleteAsync(ct);
+                    await db.SaveChangesAsync(ct);
+                    foreach (var op in opciones)
+                    {
+                        op.IdPregunta = pregunta.IdPregunta;
+                        db.OpcionesPregunta.Add(op);
+                    }
+                    await db.SaveChangesAsync(ct);
+                }
+                else
+                {
+                    pregunta.IdCuestionario = idCuestionario;
+                    db.Preguntas.Add(pregunta);
+                    await db.SaveChangesAsync(ct);
+                    foreach (var op in opciones)
+                    {
+                        op.IdPregunta = pregunta.IdPregunta;
+                        db.OpcionesPregunta.Add(op);
+                    }
+                    await db.SaveChangesAsync(ct);
+                }
+            }
+            await tx.CommitAsync(ct);
+            return idCuestionario;
+        }
+        catch
+        {
+            await tx.RollbackAsync(ct);
+            throw;
+        }
+    }
+
+    // PB-28: desactiva un cuestionario Predeterminado (estado = Inactivo).
+    public async Task DesactivarAsync(int idCuestionario, CancellationToken ct = default)
+        => await db.Cuestionarios.Where(c => c.IdCuestionario == idCuestionario && c.Tipo == "Predeterminado")
+            .ExecuteUpdateAsync(s => s.SetProperty(c => c.Estado, "Inactivo"), ct);
+}
 public class EfLineaAyudaRepository(MindzyxsDbContext db) : ILineaAyudaRepository
 {
     public Task<List<LineaAyudaRow>> GetActivasAsync(CancellationToken ct = default)
@@ -1027,6 +1145,66 @@ public class EfLineaAyudaRepository(MindzyxsDbContext db) : ILineaAyudaRepositor
             .Where(l => l.Estado == "Activa")
             .OrderBy(l => l.IdLinea)
             .ToListAsync(ct);
+
+    // PB-29 HU1-PB29: admin lista todas las líneas (cualquier estado).
+    public Task<List<LineaAyudaRow>> GetAllAsync(CancellationToken ct = default)
+        => db.LineasAyuda.AsNoTracking()
+            .OrderBy(l => l.IdLinea)
+            .ToListAsync(ct);
+
+    // PB-29: encuentra una línea por id.
+    public Task<LineaAyudaRow?> FindByIdAsync(int idLinea, CancellationToken ct = default)
+        => db.LineasAyuda.AsNoTracking()
+            .Where(l => l.IdLinea == idLinea)
+            .FirstOrDefaultAsync(ct);
+
+    // PB-29: crea una nueva línea de ayuda (estado Activa por defecto).
+    public async Task<int> CrearAsync(LineaAyudaRow linea, CancellationToken ct = default)
+    {
+        linea.Estado = "Activa";
+        db.LineasAyuda.Add(linea);
+        await db.SaveChangesAsync(ct);
+        return linea.IdLinea;
+    }
+
+    // PB-29: actualiza una línea existente.
+    public async Task ActualizarAsync(int idLinea, string nombre, string? descripcion, string? telefono, string? url, string? horario, string? cobertura, string? descripcionCorta, string? whatsapp, string? email, string? chatUrl, string? videollamada, string? tipoAtencion, string? departamento, string? municipio, string? poblacion, string? fuente, DateOnly? fechaVerificacion, CancellationToken ct = default)
+    {
+        var linea = await db.LineasAyuda.FirstAsync(l => l.IdLinea == idLinea, ct);
+        linea.Nombre = nombre;
+        // Solo existe la columna descripcion: prefiere Descripcion, si no DescripcionCorta.
+        linea.Descripcion = descripcion ?? descripcionCorta;
+        linea.Telefono = telefono;
+        linea.Url = url;
+        linea.Horario = horario;
+        linea.Cobertura = cobertura;
+        linea.Whatsapp = whatsapp;
+        linea.Email = email;
+        linea.ChatUrl = chatUrl;
+        linea.Videollamada = videollamada;
+        linea.TipoAtencion = tipoAtencion;
+        linea.Departamento = departamento;
+        linea.Municipio = municipio;
+        linea.Poblacion = poblacion;
+        linea.Fuente = fuente;
+        linea.FechaVerificacion = fechaVerificacion;
+        await db.SaveChangesAsync(ct);
+    }
+
+    // PB-29: activa una línea (estado = Activa).
+    public async Task ActivarAsync(int idLinea, CancellationToken ct = default)
+        => await db.LineasAyuda.Where(l => l.IdLinea == idLinea)
+            .ExecuteUpdateAsync(s => s.SetProperty(l => l.Estado, "Activa"), ct);
+
+    // PB-29: inactiva una línea (estado = Inactiva).
+    public async Task InactivarAsync(int idLinea, CancellationToken ct = default)
+        => await db.LineasAyuda.Where(l => l.IdLinea == idLinea)
+            .ExecuteUpdateAsync(s => s.SetProperty(l => l.Estado, "Inactiva"), ct);
+
+    // PB-29: eliminación lógica (estado = Eliminada).
+    public async Task EliminarAsync(int idLinea, CancellationToken ct = default)
+        => await db.LineasAyuda.Where(l => l.IdLinea == idLinea)
+            .ExecuteUpdateAsync(s => s.SetProperty(l => l.Estado, "Eliminada"), ct);
 }
 
 // PB-09: recomendaciones básicas (el admin las crea/edita/desactiva, PB-28).
