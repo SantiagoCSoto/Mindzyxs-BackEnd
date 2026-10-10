@@ -84,8 +84,64 @@ public class EfUserRepository(MindzyxsDbContext db) : IUserRepository
         var actuales = db.PsicologoEspecialidades.Where(p => p.IdPsicologo == idPsicologo);
         db.PsicologoEspecialidades.RemoveRange(actuales);
         foreach (var id in idsEspecialidad.Distinct())
-            db.PsicologoEspecialidades.Add(new PsicologoEspecialidadRow { IdPsicologo = idPsicologo, IdEspecialidad = id });
+            db.PsicologoEspecialidades.Add(new PsicologoEspecialidadRow { IdPsicologo = idPsicologo, IdEspecialidad = id, Verificada = true });
         await db.SaveChangesAsync(ct);
+    }
+
+    // PB-25: reemplaza conservando verificación; las agregadas quedan ocultas (false).
+    public async Task<bool> ActualizarEspecialidadesAsync(int idPsicologo, List<int> idsEspecialidad, CancellationToken ct = default)
+    {
+        var nuevas = idsEspecialidad.Distinct().ToHashSet();
+        var actuales = await db.PsicologoEspecialidades
+            .Where(p => p.IdPsicologo == idPsicologo)
+            .ToListAsync(ct);
+        var actualesIds = actuales.Select(p => p.IdEspecialidad).ToHashSet();
+        if (actualesIds.SetEquals(nuevas)) return false;
+
+        db.PsicologoEspecialidades.RemoveRange(actuales.Where(p => !nuevas.Contains(p.IdEspecialidad)));
+        foreach (var id in nuevas.Where(i => !actualesIds.Contains(i)))
+            db.PsicologoEspecialidades.Add(new PsicologoEspecialidadRow { IdPsicologo = idPsicologo, IdEspecialidad = id, Verificada = false });
+        await db.SaveChangesAsync(ct);
+        return true;
+    }
+
+    public async Task SetTarjetaVerificadaAsync(int idPsicologo, bool verificada, CancellationToken ct = default)
+        => await db.Usuarios.Where(x => x.IdUsuario == idPsicologo)
+            .ExecuteUpdateAsync(s => s.SetProperty(x => x.TarjetaProfesionalVerificada, verificada), ct);
+
+    public async Task<List<string>> GetEspecialidadesPendientesAsync(int idPsicologo, CancellationToken ct = default)
+        => await (from pe in db.PsicologoEspecialidades.AsNoTracking()
+                  join e in db.Especialidades.AsNoTracking() on pe.IdEspecialidad equals e.IdEspecialidad
+                  where pe.IdPsicologo == idPsicologo && !pe.Verificada
+                  orderby e.Nombre
+                  select e.Nombre).ToListAsync(ct);
+
+    // PB-25: verifica las pendientes del psicólogo. Devuelve cuántas verificó.
+    public async Task<int> VerificarEspecialidadesAsync(int idPsicologo, CancellationToken ct = default)
+        => await db.PsicologoEspecialidades
+            .Where(p => p.IdPsicologo == idPsicologo && !p.Verificada)
+            .ExecuteUpdateAsync(s => s.SetProperty(p => p.Verificada, true), ct);
+
+    // PB-25: psicólogos con tarjeta sin verificar o especialidades pendientes (cola del admin).
+    public async Task<List<PsicologoTarjetaPendienteRow>> GetPsicologosTarjetaPendienteAsync(int idRolPsicologo, CancellationToken ct = default)
+    {
+        var pendientes = await db.PsicologoEspecialidades.AsNoTracking()
+            .Where(p => !p.Verificada)
+            .GroupBy(p => p.IdPsicologo)
+            .Select(g => new { Id = g.Key, N = g.Count() })
+            .ToDictionaryAsync(g => g.Id, g => g.N, ct);
+        var conPendientes = pendientes.Keys.ToList();
+        var usuarios = await db.Usuarios.AsNoTracking()
+            .Where(u => u.IdRol == idRolPsicologo
+                && (!u.TarjetaProfesionalVerificada || conPendientes.Contains(u.IdUsuario)))
+            .OrderBy(u => u.Nombre).ThenBy(u => u.Apellido)
+            .Select(u => new { u.IdUsuario, u.Nombre, u.Apellido, u.Correo, u.TarjetaProfesionalVerificada })
+            .ToListAsync(ct);
+        return usuarios.Select(u => new PsicologoTarjetaPendienteRow(
+                u.IdUsuario, $"{u.Nombre} {u.Apellido}".Trim(), u.Correo,
+                u.TarjetaProfesionalVerificada,
+                pendientes.TryGetValue(u.IdUsuario, out var n) ? n : 0))
+            .ToList();
     }
 
     // PB-especialidades: directorio para pacientes (activas y aprobadas, con conteo de asignados).
@@ -96,7 +152,7 @@ public class EfUserRepository(MindzyxsDbContext db) : IUserRepository
             .Where(u => u.IdRol == idRolPsicologo && u.IdEstadoCuenta == idEstadoActiva
                 && (u.IdEstadoAprobacion == null || u.IdEstadoAprobacion == idEstadoAprobado)
                 && (string.IsNullOrWhiteSpace(q) || u.Nombre.Contains(q) || u.Apellido.Contains(q))
-                && (!idEspecialidad.HasValue || db.PsicologoEspecialidades.Any(pe => pe.IdPsicologo == u.IdUsuario && pe.IdEspecialidad == idEspecialidad.Value)))
+                && (!idEspecialidad.HasValue || db.PsicologoEspecialidades.Any(pe => pe.IdPsicologo == u.IdUsuario && pe.IdEspecialidad == idEspecialidad.Value && pe.Verificada)))
             .OrderBy(u => u.Nombre).ThenBy(u => u.Apellido)
             .Select(u => new { u.IdUsuario, u.Nombre, u.Apellido })
             .ToListAsync(ct);
@@ -104,7 +160,7 @@ public class EfUserRepository(MindzyxsDbContext db) : IUserRepository
         var ids = psicos.Select(p => p.IdUsuario).ToList();
         var esp = await (from pe in db.PsicologoEspecialidades.AsNoTracking()
                          join e in db.Especialidades.AsNoTracking() on pe.IdEspecialidad equals e.IdEspecialidad
-                         where ids.Contains(pe.IdPsicologo)
+                         where ids.Contains(pe.IdPsicologo) && pe.Verificada
                          select new { pe.IdPsicologo, e.Nombre }).ToListAsync(ct);
         var conteos = await db.Autorizaciones.AsNoTracking()
             .Where(a => ids.Contains(a.IdPsicologo) && a.IdEstado == idEstadoAutorizado)
@@ -172,26 +228,27 @@ public class EfUserRepository(MindzyxsDbContext db) : IUserRepository
             .Join(db.Especialidades.AsNoTracking(), p => p.IdEspecialidad, e => e.IdEspecialidad, (p, e) => e.Nombre)
             .ToListAsync(ct);
         dto.Especialidades = esp;
+        dto.EspecialidadesPendientes = await GetEspecialidadesPendientesAsync(idUsuario, ct);
 
         return dto;
     }
 
     // PB-24 HU1-PB24: actualiza perfil profesional del psicólogo.
-    public async Task ActualizarPerfilProfesionalAsync(int idUsuario, int? añosExperiencia, string? descripcionProfesional, string? datosContacto, bool tarjetaProfesionalVerificada, List<int> idsEspecialidad, CancellationToken ct = default)
+    // PB-25: especialidades con diff (agregadas quedan ocultas); si cambiaron,
+    // la tarjeta pasa a no verificada. Devuelve true si hubo cambios.
+    // La verificación en true solo la pone el admin (VerificarEspecialidadesAsync).
+    public async Task<bool> ActualizarPerfilProfesionalAsync(int idUsuario, int? añosExperiencia, string? descripcionProfesional, string? datosContacto, List<int> idsEspecialidad, CancellationToken ct = default)
     {
         await db.Usuarios.Where(x => x.IdUsuario == idUsuario)
             .ExecuteUpdateAsync(s => s
                 .SetProperty(x => x.AñosExperiencia, añosExperiencia)
                 .SetProperty(x => x.DescripcionProfesional, descripcionProfesional)
-                .SetProperty(x => x.DatosContacto, datosContacto)
-                .SetProperty(x => x.TarjetaProfesionalVerificada, tarjetaProfesionalVerificada), ct);
+                .SetProperty(x => x.DatosContacto, datosContacto), ct);
 
-        // Reemplazar especialidades
-        var actuales = db.PsicologoEspecialidades.Where(p => p.IdPsicologo == idUsuario);
-        db.PsicologoEspecialidades.RemoveRange(actuales);
-        foreach (var id in idsEspecialidad.Distinct())
-            db.PsicologoEspecialidades.Add(new PsicologoEspecialidadRow { IdPsicologo = idUsuario, IdEspecialidad = id });
-        await db.SaveChangesAsync(ct);
+        var huboCambios = await ActualizarEspecialidadesAsync(idUsuario, idsEspecialidad, ct);
+        if (huboCambios)
+            await SetTarjetaVerificadaAsync(idUsuario, false, ct);
+        return huboCambios;
     }
 
     // Intento actualizar ultimo_acceso si existe; si no, no falla.

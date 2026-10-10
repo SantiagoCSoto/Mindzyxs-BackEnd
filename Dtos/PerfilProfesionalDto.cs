@@ -27,6 +27,9 @@ public class PerfilProfesionalVm
     /// <summary>Especialidades (nombres).</summary>
     public List<string> Especialidades { get; set; } = [];
 
+    /// <summary>Especialidades ocultas por verificación pendiente (PB-25).</summary>
+    public List<string> EspecialidadesPendientes { get; set; } = [];
+
     /// <summary>Indica si la tarjeta profesional tiene archivo subido (FilePath).</summary>
     public bool TieneTarjetaArchivo { get; set; }
 }

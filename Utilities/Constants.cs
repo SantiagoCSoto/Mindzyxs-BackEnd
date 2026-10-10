@@ -127,6 +127,11 @@ public static class LogAcciones
     // PB-20 HU1-PB20: el psicólogo crea un cuestionario personalizado.
     public const string CuestionarioCreado = "CUESTIONARIO_CREADO";
 
+    // PB-25: el psicólogo sube nueva tarjeta al cambiar/agregar especialidades;
+    // el admin la verifica (las especialidades siguen ocultas hasta entonces).
+    public const string TarjetaSubida = "TARJETA_SUBIDA";
+    public const string TarjetaVerificada = "TARJETA_VERIFICADA";
+
     // PB-21 HU1-PB21: el psicólogo edita (incluye despublicar por confirmación) o elimina
     // un cuestionario propio; la eliminación es lógica (estado Eliminado) y deja de
     // contarse en los análisis.
