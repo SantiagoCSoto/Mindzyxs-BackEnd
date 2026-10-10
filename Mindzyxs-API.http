@@ -813,8 +813,8 @@ Accept: application/json
 }
 
 ### PB-25 subir nueva tarjeta (multipart PDF, máx 5MB)
-# curl -X POST {{Host}}/api/psicologo/tarjeta -H "Authorization: Bearer <token-psicologo>" -F "tarjeta=@tarjeta.pdf;type=application/pdf"
-POST {{Host}}/api/psicologo/tarjeta
+# curl -X POST {{Host}}/api/psicologo/perfil-profesional/tarjeta -H "Authorization: Bearer <token-psicologo>" -F "tarjeta=@tarjeta.pdf;type=application/pdf"
+POST {{Host}}/api/psicologo/perfil-profesional/tarjeta
 Authorization: Bearer <token-psicologo>
 Accept: application/json
 
@@ -864,3 +864,32 @@ Accept: application/json
 POST {{Host}}/api/admin/usuarios/6/reset-password
 Authorization: Bearer <token-admin>
 Accept: application/json
+
+### PB-26 pendientes de validación (requiere Bearer admin)
+GET {{Host}}/api/admin/psicologos/pendientes
+Authorization: Bearer <token-admin>
+Accept: application/json
+
+### PB-26 detalle de solicitud (requiere Bearer admin)
+GET {{Host}}/api/admin/psicologos/7/validacion
+Authorization: Bearer <token-admin>
+Accept: application/json
+
+### PB-26 descargar tarjeta PDF (requiere Bearer admin)
+GET {{Host}}/api/admin/psicologos/7/tarjeta
+Authorization: Bearer <token-admin>
+
+### PB-26 aprobar psicólogo (requiere Bearer admin)
+POST {{Host}}/api/admin/psicologos/7/aprobar
+Authorization: Bearer <token-admin>
+Accept: application/json
+
+### PB-26 rechazar psicólogo con motivo (requiere Bearer admin)
+POST {{Host}}/api/admin/psicologos/7/rechazar
+Authorization: Bearer <token-admin>
+Content-Type: application/json
+Accept: application/json
+
+{
+  "motivo": "Tarjeta ilegible, por favor suba una nueva."
+}

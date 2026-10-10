@@ -57,9 +57,10 @@ public class PsicologoService(
     }
 
     // PB-24 HU1-PB24: actualiza el perfil profesional del psicólogo autenticado.
+    // PB-26: admite resubmit del rechazado.
     public async Task<string> ActualizarPerfilProfesionalAsync(string? tokenRaw, ActualizarPerfilProfesionalVm vm, string? ip, CancellationToken ct = default)
     {
-        var yo = await RequirePsicologoAsync(tokenRaw, ct);
+        var yo = await RequirePsicologoResubmitAsync(tokenRaw, ct);
 
         // Validaciones
         if (vm.AñosExperiencia.HasValue && vm.AñosExperiencia.Value < 0)
@@ -113,7 +114,7 @@ public class PsicologoService(
     // especialidades. No pierde acceso: solo quedan ocultas hasta verificación.
     public async Task<string> SubirTarjetaAsync(string? tokenRaw, IFormFile? tarjeta, string? ip, CancellationToken ct = default)
     {
-        var yo = await RequirePsicologoAsync(tokenRaw, ct);
+        var yo = await RequirePsicologoResubmitAsync(tokenRaw, ct);
         if (tarjetas.Validate(tarjeta, true, out var error) is not null)
             throw new InvalidOperationException(error!);
         var path = await tarjetas.SaveAsync(tarjeta!, yo.IdUsuario, ct);
@@ -121,6 +122,18 @@ public class PsicologoService(
         await users.SetTarjetaVerificadaAsync(yo.IdUsuario, false, ct);
         await authLogs.LogAsync(yo.IdUsuario, yo.IdUsuario, LogAcciones.TarjetaSubida,
             $"Psicólogo:{yo.IdUsuario} subió una nueva tarjeta profesional (pendiente de verificación)", ip, ct);
+        // PB-26: si estaba rechazado, reabre la solicitud a PendienteAprobacion (fiel a v1).
+        if (yo.IdEstadoAprobacion.HasValue)
+        {
+            var aprob = await catalogs.GetEstadoNombreAsync(yo.IdEstadoAprobacion.Value, ct);
+            if (string.Equals(aprob, "Rechazado", StringComparison.OrdinalIgnoreCase))
+            {
+                var idPend = await catalogs.GetEstadoIdAsync(AccountStates.PendienteAprobacion, ct);
+                await users.SetEstadoAprobacionAsync(yo.IdUsuario, idPend, ct);
+                await authLogs.LogAsync(yo.IdUsuario, yo.IdUsuario, LogAcciones.ValidacionPendientes,
+                    $"Psicólogo:{yo.IdUsuario} resubió tarjeta: solicitud reabierta a PendienteAprobacion", ip, ct);
+            }
+        }
         return "Tarjeta recibida. Sus especialidades nuevas seguirán ocultas para los usuarios hasta que el administrador la verifique. Su acceso a la aplicación no cambia.";
     }
 
@@ -141,6 +154,35 @@ public class PsicologoService(
         if (!string.Equals(estado, AccountStates.Activa, StringComparison.OrdinalIgnoreCase))
             throw new InvalidOperationException("La cuenta no está activa.");
         if (user.IdEstadoAprobacion.HasValue)
+        {
+            var aprob = await catalogs.GetEstadoNombreAsync(user.IdEstadoAprobacion.Value, ct);
+            if (!string.Equals(aprob, AccountStates.Aprobado, StringComparison.OrdinalIgnoreCase))
+                throw new InvalidOperationException("El psicólogo aún no está aprobado.");
+        }
+        return user;
+    }
+
+    // PB-26: como RequirePsicologoAsync, pero admite al rechazado (Inactiva+
+    // Rechazado) solo para resubir tarjeta / arreglar perfil. Demás, igual.
+    private async Task<UsuarioDto> RequirePsicologoResubmitAsync(string? tokenRaw, CancellationToken ct)
+    {
+        if (string.IsNullOrWhiteSpace(tokenRaw))
+            throw new UnauthorizedAccessException("Sesión requerida");
+        var sesion = await sesiones.FindByTokenHashAsync(TokenHelper.Hash(tokenRaw.Trim()), ct);
+        if (sesion is null || sesion.ExpiraEn < DateTime.UtcNow)
+            throw new UnauthorizedAccessException("Sesión requerida");
+        var user = await users.FindByIdAsync(sesion.IdUsuario, ct)
+            ?? throw new UnauthorizedAccessException("Sesión requerida");
+        var rol = await users.GetRolNombreAsync(user.IdRol, ct);
+        if (!string.Equals(rol, AppRoles.Psicologo, StringComparison.OrdinalIgnoreCase))
+            throw new InvalidOperationException("No tienes permisos para acceder a esta función");
+        var estado = await users.GetEstadoCuentaNombreAsync(user.IdEstadoCuenta, ct);
+        var esRechazado = string.Equals(estado, AccountStates.Inactiva, StringComparison.OrdinalIgnoreCase)
+            && user.IdEstadoAprobacion.HasValue
+            && string.Equals(await catalogs.GetEstadoNombreAsync(user.IdEstadoAprobacion.Value, ct), "Rechazado", StringComparison.OrdinalIgnoreCase);
+        if (!string.Equals(estado, AccountStates.Activa, StringComparison.OrdinalIgnoreCase) && !esRechazado)
+            throw new InvalidOperationException("La cuenta no está activa.");
+        if (!esRechazado && user.IdEstadoAprobacion.HasValue)
         {
             var aprob = await catalogs.GetEstadoNombreAsync(user.IdEstadoAprobacion.Value, ct);
             if (!string.Equals(aprob, AccountStates.Aprobado, StringComparison.OrdinalIgnoreCase))

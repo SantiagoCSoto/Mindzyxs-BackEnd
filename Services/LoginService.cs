@@ -58,8 +58,15 @@ public class LoginService(
                        ?? string.Empty;
 
         // HU2-PB2: bloqueos por estado
-        if (string.Equals(estadoNombre, AccountStates.Suspendida, StringComparison.OrdinalIgnoreCase)
+        // PB-26: el psicólogo rechazado (Inactiva+Rechazado) sí entra para resubir
+        // tarjeta (decisión: Inactiva + resubir). Demás inactivas, bloqueadas.
+        var esRechazadoResubible = string.Equals(estadoNombre, AccountStates.Inactiva, StringComparison.OrdinalIgnoreCase)
+            && string.Equals(rolNombre, AppRoles.Psicologo, StringComparison.OrdinalIgnoreCase)
+            && user.IdEstadoAprobacion.HasValue
+            && string.Equals(await catalogs.GetEstadoNombreAsync(user.IdEstadoAprobacion.Value, ct), "Rechazado", StringComparison.OrdinalIgnoreCase);
+        if ((string.Equals(estadoNombre, AccountStates.Suspendida, StringComparison.OrdinalIgnoreCase)
             || string.Equals(estadoNombre, AccountStates.Inactiva, StringComparison.OrdinalIgnoreCase))
+            && !esRechazadoResubible)
         {
             await authLogs.LogAsync(user.IdUsuario, user.IdUsuario, LogAcciones.LoginBloqueadoSuspendida,
                 $"Bloqueado por estado {estadoNombre}: {MaskCorreo(correo)}", ip, ct);
