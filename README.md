@@ -1323,3 +1323,154 @@ Validaciones:
 * Log `PERFIL_PROFESIONAL_ACTUALIZADO` en `dbo.auth`
 
 * DDL nuevo: `Minzyxs-DB/sql/24_pb24_perfil_profesional.sql` (columnas `años_experiencia`, `descripcion_profesional`, `datos_contacto`, `tarjeta_profesional_verificada` en `dbo.usuarios`).
+
+---
+# Mindzyxs-API - Guía PB-28 (Cuestionarios predeterminados del administrador)
+
+El administrador autenticado toca **Cuestionarios predeterminados** en su panel → pantalla **Cuestionarios predeterminados** con la lista de los suyos (con búsqueda por título) y botones **Crear**, **Editar** y **Desactivar**. Al presionar **Crear** se muestra un formulario similar al del psicólogo (título, descripción, preguntas con opciones y valores). Al presionar **Guardar**, el sistema valida que se completen todos los campos obligatorios (título, al menos una pregunta con mínimo dos opciones y valores ≥ 0) y guarda el cuestionario con `Tipo = "Predeterminado"`. Si `Publicar = true` queda **Publicado** (disponible para invitados y pacientes); si `false` queda **Inactivo**. Al **Editar** se pueden agregar/eliminar preguntas, modificar opciones y cambiar puntuaciones. Al **Desactivar** el cuestionario pasa a estado `Inactivo` y deja de aparecer en la asignación a pacientes. Cada acción (crear, editar, desactivar) queda registrada en `dbo.auth` (`CUESTIONARIO_PREDETERMINADO_CREADO`, `CUESTIONARIO_PREDETERMINADO_EDITADO`, `CUESTIONARIO_PREDETERMINADO_DESACTIVADO`).
+
+Todo vive en `Controllers/AdminCuestionariosController.cs` → `Services/AdminCuestionariosService.cs` → `ICuestionarioRepository` (`EfCuestionarioRepository`) + `IAuthLogRepository`. Requiere **administrador** autenticado. DDL: columnas existentes en `dbo.usuarios` (ya existentes), no requiere DDL nuevo (los cuestionarios Predeterminado usan la tabla `dbo.cuestionarios` existente con `Tipo = "Predeterminado"`).
+
+## Endpoints PB-28 (HU1-PB28)
+
+| Método | Ruta | Descripción | Auth |
+|--------|------|-------------|------|
+| `GET` | `/api/admin/cuestionarios-predeterminados?q=` | Lista con búsqueda | Bearer admin |
+| `GET` | `/api/admin/cuestionarios-predeterminados/{id}` | Detalle editable | Bearer admin |
+| `POST` | `/api/admin/cuestionarios-predeterminados` | Crear (valida obligatorios) + log | Bearer admin |
+| `PUT` | `/api/admin/cuestionarios-predeterminados/{id}` | Editar + log | Bearer admin |
+| `POST` | `/api/admin/cuestionarios-predeterminados/{id}/desactivar` | Desactivar (estado = Inactivo) + log | Bearer admin |
+
+### 15.1 `GET /api/admin/cuestionarios-predeterminados` - lista con búsqueda
+
+```bash
+curl --location "http://localhost:5015/api/admin/cuestionarios-predeterminados?q=ansiedad" -H "Authorization: Bearer <token-admin>"
+```
+
+`200 [{id, titulo, descripcion, estado, numPreguntas, fechaCreacion}]` ordenado por `idCuestionario`. `q` filtra por título.
+
+### 15.2 `GET /api/admin/cuestionarios-predeterminados/{id}` - detalle (prellena el editor)
+
+`200 {id, titulo, descripcion, estado, modoCalculo, umbralBajoMax, umbralMedioMax, fechaCreacion, preguntas:[{id, texto, orden, tipo, opciones:[{id, texto, valor, orden}]}]}`. `404 "Cuestionario predeterminado no encontrado."` si no existe o no es Predeterminado.
+
+### 15.3 `POST /api/admin/cuestionarios-predeterminados` - crear cuestionario predeterminado
+
+```bash
+curl --location -X POST "http://localhost:5015/api/admin/cuestionarios-predeterminados" -H "Authorization: Bearer <token-admin>" -H "Content-Type: application/json" -d '{"titulo":"Cuestionario Base Ansiedad","descripcion":"Evaluación base","publicar":true,"umbrales":{"bajoMax":6,"medioMax":12},"preguntas":[{"texto":"¿Con qué frecuencia se siente nervioso/a?","tipo":"opcion_multiple","opciones":[{"texto":"Nunca","valor":0},{"texto":"A veces","valor":2},{"texto":"Siempre","valor":4}]},{"texto":"¿Le cuesta controlar las preocupaciones?","tipo":"opcion_multiple","opciones":[{"texto":"No","valor":0},{"texto":"A veces","valor":2},{"texto":"Casi siempre","valor":4}]}]}'
+```
+
+`200 {id, mensaje:"Cuestionario predeterminado guardado correctamente"}`. Valida título obligatorio y ≥1 pregunta con ≥2 opciones (valores ≥0). Guarda `CUESTIONARIO_PREDETERMINADO_CREADO` en `dbo.auth`. `Publicar:true` → estado `Publicado`; `false` → `Inactivo`.
+
+### 15.4 `PUT /api/admin/cuestionarios-predeterminados/{id}` - editar cuestionario predeterminado
+
+```bash
+curl --location -X PUT "http://localhost:5015/api/admin/cuestionarios-predeterminados/1" -H "Authorization: Bearer <token-admin>" -H "Content-Type: application/json" -d '{"titulo":"Cuestionario Base Ansiedad (v2)","publicar":true,"umbrales":{"bajoMax":5,"medioMax":10},"preguntas":[{"id":1,"texto":"¿Con qué frecuencia se siente nervioso/a?","tipo":"opcion_multiple","opciones":[{"texto":"Nunca","valor":0},{"texto":"A veces","valor":2},{"texto":"Siempre","valor":4}]}]}'
+```
+
+Mismo cuerpo que crear + `id` opcional por pregunta (nulo = nueva; el `id` de una pregunta que ya no venga se da de baja con `eliminada`). `200 {id, mensaje:"Cuestionario predeterminado guardado correctamente"}`. Cero preguntas → `400 "Debes completar todos los campos obligatorios"`. Guarda `CUESTIONARIO_PREDETERMINADO_EDITADO` en `dbo.auth`.
+
+### 15.5 `POST /api/admin/cuestionarios-predeterminados/{id}/desactivar` - desactivar cuestionario
+
+```bash
+curl --location -X POST "http://localhost:5015/api/admin/cuestionarios-predeterminados/1/desactivar" -H "Authorization: Bearer <token-admin>"
+```
+
+`200 {mensaje:"Cuestionario predeterminado desactivado correctamente"}`. Pasa a estado `Inactivo` (deja de aparecer en la asignación). Guarda `CUESTIONARIO_PREDETERMINADO_DESACTIVADO` en `dbo.auth`. `404 "Cuestionario predeterminado no encontrado."` si no existe o no es Predeterminado.
+
+## Mensajes exactos PB-28
+
+* `"Cuestionario predeterminado guardado correctamente"` (200, crear/editar)
+* `"Debes completar todos los campos obligatorios"` (400, título vacío, sin preguntas, sin opciones, valores negativos)
+* `"Cuestionario predeterminado desactivado correctamente"` (200, desactivar)
+* `"Cuestionario predeterminado no encontrado."` (404, no existe o no es Predeterminado)
+* Logs `CUESTIONARIO_PREDETERMINADO_CREADO`, `CUESTIONARIO_PREDETERMINADO_EDITADO`, `CUESTIONARIO_PREDETERMINADO_DESACTIVADO` en `dbo.auth`
+
+* Rama actual `Prueba-Kevin`, BD `SANTI/Mindzyxs`. Sin DDL nuevo (usa tabla `dbo.cuestionarios` existente con `Tipo = "Predeterminado"`).
+
+---
+# Mindzyxs-API - Guía PB-29 (Administración de líneas de ayuda)
+
+El administrador autenticado toca **Líneas de ayuda** en su consola → pantalla **Administrar líneas de ayuda** con la lista de líneas existentes (nombre, contacto, estado) y botones **Crear nueva**, **Editar**, **Activar/Inactivar** y **Eliminar**. Al presionar **Crear nueva** se muestra el formulario con campos: nombre, descripción, teléfono, URL, horario, cobertura, descripción corta, WhatsApp, email, chat, videollamada, tipo de atención, departamento, municipio, población, fuente, fecha de verificación. Al presionar **Guardar**, el sistema valida que tenga **nombre** y **al menos un medio de contacto** (teléfono o URL) y crea la línea como **Activa** (visible a usuarios finales). Responde `Línea de ayuda creada correctamente` y registra `LINEA_AYUDA_CREADA` en `dbo.auth`. Al **Editar** se actualizan los campos y registra `LINEA_AYUDA_EDITADA`. Al **Activar/Inactivar** cambia el estado a `Activa`/`Inactiva` (solo las `Activa` se muestran a usuarios finales en `GET /api/ayuda/lineas`) y registra `LINEA_AYUDA_ACTIVADA`/`LINEA_AYUDA_INACTIVADA`. Al **Eliminar** hace borrado lógico (estado `Eliminada`, no rompe historial ni FK) y registra `LINEA_AYUDA_ELIMINADA`.
+
+Todo vive en `Controllers/AdminLineasAyudaController.cs` → `Services/AdminLineasAyudaService.cs` → `ILineaAyudaRepository` (`EfLineaAyudaRepository`) + `IAuthLogRepository`. Requiere **administrador** autenticado. Usa tabla existente `dbo.lineas_ayuda` (sin DDL nuevo).
+
+## Endpoints PB-29 (HU1-PB29)
+
+| Método | Ruta | Descripción | Auth |
+|--------|------|-------------|------|
+| `GET` | `/api/admin/lineas-ayuda?q=` | Lista con búsqueda | Bearer admin |
+| `GET` | `/api/admin/lineas-ayuda/{id}` | Detalle editable | Bearer admin |
+| `POST` | `/api/admin/lineas-ayuda` | Crear (valida nombre + contacto) + log | Bearer admin |
+| `PUT` | `/api/admin/lineas-ayuda/{id}` | Editar + log | Bearer admin |
+| `POST` | `/api/admin/lineas-ayuda/{id}/activar` | Activar + log | Bearer admin |
+| `POST` | `/api/admin/lineas-ayuda/{id}/inactivar` | Inactivar + log | Bearer admin |
+| `DELETE` | `/api/admin/lineas-ayuda/{id}` | Eliminar (borrado lógico) + log | Bearer admin |
+
+### 16.1 `GET /api/admin/lineas-ayuda` - lista con búsqueda
+
+```bash
+curl --location "http://localhost:5015/api/admin/lineas-ayuda?q=linea" -H "Authorization: Bearer <token-admin>"
+```
+
+`200 [{id, nombre, telefono, url, estado}]` ordenado por `idLinea`. `q` filtra por nombre.
+
+### 16.2 `GET /api/admin/lineas-ayuda/{id}` - detalle (prellena el editor)
+
+```bash
+curl --location "http://localhost:5015/api/admin/lineas-ayuda/1" -H "Authorization: Bearer <token-admin>"
+```
+
+`200` detalle completo con todos los campos. `404 "Línea de ayuda no encontrada."` si no existe.
+
+### 16.3 `POST /api/admin/lineas-ayuda` - crear línea de ayuda
+
+```bash
+curl --location -X POST "http://localhost:5015/api/admin/lineas-ayuda" -H "Authorization: Bearer <token-admin>" -H "Content-Type: application/json" -d '{"nombre":"Línea 106 - Salud Mental","descripcion":"Línea nacional","telefono":"106","url":"https://www.minsalud.gov.co/linea106","horario":"24 horas","cobertura":"Nacional","descripcionCorta":"Atención 24h","whatsapp":"3001234567","email":"linea106@minsalud.gov.co","tipoAtencion":"intervencion_crisis","departamento":"Nacional","fuente":"Ministerio de Salud"}'
+```
+
+`200 {id, mensaje:"Línea de ayuda creada correctamente"}`. Estado inicial **Activa**. Valida nombre + al menos un contacto (teléfono o URL). Guarda `LINEA_AYUDA_CREADA` en `dbo.auth`.
+
+### 16.4 `PUT /api/admin/lineas-ayuda/{id}` - editar línea de ayuda
+
+```bash
+curl --location -X PUT "http://localhost:5015/api/admin/lineas-ayuda/1" -H "Authorization: Bearer <token-admin>" -H "Content-Type: application/json" -d '{"nombre":"Línea 106 Actualizada","telefono":"106","url":"https://www.minsalud.gov.co/linea106","horario":"24 horas, 7 días","cobertura":"Nacional y WhatsApp"}'
+```
+
+`200 {id, mensaje:"Línea de ayuda actualizada correctamente"}`. Valida nombre + contacto. Guarda `LINEA_AYUDA_EDITADA` en `dbo.auth`.
+
+### 16.5 `POST /api/admin/lineas-ayuda/{id}/activar` - activar línea
+
+```bash
+curl --location -X POST "http://localhost:5015/api/admin/lineas-ayuda/1/activar" -H "Authorization: Bearer <token-admin>"
+```
+
+`200 {mensaje:"Línea de ayuda activada correctamente"}`. Estado `Activa` (visible en `/api/ayuda/lineas`). Guarda `LINEA_AYUDA_ACTIVADA` en `dbo.auth`.
+
+### 16.6 `POST /api/admin/lineas-ayuda/{id}/inactivar` - inactivar línea
+
+```bash
+curl --location -X POST "http://localhost:5015/api/admin/lineas-ayuda/1/inactivar" -H "Authorization: Bearer <token-admin>"
+```
+
+`200 {mensaje:"Línea de ayuda inactivada correctamente"}`. Estado `Inactiva` (oculta a usuarios). Guarda `LINEA_AYUDA_INACTIVADA` en `dbo.auth`.
+
+### 16.7 `DELETE /api/admin/lineas-ayuda/{id}` - eliminar (borrado lógico)
+
+```bash
+curl --location -X DELETE "http://localhost:5015/api/admin/lineas-ayuda/1" -H "Authorization: Bearer <token-admin>"
+```
+
+`200 {mensaje:"Línea de ayuda eliminada correctamente"}`. Estado `Eliminada` (borrado lógico, no rompe historial). Guarda `LINEA_AYUDA_ELIMINADA` en `dbo.auth`.
+
+## Mensajes exactos PB-29
+
+* `"Línea de ayuda creada correctamente"` (200, crear)
+* `"Debes ingresar nombre y al menos un medio de contacto (teléfono o URL)"` (400, sin nombre o sin teléfono/URL)
+* `"Línea de ayuda actualizada correctamente"` (200, editar)
+* `"Línea de ayuda activada correctamente"` (200, activar)
+* `"Línea de ayuda inactivada correctamente"` (200, inactivar)
+* `"Línea de ayuda eliminada correctamente"` (200, eliminar)
+* `"Línea de ayuda no encontrada."` (404, no existe)
+* Logs `LINEA_AYUDA_CREADA`, `LINEA_AYUDA_EDITADA`, `LINEA_AYUDA_ACTIVADA`, `LINEA_AYUDA_INACTIVADA`, `LINEA_AYUDA_ELIMINADA` en `dbo.auth`
+
+* Rama actual `Prueba-Kevin`, BD `SANTI/Mindzyxs`. Sin DDL nuevo (usa tabla `dbo.lineas_ayuda` existente).

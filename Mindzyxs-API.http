@@ -801,3 +801,176 @@ Content-Type: application/json
 {
   "especialidades": [999]
 }
+
+### PB-28 listar cuestionarios predeterminados (HU1-PB28, admin, búsqueda opcional)
+GET {{Host}}/api/admin/cuestionarios-predeterminados?q=ansiedad
+Authorization: Bearer <token-admin>
+Accept: application/json
+
+### PB-28 obtener detalle de cuestionario predeterminado (HU1-PB28, admin)
+GET {{Host}}/api/admin/cuestionarios-predeterminados/1
+Authorization: Bearer <token-admin>
+Accept: application/json
+
+### PB-28 crear cuestionario predeterminado (HU1-PB28, admin, log CUESTIONARIO_PREDETERMINADO_CREADO)
+POST {{Host}}/api/admin/cuestionarios-predeterminados
+Authorization: Bearer <token-admin>
+Content-Type: application/json
+Accept: application/json
+
+{
+  "titulo": "Cuestionario Base Ansiedad",
+  "descripcion": "Evaluación base de ansiedad para nuevos pacientes",
+  "publicar": true,
+  "umbrales": { "bajoMax": 6, "medioMax": 12 },
+  "preguntas": [
+    {
+      "texto": "¿Con qué frecuencia se siente nervioso/a?",
+      "tipo": "opcion_multiple",
+      "opciones": [
+        { "texto": "Nunca", "valor": 0 },
+        { "texto": "A veces", "valor": 2 },
+        { "texto": "Siempre", "valor": 4 }
+      ]
+    },
+    {
+      "texto": "¿Le cuesta controlar las preocupaciones?",
+      "tipo": "opcion_multiple",
+      "opciones": [
+        { "texto": "No", "valor": 0 },
+        { "texto": "A veces", "valor": 2 },
+        { "texto": "Casi siempre", "valor": 4 }
+      ]
+    }
+  ]
+}
+
+### PB-28 crear cuestionario predeterminado - sin preguntas - 400 (HU1-PB28)
+POST {{Host}}/api/admin/cuestionarios-predeterminados
+Authorization: Bearer <token-admin>
+Content-Type: application/json
+
+{
+  "titulo": "Incompleto",
+  "preguntas": []
+}
+
+### PB-28 obtener detalle de cuestionario predeterminado para editar (HU1-PB28, admin)
+GET {{Host}}/api/admin/cuestionarios-predeterminados/1
+Authorization: Bearer <token-admin>
+Accept: application/json
+
+### PB-28 editar cuestionario predeterminado (HU1-PB28, admin, log CUESTIONARIO_PREDETERMINADO_EDITADO)
+PUT {{Host}}/api/admin/cuestionarios-predeterminados/1
+Authorization: Bearer <token-admin>
+Content-Type: application/json
+Accept: application/json
+
+{
+  "titulo": "Cuestionario Base Ansiedad (v2)",
+  "descripcion": "Evaluación base de ansiedad actualizada",
+  "publicar": true,
+  "umbrales": { "bajoMax": 5, "medioMax": 10 },
+  "preguntas": [
+    {
+      "id": 1,
+      "texto": "¿Con qué frecuencia se siente nervioso/a?",
+      "tipo": "opcion_multiple",
+      "opciones": [
+        { "texto": "Nunca", "valor": 0 },
+        { "texto": "A veces", "valor": 2 },
+        { "texto": "Siempre", "valor": 4 }
+      ]
+    }
+  ]
+}
+
+### PB-28 desactivar cuestionario predeterminado (HU1-PB28, admin, log CUESTIONARIO_PREDETERMINADO_DESACTIVADO)
+POST {{Host}}/api/admin/cuestionarios-predeterminados/1/desactivar
+Authorization: Bearer <token-admin>
+Accept: application/json
+
+### PB-28 cuestionario predeterminado inexistente - 404 (HU1-PB28)
+GET {{Host}}/api/admin/cuestionarios-predeterminados/999
+Authorization: Bearer <token-admin>
+Accept: application/json
+
+### PB-29 listar líneas de ayuda (HU1-PB29, admin, búsqueda opcional)
+GET {{Host}}/api/admin/lineas-ayuda?q=linea
+Authorization: Bearer <token-admin>
+Accept: application/json
+
+### PB-29 obtener detalle de línea de ayuda (HU1-PB29, admin)
+GET {{Host}}/api/admin/lineas-ayuda/1
+Authorization: Bearer <token-admin>
+Accept: application/json
+
+### PB-29 crear línea de ayuda (HU1-PB29, admin, log LINEA_AYUDA_CREADA)
+POST {{Host}}/api/admin/lineas-ayuda
+Authorization: Bearer <token-admin>
+Content-Type: application/json
+Accept: application/json
+
+{
+  "nombre": "Línea 106 - Salud Mental",
+  "descripcion": "Línea nacional de apoyo psicológico",
+  "telefono": "106",
+  "url": "https://www.minsalud.gov.co/linea106",
+  "horario": "24 horas",
+  "cobertura": "Nacional",
+  "descripcionCorta": "Atención psicológica gratuita las 24 horas",
+  "whatsapp": "3001234567",
+  "email": "linea106@minsalud.gov.co",
+  "tipoAtencion": "intervencion_crisis",
+  "departamento": "Nacional",
+  "fuente": "Ministerio de Salud"
+}
+
+### PB-29 crear línea de ayuda - sin contacto - 400 (HU1-PB29)
+POST {{Host}}/api/admin/lineas-ayuda
+Authorization: Bearer <token-admin>
+Content-Type: application/json
+
+{
+  "nombre": "Línea sin contacto",
+  "descripcion": "Falta teléfono y URL"
+}
+
+### PB-29 obtener detalle de línea de ayuda (HU1-PB29, admin)
+GET {{Host}}/api/admin/lineas-ayuda/1
+Authorization: Bearer <token-admin>
+Accept: application/json
+
+### PB-29 editar línea de ayuda (HU1-PB29, admin, log LINEA_AYUDA_EDITADA)
+PUT {{Host}}/api/admin/lineas-ayuda/1
+Authorization: Bearer <token-admin>
+Content-Type: application/json
+Accept: application/json
+
+{
+  "nombre": "Línea 106 - Salud Mental (Actualizada)",
+  "telefono": "106",
+  "url": "https://www.minsalud.gov.co/linea106",
+  "horario": "24 horas, 7 días",
+  "cobertura": "Nacional y WhatsApp"
+}
+
+### PB-29 activar línea de ayuda (HU1-PB29, admin, log LINEA_AYUDA_ACTIVADA)
+POST {{Host}}/api/admin/lineas-ayuda/1/activar
+Authorization: Bearer <token-admin>
+Accept: application/json
+
+### PB-29 inactivar línea de ayuda (HU1-PB29, admin, log LINEA_AYUDA_INACTIVADA)
+POST {{Host}}/api/admin/lineas-ayuda/1/inactivar
+Authorization: Bearer <token-admin>
+Accept: application/json
+
+### PB-29 eliminar línea de ayuda (HU1-PB29, admin, borrado lógico, log LINEA_AYUDA_ELIMINADA)
+DELETE {{Host}}/api/admin/lineas-ayuda/1
+Authorization: Bearer <token-admin>
+Accept: application/json
+
+### PB-29 línea de ayuda inexistente - 404 (HU1-PB29)
+GET {{Host}}/api/admin/lineas-ayuda/999
+Authorization: Bearer <token-admin>
+Accept: application/json
