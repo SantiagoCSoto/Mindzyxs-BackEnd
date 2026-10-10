@@ -1178,7 +1178,6 @@ public class EfLineaAyudaRepository(MindzyxsDbContext db) : ILineaAyudaRepositor
         linea.Url = url;
         linea.Horario = horario;
         linea.Cobertura = cobertura;
-        linea.Descripcion = descripcionCorta;
         linea.Whatsapp = whatsapp;
         linea.Email = email;
         linea.ChatUrl = chatUrl;
