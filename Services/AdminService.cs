@@ -21,6 +21,7 @@ public class AdminService(
     ICatalogRepository catalogs,
     IAuthLogRepository authLogs,
     LoginService login,
+    IEmailSender email,
     IOptions<AdminOptions> options,
     ILogger<AdminService> logger)
 {
@@ -184,7 +185,7 @@ public class AdminService(
         return OperationResult<List<PsicologoTarjetaPendienteDto>>.Ok(lista);
     }
 
-    // PB-25: verifica la tarjeta del psicólogo (las pendientes se hacen visibles).
+    // PB-25 tarjeta: verifica la tarjeta del psicólogo (las pendientes se hacen visibles).
     public async Task<OperationResult<string>> VerificarTarjetaAsync(int adminId, int idPsicologo, string? ip, CancellationToken ct = default)
     {
         var psi = await users.FindByIdAsync(idPsicologo, ct);
@@ -198,6 +199,118 @@ public class AdminService(
         await users.SetTarjetaVerificadaAsync(idPsicologo, true, ct);
         await authLogs.LogAsync(adminId, idPsicologo, LogAcciones.TarjetaVerificada,
             $"Admin:{adminId} verificó la tarjeta del psicólogo:{idPsicologo} ({n} especialidades visibles)", ip, ct);
-        return OperationResult<string>.Ok($"Tarjeta verificada correctamente. {n} especialidades visibles para los usuarios.");
+        return new OperationResult<string> { Success = true, Message = $"Tarjeta verificada correctamente. {n} especialidades visibles para los usuarios." };
+    }
+
+    // PB-26 HU1-PB26: solicitudes pendientes de validación (fiel a v1 CU26).
+    public async Task<OperationResult<List<PsicologoPendienteDto>>> PendientesValidacionAsync(CancellationToken ct = default)
+    {
+        var idRolPsi = await catalogs.GetRolIdAsync(AppRoles.Psicologo, ct);
+        var idPend = await catalogs.GetEstadoIdAsync(AccountStates.PendienteAprobacion, ct);
+        var filas = await users.GetPsicologosPendientesAsync(idRolPsi, idPend, ct);
+        return OperationResult<List<PsicologoPendienteDto>>.Ok(filas
+            .Select(f => new PsicologoPendienteDto { Id = f.Id, Nombre = f.Nombre, Correo = f.Correo, FechaSolicitud = f.FechaSolicitud })
+            .ToList());
+    }
+
+    // PB-26 HU1-PB26: aprueba (Aprobado/Activa). Solo si sigue pendiente.
+    public async Task<OperationResult<string>> AprobarPsicologoAsync(int adminId, int idPsicologo, string? ip, CancellationToken ct = default)
+    {
+        var psi = await users.FindByIdAsync(idPsicologo, ct);
+        if (psi is null)
+            return OperationResult<string>.Fail("Psicólogo no encontrado.");
+        var rol = await users.GetRolNombreAsync(psi.IdRol, ct);
+        if (!string.Equals(rol, AppRoles.Psicologo, StringComparison.OrdinalIgnoreCase))
+            return OperationResult<string>.Fail("El usuario no es psicólogo.");
+
+        var idPend = await catalogs.GetEstadoIdAsync(AccountStates.PendienteAprobacion, ct);
+        var idAprob = await catalogs.GetEstadoIdAsync(AccountStates.Aprobado, ct);
+        var idActiva = await catalogs.GetEstadoIdAsync(AccountStates.Activa, ct);
+        if (!await users.AprobarPsicologoAsync(idPsicologo, idPend, idAprob, idActiva, ct))
+            return OperationResult<string>.Fail("La solicitud ya fue procesada.");
+
+        try
+        {
+            var nombre = $"{psi.Nombre} {psi.Apellido}".Trim();
+            await email.SendAsync(psi.Correo, "Mindzyxs - Credenciales aprobadas",
+                $"Hola {nombre}, sus credenciales profesionales han sido validadas. Su cuenta ha sido aprobada y ya puede iniciar sesión.");
+        }
+        catch { /* el correo no invalida la aprobación (fiel a v1) */ }
+
+        await authLogs.LogAsync(adminId, idPsicologo, LogAcciones.ValidacionAprobada,
+            $"Admin:{adminId} aprobó al psicólogo:{idPsicologo}", ip, ct);
+        return new OperationResult<string> { Success = true, Message = "Validación registrada correctamente." };
+    }
+
+    // PB-26 HU1-PB26: detalle de la solicitud (perfil + tarjeta + estado).
+    public async Task<OperationResult<ValidacionDetalleDto>> DetalleValidacionAsync(int idPsicologo, CancellationToken ct = default)
+    {
+        var psi = await users.FindByIdAsync(idPsicologo, ct);
+        if (psi is null)
+            return OperationResult<ValidacionDetalleDto>.Fail("Psicólogo no encontrado.");
+        var rol = await users.GetRolNombreAsync(psi.IdRol, ct);
+        if (!string.Equals(rol, AppRoles.Psicologo, StringComparison.OrdinalIgnoreCase))
+            return OperationResult<ValidacionDetalleDto>.Fail("El usuario no es psicólogo.");
+
+        var perfil = await users.FindPerfilProfesionalAsync(idPsicologo, ct);
+        if (perfil is null)
+            return OperationResult<ValidacionDetalleDto>.Fail("Psicólogo no encontrado.");
+
+        var idPend = await catalogs.GetEstadoIdAsync(AccountStates.PendienteAprobacion, ct);
+        var pendiente = perfil.IdEstadoAprobacion == idPend;
+        var estadoAprobacion = perfil.IdEstadoAprobacion.HasValue
+            ? await catalogs.GetEstadoNombreAsync(perfil.IdEstadoAprobacion.Value, ct) ?? ""
+            : "";
+        return OperationResult<ValidacionDetalleDto>.Ok(new ValidacionDetalleDto
+        {
+            Id = perfil.IdUsuario,
+            Nombre = $"{perfil.Nombre} {perfil.Apellido}".Trim(),
+            Correo = perfil.Correo,
+            FechaSolicitud = perfil.FechaRegistro,
+            Especialidades = perfil.Especialidades,
+            TieneTarjeta = !string.IsNullOrWhiteSpace(perfil.FilePath),
+            EstadoAprobacion = estadoAprobacion,
+            Pendiente = pendiente,
+            Aviso = pendiente ? "" : "La solicitud ya fue procesada."
+        });
+    }
+
+    // PB-26 HU1-PB26: ruta del PDF de la tarjeta (null si no hay archivo).
+    public async Task<OperationResult<string>> TarjetaPathAsync(int idPsicologo, CancellationToken ct = default)
+    {
+        var perfil = await users.FindPerfilProfesionalAsync(idPsicologo, ct);
+        if (perfil is null || string.IsNullOrWhiteSpace(perfil.FilePath) || !File.Exists(perfil.FilePath))
+            return OperationResult<string>.Fail("No se ha adjuntado tarjeta profesional.");
+        return OperationResult<string>.Ok(perfil.FilePath);
+    }
+
+    // PB-26 HU1-PB26: rechaza (Rechazado/Inactiva, bloquea login). Motivo opcional.
+    public async Task<OperationResult<string>> RechazarPsicologoAsync(int adminId, int idPsicologo, string? motivo, string? ip, CancellationToken ct = default)
+    {
+        var psi = await users.FindByIdAsync(idPsicologo, ct);
+        if (psi is null)
+            return OperationResult<string>.Fail("Psicólogo no encontrado.");
+        var rol = await users.GetRolNombreAsync(psi.IdRol, ct);
+        if (!string.Equals(rol, AppRoles.Psicologo, StringComparison.OrdinalIgnoreCase))
+            return OperationResult<string>.Fail("El usuario no es psicólogo.");
+
+        var idPend = await catalogs.GetEstadoIdAsync(AccountStates.PendienteAprobacion, ct);
+        var idRech = await catalogs.GetEstadoIdAsync("Rechazado", ct);
+        var idInac = await catalogs.GetEstadoIdAsync(AccountStates.Inactiva, ct);
+        if (!await users.RechazarPsicologoAsync(idPsicologo, idPend, idRech, idInac, ct))
+            return OperationResult<string>.Fail("La solicitud ya fue procesada.");
+
+        try
+        {
+            var nombre = $"{psi.Nombre} {psi.Apellido}".Trim();
+            var detalleMotivo = string.IsNullOrWhiteSpace(motivo) ? "No se proporcionó un motivo específico." : motivo.Trim();
+            await email.SendAsync(psi.Correo, "Mindzyxs - Credenciales no aprobadas",
+                $"Hola {nombre}, sus credenciales profesionales no fueron aprobadas. Motivo: {detalleMotivo} Puede subir una nueva tarjeta profesional para ser evaluado nuevamente.");
+        }
+        catch { /* el correo no invalida el rechazo (fiel a v1) */ }
+
+        await authLogs.LogAsync(adminId, idPsicologo, LogAcciones.ValidacionRechazada,
+            $"Admin:{adminId} rechazó al psicólogo:{idPsicologo}. Motivo: {(string.IsNullOrWhiteSpace(motivo) ? "-" : motivo.Trim())}", ip, ct);
+        return new OperationResult<string> { Success = true, Message = "Validación registrada correctamente." };
     }
 }

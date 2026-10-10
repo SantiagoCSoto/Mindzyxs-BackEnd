@@ -122,6 +122,34 @@ public class EfUserRepository(MindzyxsDbContext db) : IUserRepository
             .Where(p => p.IdPsicologo == idPsicologo && !p.Verificada)
             .ExecuteUpdateAsync(s => s.SetProperty(p => p.Verificada, true), ct);
 
+    // PB-26 HU1-PB26: solicitudes pendientes de validación (rol + PendienteAprobacion).
+    public async Task<List<PsicologoPendienteRow>> GetPsicologosPendientesAsync(int idRolPsicologo, int idEstadoPendiente, CancellationToken ct = default)
+        => await db.Usuarios.AsNoTracking()
+            .Where(u => u.IdRol == idRolPsicologo && u.IdEstadoAprobacion == idEstadoPendiente)
+            .OrderByDescending(u => u.FechaRegistro)
+            .Select(u => new PsicologoPendienteRow(u.IdUsuario, $"{u.Nombre} {u.Apellido}".Trim(), u.Correo, u.FechaRegistro))
+            .ToListAsync(ct);
+
+    // Aprueba solo si sigue pendiente (concurrencia: 0 filas = ya procesada).
+    public async Task<bool> AprobarPsicologoAsync(int idPsicologo, int idEstadoPendiente, int idEstadoAprobado, int idEstadoActiva, CancellationToken ct = default)
+        => await db.Usuarios
+            .Where(u => u.IdUsuario == idPsicologo && u.IdEstadoAprobacion == idEstadoPendiente)
+            .ExecuteUpdateAsync(s => s
+                .SetProperty(u => u.IdEstadoAprobacion, idEstadoAprobado)
+                .SetProperty(u => u.IdEstadoCuenta, idEstadoActiva), ct) > 0;
+
+    // Rechaza solo si sigue pendiente. La cuenta pasa a Inactiva (bloquea login).
+    public async Task<bool> RechazarPsicologoAsync(int idPsicologo, int idEstadoPendiente, int idEstadoRechazado, int idEstadoInactiva, CancellationToken ct = default)
+        => await db.Usuarios
+            .Where(u => u.IdUsuario == idPsicologo && u.IdEstadoAprobacion == idEstadoPendiente)
+            .ExecuteUpdateAsync(s => s
+                .SetProperty(u => u.IdEstadoAprobacion, idEstadoRechazado)
+                .SetProperty(u => u.IdEstadoCuenta, idEstadoInactiva), ct) > 0;
+
+    public async Task SetEstadoAprobacionAsync(int idPsicologo, int idEstadoAprobacion, CancellationToken ct = default)
+        => await db.Usuarios.Where(u => u.IdUsuario == idPsicologo)
+            .ExecuteUpdateAsync(s => s.SetProperty(u => u.IdEstadoAprobacion, idEstadoAprobacion), ct);
+
     // PB-25: psicólogos con tarjeta sin verificar o especialidades pendientes (cola del admin).
     public async Task<List<PsicologoTarjetaPendienteRow>> GetPsicologosTarjetaPendienteAsync(int idRolPsicologo, CancellationToken ct = default)
     {
@@ -194,6 +222,7 @@ public class EfUserRepository(MindzyxsDbContext db) : IUserRepository
                 x.FechaNacimiento,
                 x.IdGenero,
                 x.FilePath,
+                x.FechaRegistro,
                 x.AñosExperiencia,
                 x.DescripcionProfesional,
                 x.DatosContacto,
@@ -216,6 +245,7 @@ public class EfUserRepository(MindzyxsDbContext db) : IUserRepository
             FechaNacimiento = u.FechaNacimiento,
             IdGenero = u.IdGenero,
             FilePath = u.FilePath,
+            FechaRegistro = u.FechaRegistro,
             AñosExperiencia = u.AñosExperiencia,
             DescripcionProfesional = u.DescripcionProfesional,
             DatosContacto = u.DatosContacto,

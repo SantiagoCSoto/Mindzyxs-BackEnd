@@ -127,7 +127,13 @@ public static class LogAcciones
     // PB-20 HU1-PB20: el psicólogo crea un cuestionario personalizado.
     public const string CuestionarioCreado = "CUESTIONARIO_CREADO";
 
-    // PB-25: el psicólogo sube nueva tarjeta al cambiar/agregar especialidades;
+    // PB-26 HU1-PB26: validación de credenciales de psicólogos (fiel a v1 CU26).
+    public const string ValidacionPendientes = "VALIDACION_PENDIENTES";
+    public const string ValidacionDetalle = "VALIDACION_DETALLE";
+    public const string ValidacionAprobada = "VALIDACION_APROBADA";
+    public const string ValidacionRechazada = "VALIDACION_RECHAZADA";
+
+    // PB-25 tarjeta: el psicólogo sube nueva tarjeta al cambiar/agregar especialidades;
     // el admin la verifica (las especialidades siguen ocultas hasta entonces).
     public const string TarjetaSubida = "TARJETA_SUBIDA";
     public const string TarjetaVerificada = "TARJETA_VERIFICADA";
