@@ -8,7 +8,8 @@ public class PsicologoService(
     IUserRepository users,
     ICatalogRepository catalogs,
     ISesionRepository sesiones,
-    IAuthLogRepository authLogs)
+    IAuthLogRepository authLogs,
+    ITarjetaStorage tarjetas)
 {
     // Directorio para pacientes: psicólogos (con especialidades y pacientes asignados).
     // Filtros opcionales: q (nombre) y idEspecialidad (checklist de especialidades).
@@ -50,6 +51,7 @@ public class PsicologoService(
             DatosContacto = perfil.DatosContacto,
             TarjetaProfesionalVerificada = perfil.TarjetaProfesionalVerificada,
             Especialidades = perfil.Especialidades,
+            EspecialidadesPendientes = perfil.EspecialidadesPendientes,
             TieneTarjetaArchivo = !string.IsNullOrWhiteSpace(perfil.FilePath)
         };
     }
@@ -79,13 +81,13 @@ public class PsicologoService(
                 throw new InvalidOperationException($"La especialidad {id} no existe");
         }
 
-        // Actualizar perfil profesional
-        await users.ActualizarPerfilProfesionalAsync(
+        // Actualizar perfil profesional (PB-25: la verificación de tarjeta solo
+        // la pone el admin; si cambiaron especialidades quedan ocultas).
+        var huboCambios = await users.ActualizarPerfilProfesionalAsync(
             yo.IdUsuario,
             vm.AñosExperiencia,
             vm.DescripcionProfesional,
             vm.DatosContacto,
-            vm.TarjetaProfesionalVerificada ?? false,
             idsEspecialidad,
             ct);
 
@@ -100,9 +102,26 @@ public class PsicologoService(
         }
 
         await authLogs.LogAsync(yo.IdUsuario, yo.IdUsuario, LogAcciones.PerfilProfesionalActualizado,
-            $"Psicólogo:{yo.IdUsuario} actualizó su perfil profesional", ip, ct);
+            $"Psicólogo:{yo.IdUsuario} actualizó su perfil profesional" + (huboCambios ? " (cambiaron especialidades: ocultas hasta verificación)" : ""), ip, ct);
 
-        return "Información profesional actualizada correctamente";
+        return huboCambios
+            ? "Información profesional actualizada correctamente. Las especialidades nuevas quedarán ocultas para los usuarios hasta que suba la nueva tarjeta profesional y el administrador la verifique. Su acceso a la aplicación no cambia."
+            : "Información profesional actualizada correctamente";
+    }
+
+    // PB-25: el psicólogo sube una nueva tarjeta profesional al cambiar o agregar
+    // especialidades. No pierde acceso: solo quedan ocultas hasta verificación.
+    public async Task<string> SubirTarjetaAsync(string? tokenRaw, IFormFile? tarjeta, string? ip, CancellationToken ct = default)
+    {
+        var yo = await RequirePsicologoAsync(tokenRaw, ct);
+        if (tarjetas.Validate(tarjeta, true, out var error) is not null)
+            throw new InvalidOperationException(error!);
+        var path = await tarjetas.SaveAsync(tarjeta!, yo.IdUsuario, ct);
+        await users.SetFilePathAsync(yo.IdUsuario, path, ct);
+        await users.SetTarjetaVerificadaAsync(yo.IdUsuario, false, ct);
+        await authLogs.LogAsync(yo.IdUsuario, yo.IdUsuario, LogAcciones.TarjetaSubida,
+            $"Psicólogo:{yo.IdUsuario} subió una nueva tarjeta profesional (pendiente de verificación)", ip, ct);
+        return "Tarjeta recibida. Sus especialidades nuevas seguirán ocultas para los usuarios hasta que el administrador la verifique. Su acceso a la aplicación no cambia.";
     }
 
     // Requiere sesión de psicólogo activo y aprobado.

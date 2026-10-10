@@ -18,6 +18,7 @@ public class AdminOptions
 public class AdminService(
     IAdminRepository admin,
     IUserRepository users,
+    ICatalogRepository catalogs,
     IAuthLogRepository authLogs,
     LoginService login,
     IOptions<AdminOptions> options,
@@ -161,4 +162,42 @@ public class AdminService(
 
     private static string FormatSize(long bytes)
         => bytes >= 1024 * 1024 ? $"{bytes / (1024.0 * 1024):0.0} MB" : $"{bytes / 1024.0:0.0} KB";
+
+    // PB-25: cola de tarjetas/especialidades pendientes de verificación.
+    // El psicólogo NO pierde acceso: solo se ocultan hasta que el admin verifique.
+    public async Task<OperationResult<List<PsicologoTarjetaPendienteDto>>> PendientesTarjetaAsync(CancellationToken ct = default)
+    {
+        var idRolPsi = await catalogs.GetRolIdAsync(AppRoles.Psicologo, ct);
+        var filas = await users.GetPsicologosTarjetaPendienteAsync(idRolPsi, ct);
+        var lista = new List<PsicologoTarjetaPendienteDto>();
+        foreach (var f in filas)
+        {
+            lista.Add(new PsicologoTarjetaPendienteDto
+            {
+                Id = f.Id,
+                Nombre = f.Nombre,
+                Correo = f.Correo,
+                TarjetaVerificada = f.TarjetaVerificada,
+                EspecialidadesPendientes = await users.GetEspecialidadesPendientesAsync(f.Id, ct)
+            });
+        }
+        return OperationResult<List<PsicologoTarjetaPendienteDto>>.Ok(lista);
+    }
+
+    // PB-25: verifica la tarjeta del psicólogo (las pendientes se hacen visibles).
+    public async Task<OperationResult<string>> VerificarTarjetaAsync(int adminId, int idPsicologo, string? ip, CancellationToken ct = default)
+    {
+        var psi = await users.FindByIdAsync(idPsicologo, ct);
+        if (psi is null)
+            return OperationResult<string>.Fail("Psicólogo no encontrado.");
+        var rol = await users.GetRolNombreAsync(psi.IdRol, ct);
+        if (!string.Equals(rol, AppRoles.Psicologo, StringComparison.OrdinalIgnoreCase))
+            return OperationResult<string>.Fail("El usuario no es psicólogo.");
+
+        var n = await users.VerificarEspecialidadesAsync(idPsicologo, ct);
+        await users.SetTarjetaVerificadaAsync(idPsicologo, true, ct);
+        await authLogs.LogAsync(adminId, idPsicologo, LogAcciones.TarjetaVerificada,
+            $"Admin:{adminId} verificó la tarjeta del psicólogo:{idPsicologo} ({n} especialidades visibles)", ip, ct);
+        return OperationResult<string>.Ok($"Tarjeta verificada correctamente. {n} especialidades visibles para los usuarios.");
+    }
 }

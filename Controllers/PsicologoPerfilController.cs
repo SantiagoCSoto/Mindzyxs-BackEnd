@@ -100,6 +100,51 @@ public class PsicologoPerfilController(PsicologoService psicologos) : Controller
         }
     }
 
+    /// <summary>Sube una nueva tarjeta profesional (PDF, máx 5MB).</summary>
+    /// <remarks>
+    /// PB-25. Al cambiar o agregar especialidades hay que subir la nueva tarjeta.
+    /// Queda pendiente de verificación del admin; el psicólogo NO pierde acceso,
+    /// solo se ocultan las especialidades nuevas hasta la verificación.
+    ///
+    /// Form-data: `tarjeta` (PDF).
+    ///
+    /// Respuestas:
+    /// - `200` — `{ "mensaje": "Tarjeta recibida. ..." }`
+    /// - `400` — tarjeta inválida (no PDF / supera 5MB / vacía).
+    /// - `401` — sin sesión.
+    /// - `403` — solo psicólogos activos y aprobados.
+    /// </remarks>
+    /// <response code="200">Tarjeta recibida.</response>
+    /// <response code="400">Archivo inválido.</response>
+    /// <response code="401">Sesión requerida.</response>
+    /// <response code="403">Solo psicólogos activos y aprobados.</response>
+    [HttpPost("tarjeta")]
+    [ProducesResponseType(typeof(MessageResult), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ErrorResult), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ErrorResult), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ErrorResult), StatusCodes.Status403Forbidden)]
+    public async Task<IActionResult> SubirTarjeta([FromForm] IFormFile? tarjeta, CancellationToken ct)
+    {
+        try
+        {
+            var ip = HttpContext.Connection.RemoteIpAddress?.ToString();
+            var mensaje = await psicologos.SubirTarjetaAsync(ReadOptionalBearerToken(), tarjeta, ip, ct);
+            return Ok(new { mensaje });
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            return Unauthorized(new { error = ex.Message });
+        }
+        catch (InvalidOperationException ex) when (EsSinPermisos(ex.Message))
+        {
+            return StatusCode(StatusCodes.Status403Forbidden, new { error = ex.Message });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { error = ex.Message });
+        }
+    }
+
     /// <summary>True para mensajes de permisos que deben responder 403.</summary>
     private static bool EsSinPermisos(string mensaje) => mensaje is "No tienes permisos para acceder a esta función"
         or "La cuenta no está activa." or "El psicólogo aún no está aprobado.";

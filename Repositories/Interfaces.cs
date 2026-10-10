@@ -20,15 +20,30 @@ public interface IUserRepository
     Task<string?> GetEstadoCuentaNombreAsync(int idEstadoCuenta, CancellationToken ct = default);
     // PB-especialidades: reemplaza las especialidades del psicólogo (vacío = ninguna).
     Task GuardarEspecialidadesAsync(int idPsicologo, List<int> idsEspecialidad, CancellationToken ct = default);
+    // PB-25: reemplaza conservando verificación; las agregadas quedan ocultas (false).
+    // Devuelve true si hubo cambios (agregadas o quitadas).
+    Task<bool> ActualizarEspecialidadesAsync(int idPsicologo, List<int> idsEspecialidad, CancellationToken ct = default);
+    Task SetTarjetaVerificadaAsync(int idPsicologo, bool verificada, CancellationToken ct = default);
+    Task<List<string>> GetEspecialidadesPendientesAsync(int idPsicologo, CancellationToken ct = default);
+    // PB-25: verifica las pendientes del psicólogo. Devuelve cuántas verificó.
+    Task<int> VerificarEspecialidadesAsync(int idPsicologo, CancellationToken ct = default);
+    // PB-25: psicólogos con tarjeta sin verificar o especialidades pendientes (cola del admin).
+    Task<List<PsicologoTarjetaPendienteRow>> GetPsicologosTarjetaPendienteAsync(int idRolPsicologo, CancellationToken ct = default);
     Task<List<PsicologoDirectorioRow>> GetDirectorioPsicologosAsync(int idRolPsicologo, int idEstadoActiva, int idEstadoAprobado, int idEstadoAutorizado, string? q, int? idEspecialidad, CancellationToken ct = default);
 
     // PB-24 HU1-PB24: perfil profesional del psicólogo.
     Task<UsuarioDto?> FindPerfilProfesionalAsync(int idUsuario, CancellationToken ct = default);
-    Task ActualizarPerfilProfesionalAsync(int idUsuario, int? añosExperiencia, string? descripcionProfesional, string? datosContacto, bool tarjetaProfesionalVerificada, List<int> idsEspecialidad, CancellationToken ct = default);
+    // PB-24/PB-25: actualiza perfil; especialidades con diff (agregadas ocultas,
+    // tarjeta a no verificada si cambiaron). Devuelve true si hubo cambios.
+    // La verificación en true solo la pone el admin.
+    Task<bool> ActualizarPerfilProfesionalAsync(int idUsuario, int? añosExperiencia, string? descripcionProfesional, string? datosContacto, List<int> idsEspecialidad, CancellationToken ct = default);
 }
 
 // PB-especialidades: directorio para pacientes (nombre, especialidades, pacientes asignados).
 public record PsicologoDirectorioRow(int Id, string Nombre, List<string> Especialidades, int PacientesAsignados);
+
+// PB-25: cola del admin para verificar tarjetas/especialidades.
+public record PsicologoTarjetaPendienteRow(int Id, string Nombre, string Correo, bool TarjetaVerificada, int Pendientes);
 
 public interface ICatalogRepository
 {

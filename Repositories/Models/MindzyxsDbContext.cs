@@ -154,6 +154,8 @@ public class MindzyxsDbContext(DbContextOptions<MindzyxsDbContext> options) : Db
             e.ToTable("psicologo_especialidades", "dbo").HasKey(x => new { x.IdPsicologo, x.IdEspecialidad });
             e.Property(x => x.IdPsicologo).HasColumnName("id_psicologo");
             e.Property(x => x.IdEspecialidad).HasColumnName("id_especialidad");
+            // PB-25: visibilidad de la especialidad (verificada por el admin).
+            e.Property(x => x.Verificada).HasColumnName("verificada");
         });
         b.Entity<PreguntaRow>(e =>
         {

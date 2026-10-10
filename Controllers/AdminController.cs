@@ -133,6 +133,56 @@ public class AdminController(AdminService admin) : ControllerBase
         return PhysicalFile(filePath, contentType, fileName);
     }
 
+    /// <summary>Psicólogos con tarjeta o especialidades pendientes de verificación.</summary>
+    /// <remarks>
+    /// PB-25. Requiere `Authorization: Bearer &lt;token&gt;` de un Administrador.
+    /// Cola de trabajo: tarjeta subida al cambiar/agregar especialidades.
+    ///
+    /// Respuestas:
+    /// - `200` — `{ "psicologos": [ { "id", "nombre", "correo", "tarjetaVerificada", "especialidadesPendientes": [] } ] }`
+    /// - `403` — sin rol Administrador.
+    /// </remarks>
+    /// <response code="200">Cola de verificación.</response>
+    /// <response code="403">Solo administradores.</response>
+    [HttpGet("psicologos/tarjeta-pendientes")]
+    [ProducesResponseType(typeof(List<PsicologoTarjetaPendienteDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ErrorResult), StatusCodes.Status403Forbidden)]
+    public async Task<IActionResult> TarjetaPendientes(CancellationToken ct)
+    {
+        var (ok, _, reason) = await EnsureAdminAsync(ct);
+        if (!ok) return StatusCode(403, new { error = reason });
+
+        var r = await admin.PendientesTarjetaAsync(ct);
+        return Ok(new { psicologos = r.Data });
+    }
+
+    /// <summary>Verifica la tarjeta del psicólogo (sus pendientes se hacen visibles).</summary>
+    /// <remarks>
+    /// PB-25. Requiere `Authorization: Bearer &lt;token&gt;` de un Administrador.
+    /// El psicólogo nunca pierde acceso: solo se restringe la visibilidad hasta aquí.
+    ///
+    /// Respuestas:
+    /// - `200` — `{ "mensaje": "Tarjeta verificada correctamente. N especialidades visibles para los usuarios." }`
+    /// - `403` — sin rol Administrador.
+    /// - `404` — psicólogo inexistente o no es psicólogo.
+    /// </remarks>
+    /// <response code="200">Tarjeta verificada.</response>
+    /// <response code="403">Solo administradores.</response>
+    /// <response code="404">Psicólogo no válido.</response>
+    [HttpPut("psicologos/{idPsicologo:int}/tarjeta-verificada")]
+    [ProducesResponseType(typeof(MessageResult), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ErrorResult), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(typeof(ErrorResult), StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> VerificarTarjeta(int idPsicologo, CancellationToken ct)
+    {
+        var (ok, adminId, reason) = await EnsureAdminAsync(ct);
+        if (!ok) return StatusCode(403, new { error = reason });
+
+        var r = await admin.VerificarTarjetaAsync(adminId!.Value, idPsicologo, HttpContext.Connection.RemoteIpAddress?.ToString(), ct);
+        if (!r.Success) return NotFound(new { error = r.Message });
+        return Ok(new { mensaje = r.Message });
+    }
+
     /// <summary>Valida que el token corresponda a una sesión activa y el rol sea Administrador.</summary>
     private async Task<(bool Ok, int? AdminId, string Reason)> EnsureAdminAsync(CancellationToken ct)
     {
