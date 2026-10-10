@@ -18,7 +18,9 @@ public interface IUserRepository
     Task ActualizarCorreoAsync(int idUsuario, string nuevoCorreo, CancellationToken ct = default);
     Task<string?> GetRolNombreAsync(int idRol, CancellationToken ct = default);
     Task<string?> GetEstadoCuentaNombreAsync(int idEstadoCuenta, CancellationToken ct = default);
-    // PB-especialidades: reemplaza las especialidades del psicólogo (vacío = ninguna).
+    // PB-25 HU1-PB25: gestión de usuarios (excluye admins; filtros q/rol/estado).
+    Task<List<UsuarioAdminRow>> GetUsuariosAsync(int idRolAdmin, string? q, int? idRol, int? idEstadoCuenta, CancellationToken ct = default);
+    // PB-especialidades: reemplaza las especialidades del psicólogo (vacío = ninguna, verificadas).
     Task GuardarEspecialidadesAsync(int idPsicologo, List<int> idsEspecialidad, CancellationToken ct = default);
     // PB-25: reemplaza conservando verificación; las agregadas quedan ocultas (false).
     // Devuelve true si hubo cambios (agregadas o quitadas).
@@ -29,6 +31,13 @@ public interface IUserRepository
     Task<int> VerificarEspecialidadesAsync(int idPsicologo, CancellationToken ct = default);
     // PB-25: psicólogos con tarjeta sin verificar o especialidades pendientes (cola del admin).
     Task<List<PsicologoTarjetaPendienteRow>> GetPsicologosTarjetaPendienteAsync(int idRolPsicologo, CancellationToken ct = default);
+
+    // PB-26 HU1-PB26: validación de psicólogos (fiel a v1 CU26).
+    Task<List<PsicologoPendienteRow>> GetPsicologosPendientesAsync(int idRolPsicologo, int idEstadoPendiente, CancellationToken ct = default);
+    // Aprueba/rechaza solo si sigue pendiente (concurrencia). Devuelve true si aplicó.
+    Task<bool> AprobarPsicologoAsync(int idPsicologo, int idEstadoPendiente, int idEstadoAprobado, int idEstadoActiva, CancellationToken ct = default);
+    Task<bool> RechazarPsicologoAsync(int idPsicologo, int idEstadoPendiente, int idEstadoRechazado, int idEstadoInactiva, CancellationToken ct = default);
+    Task SetEstadoAprobacionAsync(int idPsicologo, int idEstadoAprobacion, CancellationToken ct = default);
     Task<List<PsicologoDirectorioRow>> GetDirectorioPsicologosAsync(int idRolPsicologo, int idEstadoActiva, int idEstadoAprobado, int idEstadoAutorizado, string? q, int? idEspecialidad, CancellationToken ct = default);
 
     // PB-24 HU1-PB24: perfil profesional del psicólogo.
@@ -42,8 +51,14 @@ public interface IUserRepository
 // PB-especialidades: directorio para pacientes (nombre, especialidades, pacientes asignados).
 public record PsicologoDirectorioRow(int Id, string Nombre, List<string> Especialidades, int PacientesAsignados);
 
+// PB-25 HU1-PB25: fila de gestión de usuarios (sin admins).
+public record UsuarioAdminRow(int Id, string Nombre, string Apellido, string Correo, int IdRol, string Rol, int IdEstadoCuenta, string Estado, int? IdEstadoAprobacion, string? Aprobacion, DateTime FechaRegistro);
+
 // PB-25: cola del admin para verificar tarjetas/especialidades.
 public record PsicologoTarjetaPendienteRow(int Id, string Nombre, string Correo, bool TarjetaVerificada, int Pendientes);
+
+// PB-26 HU1-PB26: solicitudes pendientes de validación.
+public record PsicologoPendienteRow(int Id, string Nombre, string Correo, DateTime FechaSolicitud);
 
 public interface ICatalogRepository
 {

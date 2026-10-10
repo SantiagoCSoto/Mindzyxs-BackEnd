@@ -183,6 +183,135 @@ public class AdminController(AdminService admin) : ControllerBase
         return Ok(new { mensaje = r.Message });
     }
 
+    /// <summary>Solicitudes pendientes de validación de psicólogos.</summary>
+    /// <remarks>
+    /// PB-26 HU1-PB26 (fiel a v1 CU26). Requiere `Authorization: Bearer &lt;token&gt;` de un Administrador.
+    /// Vacía → el front muestra `No hay solicitudes de validación pendientes.`
+    ///
+    /// Respuestas:
+    /// - `200` — `{ "psicologos": [ { "id", "nombre", "correo", "fechaSolicitud" } ] }`
+    /// - `403` — sin rol Administrador.
+    /// </remarks>
+    /// <response code="200">Solicitudes pendientes.</response>
+    /// <response code="403">Solo administradores.</response>
+    [HttpGet("psicologos/pendientes")]
+    [ProducesResponseType(typeof(List<PsicologoPendienteDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ErrorResult), StatusCodes.Status403Forbidden)]
+    public async Task<IActionResult> PendientesValidacion(CancellationToken ct)
+    {
+        var (ok, _, reason) = await EnsureAdminAsync(ct);
+        if (!ok) return StatusCode(403, new { error = reason });
+
+        var r = await admin.PendientesValidacionAsync(ct);
+        return Ok(new { psicologos = r.Data });
+    }
+
+    /// <summary>Detalle de la solicitud (perfil + tarjeta + estado).</summary>
+    /// <remarks>
+    /// PB-26 HU1-PB26. Si ya fue procesada incluye `aviso: "La solicitud ya fue procesada."`.
+    ///
+    /// Respuestas:
+    /// - `200` — detalle con `pendiente` y `aviso`.
+    /// - `403` — sin rol Administrador.
+    /// - `404` — psicólogo inexistente o no es psicólogo.
+    /// </remarks>
+    /// <response code="200">Detalle de la solicitud.</response>
+    /// <response code="403">Solo administradores.</response>
+    /// <response code="404">Psicólogo no válido.</response>
+    [HttpGet("psicologos/{idPsicologo:int}/validacion")]
+    [ProducesResponseType(typeof(ValidacionDetalleDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ErrorResult), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(typeof(ErrorResult), StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> DetalleValidacion(int idPsicologo, CancellationToken ct)
+    {
+        var (ok, _, reason) = await EnsureAdminAsync(ct);
+        if (!ok) return StatusCode(403, new { error = reason });
+
+        var r = await admin.DetalleValidacionAsync(idPsicologo, ct);
+        if (!r.Success) return NotFound(new { error = r.Message });
+        return Ok(r.Data);
+    }
+
+    /// <summary>Descarga el PDF de la tarjeta profesional.</summary>
+    /// <remarks>
+    /// PB-26 HU1-PB26.
+    ///
+    /// Respuestas:
+    /// - `200` — archivo PDF.
+    /// - `403` — sin rol Administrador.
+    /// - `404` — `No se ha adjuntado tarjeta profesional.`
+    /// </remarks>
+    /// <response code="200">PDF de la tarjeta.</response>
+    /// <response code="403">Solo administradores.</response>
+    /// <response code="404">Sin tarjeta.</response>
+    [HttpGet("psicologos/{idPsicologo:int}/tarjeta")]
+    [ProducesResponseType(typeof(FileResult), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ErrorResult), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(typeof(ErrorResult), StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> DescargarTarjeta(int idPsicologo, CancellationToken ct)
+    {
+        var (ok, _, reason) = await EnsureAdminAsync(ct);
+        if (!ok) return StatusCode(403, new { error = reason });
+
+        var r = await admin.TarjetaPathAsync(idPsicologo, ct);
+        if (!r.Success) return NotFound(new { error = r.Message });
+        return PhysicalFile(r.Data!, "application/pdf", $"tarjeta_{idPsicologo}.pdf");
+    }
+
+    /// <summary>Aprueba al psicólogo (Aprobado/Activa).</summary>
+    /// <remarks>
+    /// PB-26 HU1-PB26. Solo si sigue pendiente, si no `La solicitud ya fue procesada.`
+    /// Notifica por correo (no invalida si falla).
+    ///
+    /// Respuestas:
+    /// - `200` — `{ "mensaje": "Validación registrada correctamente." }`
+    /// - `403` — sin rol Administrador.
+    /// - `404` — psicólogo inexistente / no es psicólogo / ya procesada.
+    /// </remarks>
+    /// <response code="200">Aprobado.</response>
+    /// <response code="403">Solo administradores.</response>
+    /// <response code="404">No procesable.</response>
+    [HttpPost("psicologos/{idPsicologo:int}/aprobar")]
+    [ProducesResponseType(typeof(MessageResult), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ErrorResult), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(typeof(ErrorResult), StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> AprobarPsicologo(int idPsicologo, CancellationToken ct)
+    {
+        var (ok, adminId, reason) = await EnsureAdminAsync(ct);
+        if (!ok) return StatusCode(403, new { error = reason });
+
+        var r = await admin.AprobarPsicologoAsync(adminId!.Value, idPsicologo, HttpContext.Connection.RemoteIpAddress?.ToString(), ct);
+        if (!r.Success) return NotFound(new { error = r.Message });
+        return Ok(new { mensaje = r.Message });
+    }
+
+    /// <summary>Rechaza al psicólogo (Rechazado/Inactiva, bloquea login).</summary>
+    /// <remarks>
+    /// PB-26 HU1-PB26. `motivo` opcional (va en el correo). Puede subir nueva
+    /// tarjeta para ser evaluado nuevamente.
+    ///
+    /// Respuestas:
+    /// - `200` — `{ "mensaje": "Validación registrada correctamente." }`
+    /// - `403` — sin rol Administrador.
+    /// - `404` — psicólogo inexistente / no es psicólogo / ya procesada.
+    /// </remarks>
+    /// <response code="200">Rechazado.</response>
+    /// <response code="403">Solo administradores.</response>
+    /// <response code="404">No procesable.</response>
+    [HttpPost("psicologos/{idPsicologo:int}/rechazar")]
+    [ProducesResponseType(typeof(MessageResult), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ErrorResult), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(typeof(ErrorResult), StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> RechazarPsicologo(int idPsicologo, [FromBody] RechazarPsicologoVm? vm, CancellationToken ct)
+    {
+        var (ok, adminId, reason) = await EnsureAdminAsync(ct);
+        if (!ok) return StatusCode(403, new { error = reason });
+
+        var r = await admin.RechazarPsicologoAsync(adminId!.Value, idPsicologo, vm?.Motivo, HttpContext.Connection.RemoteIpAddress?.ToString(), ct);
+        if (!r.Success) return NotFound(new { error = r.Message });
+        return Ok(new { mensaje = r.Message });
+    }
+
     /// <summary>Valida que el token corresponda a una sesión activa y el rol sea Administrador.</summary>
     private async Task<(bool Ok, int? AdminId, string Reason)> EnsureAdminAsync(CancellationToken ct)
     {

@@ -78,6 +78,33 @@ public class EfUserRepository(MindzyxsDbContext db) : IUserRepository
         => await db.Usuarios.Where(x => x.IdUsuario == idUsuario)
             .ExecuteUpdateAsync(s => s.SetProperty(x => x.Correo, nuevoCorreo), ct);
 
+    // PB-25 HU1-PB25: gestión de usuarios (excluye admins; filtros q/rol/estado).
+    public async Task<List<UsuarioAdminRow>> GetUsuariosAsync(int idRolAdmin, string? q, int? idRol, int? idEstadoCuenta, CancellationToken ct = default)
+    {
+        var query = db.Usuarios.AsNoTracking().Where(u => u.IdRol != idRolAdmin);
+        if (idRol.HasValue)
+            query = query.Where(u => u.IdRol == idRol.Value);
+        if (idEstadoCuenta.HasValue)
+            query = query.Where(u => u.IdEstadoCuenta == idEstadoCuenta.Value);
+        if (!string.IsNullOrWhiteSpace(q))
+        {
+            var t = q.Trim().ToLower();
+            query = query.Where(u => (u.Nombre + " " + u.Apellido).ToLower().Contains(t) || u.Correo.ToLower().Contains(t));
+        }
+        var filas = await query.OrderByDescending(u => u.FechaRegistro).ToListAsync(ct);
+        if (filas.Count == 0) return [];
+        var roles = await db.Roles.AsNoTracking().ToDictionaryAsync(r => r.IdRol, r => r.Nombre, ct);
+        var estados = await db.Estados.AsNoTracking().ToDictionaryAsync(e => e.IdEstado, e => e.Nombre, ct);
+        return filas.Select(u => new UsuarioAdminRow(
+            u.IdUsuario, u.Nombre, u.Apellido, u.Correo, u.IdRol,
+            roles.TryGetValue(u.IdRol, out var r) ? r : "",
+            u.IdEstadoCuenta,
+            estados.TryGetValue(u.IdEstadoCuenta, out var e) ? e : "",
+            u.IdEstadoAprobacion,
+            u.IdEstadoAprobacion.HasValue && estados.TryGetValue(u.IdEstadoAprobacion.Value, out var a) ? a : null,
+            u.FechaRegistro)).ToList();
+    }
+
     // PB-especialidades: reemplaza las especialidades del psicólogo (vacío = ninguna).
     public async Task GuardarEspecialidadesAsync(int idPsicologo, List<int> idsEspecialidad, CancellationToken ct = default)
     {
@@ -121,6 +148,34 @@ public class EfUserRepository(MindzyxsDbContext db) : IUserRepository
         => await db.PsicologoEspecialidades
             .Where(p => p.IdPsicologo == idPsicologo && !p.Verificada)
             .ExecuteUpdateAsync(s => s.SetProperty(p => p.Verificada, true), ct);
+
+    // PB-26 HU1-PB26: solicitudes pendientes de validación (rol + PendienteAprobacion).
+    public async Task<List<PsicologoPendienteRow>> GetPsicologosPendientesAsync(int idRolPsicologo, int idEstadoPendiente, CancellationToken ct = default)
+        => await db.Usuarios.AsNoTracking()
+            .Where(u => u.IdRol == idRolPsicologo && u.IdEstadoAprobacion == idEstadoPendiente)
+            .OrderByDescending(u => u.FechaRegistro)
+            .Select(u => new PsicologoPendienteRow(u.IdUsuario, $"{u.Nombre} {u.Apellido}".Trim(), u.Correo, u.FechaRegistro))
+            .ToListAsync(ct);
+
+    // Aprueba solo si sigue pendiente (concurrencia: 0 filas = ya procesada).
+    public async Task<bool> AprobarPsicologoAsync(int idPsicologo, int idEstadoPendiente, int idEstadoAprobado, int idEstadoActiva, CancellationToken ct = default)
+        => await db.Usuarios
+            .Where(u => u.IdUsuario == idPsicologo && u.IdEstadoAprobacion == idEstadoPendiente)
+            .ExecuteUpdateAsync(s => s
+                .SetProperty(u => u.IdEstadoAprobacion, idEstadoAprobado)
+                .SetProperty(u => u.IdEstadoCuenta, idEstadoActiva), ct) > 0;
+
+    // Rechaza solo si sigue pendiente. La cuenta pasa a Inactiva (bloquea login).
+    public async Task<bool> RechazarPsicologoAsync(int idPsicologo, int idEstadoPendiente, int idEstadoRechazado, int idEstadoInactiva, CancellationToken ct = default)
+        => await db.Usuarios
+            .Where(u => u.IdUsuario == idPsicologo && u.IdEstadoAprobacion == idEstadoPendiente)
+            .ExecuteUpdateAsync(s => s
+                .SetProperty(u => u.IdEstadoAprobacion, idEstadoRechazado)
+                .SetProperty(u => u.IdEstadoCuenta, idEstadoInactiva), ct) > 0;
+
+    public async Task SetEstadoAprobacionAsync(int idPsicologo, int idEstadoAprobacion, CancellationToken ct = default)
+        => await db.Usuarios.Where(u => u.IdUsuario == idPsicologo)
+            .ExecuteUpdateAsync(s => s.SetProperty(u => u.IdEstadoAprobacion, idEstadoAprobacion), ct);
 
     // PB-25: psicólogos con tarjeta sin verificar o especialidades pendientes (cola del admin).
     public async Task<List<PsicologoTarjetaPendienteRow>> GetPsicologosTarjetaPendienteAsync(int idRolPsicologo, CancellationToken ct = default)
@@ -194,6 +249,7 @@ public class EfUserRepository(MindzyxsDbContext db) : IUserRepository
                 x.FechaNacimiento,
                 x.IdGenero,
                 x.FilePath,
+                x.FechaRegistro,
                 x.AñosExperiencia,
                 x.DescripcionProfesional,
                 x.DatosContacto,
@@ -216,6 +272,7 @@ public class EfUserRepository(MindzyxsDbContext db) : IUserRepository
             FechaNacimiento = u.FechaNacimiento,
             IdGenero = u.IdGenero,
             FilePath = u.FilePath,
+            FechaRegistro = u.FechaRegistro,
             AñosExperiencia = u.AñosExperiencia,
             DescripcionProfesional = u.DescripcionProfesional,
             DatosContacto = u.DatosContacto,
@@ -269,6 +326,7 @@ public class EfUserRepository(MindzyxsDbContext db) : IUserRepository
         Correo = u.Correo,
         PasswordHash = u.PasswordHash,
         FechaNacimiento = u.FechaNacimiento,
+        FechaRegistro = u.FechaRegistro,
         IdGenero = u.IdGenero,
         FilePath = u.FilePath
     };
