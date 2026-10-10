@@ -13,6 +13,7 @@ public class PerfilService(
     ISesionRepository sesiones,
     IAuthLogRepository authLogs,
     IEmailSender email,
+    NotificationService notificaciones,
     IOptions<RegistroOptions> registroOptions)
 {
     // PB-10 HU1-PB10: devuelve el perfil del usuario autenticado (nombres,
@@ -78,8 +79,11 @@ public class PerfilService(
         var codigo = CodeHelper.NewCode6();
         var expira = DateTimeProvider.UtcNow().AddMinutes(registroOptions.Value.CodigoExpiraMinutos);
         await codes.CrearAsync(yo.IdUsuario, codigo, VerificationTypes.CambioCorreo, expira, ct);
-        await email.SendAsync(nuevo, "Mindzyxs - Código para cambio de correo",
-            EmailTemplates.VerificationCode(yo.Nombre, codigo), ct);
+        // PB-30: cambio de correo usa el evento CODE_SENT.
+        await notificaciones.EnviarCorreoAsync(TiposNotificacion.CodeSent, nuevo,
+            new Dictionary<string, string> { ["nombre"] = yo.Nombre, ["codigo"] = codigo },
+            "Mindzyxs - Código para cambio de correo",
+            v => EmailTemplates.VerificationCode(v["nombre"], v["codigo"]), yo.IdUsuario, ip, ct);
         await authLogs.LogAsync(yo.IdUsuario, yo.IdUsuario, LogAcciones.CorreoSolicitado,
             $"Paciente:{yo.IdUsuario} solicitó cambio de correo a {nuevo}", ip, ct);
         return "Código enviado";
@@ -126,8 +130,11 @@ public class PerfilService(
         var codigo = CodeHelper.NewCode6();
         var expira = DateTimeProvider.UtcNow().AddMinutes(registroOptions.Value.CodigoExpiraMinutos);
         await codes.CrearAsync(user.IdUsuario, codigo, VerificationTypes.Registro, expira, ct);
-        await email.SendAsync(user.Correo, "Mindzyxs - Nuevo código de verificación",
-            EmailTemplates.VerificationCode(user.Nombre, codigo), ct);
+        // PB-30: respeta la config del admin (CODE_SENT).
+        await notificaciones.EnviarCorreoAsync(TiposNotificacion.CodeSent, user.Correo,
+            new Dictionary<string, string> { ["nombre"] = user.Nombre, ["codigo"] = codigo },
+            "Mindzyxs - Nuevo código de verificación",
+            v => EmailTemplates.VerificationCode(v["nombre"], v["codigo"]), user.IdUsuario, null, ct);
         return (true, "Te enviamos un nuevo código. Continúa con tu verificación.");
     }
 

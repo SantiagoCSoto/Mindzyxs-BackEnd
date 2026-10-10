@@ -14,6 +14,7 @@ public class PasswordRecoveryService(
     ISesionRepository sesiones,
     IAuthLogRepository authLogs,
     IEmailSender email,
+    NotificationService notificaciones,
     IOptions<RegistroOptions> registroOptions,
     ILogger<PasswordRecoveryService> logger)
 {
@@ -37,8 +38,11 @@ public class PasswordRecoveryService(
 
         try
         {
-            await email.SendAsync(user.Correo, "Mindzyxs - Código de recuperación",
-                EmailTemplates.RecoveryCode(user.Nombre, codigo), ct);
+            // PB-30: respeta la config del admin (PASSWORD_RECOVERY).
+            await notificaciones.EnviarCorreoAsync(TiposNotificacion.PasswordRecovery, user.Correo,
+                new Dictionary<string, string> { ["nombre"] = user.Nombre, ["codigo"] = codigo },
+                "Mindzyxs - Código de recuperación",
+                v => EmailTemplates.RecoveryCode(v["nombre"], v["codigo"]), user.IdUsuario, null, ct);
         }
         catch (Exception ex)
         {
@@ -128,8 +132,11 @@ public class PasswordRecoveryService(
 
         try
         {
-            await email.SendAsync(user.Correo, "Mindzyxs - Nuevo código de recuperación",
-                EmailTemplates.RecoveryCode(user.Nombre, codigo), ct);
+            // PB-30: respeta la config del admin (PASSWORD_RECOVERY).
+            await notificaciones.EnviarCorreoAsync(TiposNotificacion.PasswordRecovery, user.Correo,
+                new Dictionary<string, string> { ["nombre"] = user.Nombre, ["codigo"] = codigo },
+                "Mindzyxs - Nuevo código de recuperación",
+                v => EmailTemplates.RecoveryCode(v["nombre"], v["codigo"]), user.IdUsuario, null, ct);
         }
         catch (Exception ex)
         {

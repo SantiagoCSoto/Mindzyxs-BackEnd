@@ -153,4 +153,9 @@ public static class LogAcciones
     // PB-22 HU1-PB22: el psicólogo asigna un cuestionario publicado a uno o varios
     // pacientes que le hayan autorizado (queda disponible de inmediato para el paciente).
     public const string CuestionarioAsignado = "CUESTIONARIO_ASIGNADO";
+
+    // PB-30: notificaciones del admin (consulta, actualización y omisiones).
+    public const string NotificacionesConsulta = "NOTIFICACIONES_CONSULTA";
+    public const string NotificacionActualizada = "NOTIFICACION_ACTUALIZADA";
+    public const string CorreoOmitido = "CORREO_OMITIDO";
 }

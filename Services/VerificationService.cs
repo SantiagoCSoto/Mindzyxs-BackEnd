@@ -11,6 +11,7 @@ public class VerificationService(
     ICatalogRepository catalogs,
     ICodigoRepository codes,
     IEmailSender email,
+    NotificationService notificaciones,
     IOptions<RegistroOptions> registroOptions)
 {
     public async Task<OperationResult<string>> VerifyAsync(string? correo, string? codigo, CancellationToken ct = default)
@@ -51,8 +52,11 @@ public class VerificationService(
         var codigo = CodeHelper.NewCode6();
         var expira = DateTimeProvider.UtcNow().AddMinutes(registroOptions.Value.CodigoExpiraMinutos);
         await codes.CrearAsync(user.IdUsuario, codigo, VerificationTypes.Registro, expira, ct);
-        await email.SendAsync(user.Correo, "Mindzyxs - Nuevo código de verificación",
-            EmailTemplates.VerificationCode(user.Nombre, codigo), ct);
+        // PB-30: respeta la config del admin (CODE_SENT).
+        await notificaciones.EnviarCorreoAsync(TiposNotificacion.CodeSent, user.Correo,
+            new Dictionary<string, string> { ["nombre"] = user.Nombre, ["codigo"] = codigo },
+            "Mindzyxs - Nuevo código de verificación",
+            v => EmailTemplates.VerificationCode(v["nombre"], v["codigo"]), user.IdUsuario, null, ct);
         return OperationResult.Ok("Código reenviado");
     }
 
