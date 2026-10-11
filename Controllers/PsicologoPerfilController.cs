@@ -119,16 +119,17 @@ public class PsicologoPerfilController(PsicologoService psicologos) : Controller
     /// <response code="401">Sesión requerida.</response>
     /// <response code="403">Solo psicólogos activos y aprobados.</response>
     [HttpPost("tarjeta")]
+    [Consumes("multipart/form-data")]
     [ProducesResponseType(typeof(MessageResult), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ErrorResult), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ErrorResult), StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(typeof(ErrorResult), StatusCodes.Status403Forbidden)]
-    public async Task<IActionResult> SubirTarjeta([FromForm] IFormFile? tarjeta, CancellationToken ct)
+    public async Task<IActionResult> SubirTarjeta([FromForm] SubirTarjetaVm vm, CancellationToken ct)
     {
         try
         {
             var ip = HttpContext.Connection.RemoteIpAddress?.ToString();
-            var mensaje = await psicologos.SubirTarjetaAsync(ReadOptionalBearerToken(), tarjeta, ip, ct);
+            var mensaje = await psicologos.SubirTarjetaAsync(ReadOptionalBearerToken(), vm.Tarjeta, ip, ct);
             return Ok(new { mensaje });
         }
         catch (UnauthorizedAccessException ex)

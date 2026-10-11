@@ -55,3 +55,10 @@ public class ActualizarPerfilProfesionalVm
     /// <summary>Correo de contacto (opcional, se valida unicidad).</summary>
     public string? Correo { get; set; }
 }
+
+/// <summary>Cuerpo multipart de <c>POST /api/psicologo/perfil-profesional/tarjeta</c>.</summary>
+public class SubirTarjetaVm
+{
+    /// <summary>Archivo PDF de la tarjeta profesional (máx 5MB).</summary>
+    public IFormFile? Tarjeta { get; set; }
+}
