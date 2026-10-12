@@ -39,7 +39,7 @@ public class AdminUsuariosController(AdminService admin) : ControllerBase
             if (!r.Success) return BadRequest(new { error = r.Message });
             return Ok(new { usuarios = r.Data });
         }
-        catch (InvalidOperationException ex)
+        catch (InvalidOperationException)
         {
             return BadRequest(new { error = "Filtro no válido." });
         }

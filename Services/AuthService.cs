@@ -15,7 +15,6 @@ public class AuthService(
     ICatalogRepository catalogs,
     ICodigoRepository codes,
     ITarjetaStorage tarjetas,
-    IEmailSender email,
     NotificationService notificaciones,
     IOptions<RegistroOptions> registroOptions,
     ILogger<AuthService> logger)

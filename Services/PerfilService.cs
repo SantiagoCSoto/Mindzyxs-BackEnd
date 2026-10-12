@@ -12,7 +12,6 @@ public class PerfilService(
     ICodigoRepository codes,
     ISesionRepository sesiones,
     IAuthLogRepository authLogs,
-    IEmailSender email,
     NotificationService notificaciones,
     IOptions<RegistroOptions> registroOptions)
 {

@@ -8,7 +8,6 @@ namespace Mindzyxs_API.Services;
 public class AdminCuestionariosService(
     ICuestionarioRepository cuestionarios,
     IUserRepository users,
-    ICatalogRepository catalogs,
     ISesionRepository sesiones,
     IAuthLogRepository authLogs,
     MindzyxsDbContext db)

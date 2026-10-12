@@ -13,7 +13,6 @@ public class PasswordRecoveryService(
     ICodigoRepository codes,
     ISesionRepository sesiones,
     IAuthLogRepository authLogs,
-    IEmailSender email,
     NotificationService notificaciones,
     IOptions<RegistroOptions> registroOptions,
     ILogger<PasswordRecoveryService> logger)
