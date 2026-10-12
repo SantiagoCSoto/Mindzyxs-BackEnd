@@ -10,7 +10,6 @@ public class VerificationService(
     IUserRepository users,
     ICatalogRepository catalogs,
     ICodigoRepository codes,
-    IEmailSender email,
     NotificationService notificaciones,
     IOptions<RegistroOptions> registroOptions)
 {

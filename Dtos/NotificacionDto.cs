@@ -9,7 +9,7 @@ public class NotificacionDto
     /// <summary>Nombre legible del evento.</summary>
     public string Nombre { get; set; } = string.Empty;
 
-    /// <summary>Canales (correo, sms, interna).</summary>
+    /// <summary>Canales (solo correo).</summary>
     public List<string> Canales { get; set; } = [];
 
     /// <summary>Si está habilitado.</summary>

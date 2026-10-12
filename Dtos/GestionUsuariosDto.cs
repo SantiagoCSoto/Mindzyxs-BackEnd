@@ -41,25 +41,6 @@ public class UsuarioDetalleDto : UsuarioAdminDto
     public string? Genero { get; set; }
 }
 
-/// <summary>Editar usuario: <c>PUT /api/admin/usuarios/{id}</c> (PB-25).</summary>
-public class ActualizarUsuarioVm
-{
-    /// <summary>Nombres (obligatorio).</summary>
-    public string Nombres { get; set; } = string.Empty;
-
-    /// <summary>Apellidos.</summary>
-    public string? Apellidos { get; set; }
-
-    /// <summary>Correo (obligatorio, único).</summary>
-    public string Correo { get; set; } = string.Empty;
-
-    /// <summary>Fecha de nacimiento.</summary>
-    public DateTime? FechaNacimiento { get; set; }
-
-    /// <summary>Id de género.</summary>
-    public int? IdGenero { get; set; }
-}
-
 /// <summary>Cambiar estado: <c>PUT /api/admin/usuarios/{id}/estado</c> (PB-25).</summary>
 public class CambiarEstadoVm
 {
