@@ -1010,18 +1010,6 @@ GET {{Host}}/api/admin/usuarios/12
 Authorization: Bearer <token-admin>
 Accept: application/json
 
-### PB-25 editar usuario (requiere Bearer admin)
-PUT {{Host}}/api/admin/usuarios/12
-Authorization: Bearer <token-admin>
-Content-Type: application/json
-Accept: application/json
-
-{
-  "nombres": "Santiago",
-  "apellidos": "Cortes Soto",
-  "correo": "santiagocortessoto435@gmail.com"
-}
-
 ### PB-25 cambiar estado (requiere Bearer admin)
 PUT {{Host}}/api/admin/usuarios/6/estado
 Authorization: Bearer <token-admin>

@@ -17,8 +17,8 @@ public static class TiposNotificacion
 }
 
 // PB-30: los envíos consultan la config del admin (habilitado + plantilla con
-// variables). Sin fila → comportamiento actual (fallback). sms/interna no tienen
-// proveedor: solo quedan registrados. Nunca lanza por config ausente.
+// variables). Sin fila → comportamiento actual (fallback). Solo existe el canal
+// correo (no se envía SMS).
 public class NotificationService(
     INotificacionRepository notificaciones,
     IEmailSender email,
@@ -47,15 +47,14 @@ public class NotificationService(
         var cuerpo = Sustituir(string.IsNullOrWhiteSpace(cfg.Cuerpo) ? fallbackBody(vars) : cfg.Cuerpo, vars);
         var canales = (cfg.Canales ?? "correo").Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
             .Select(c => c.ToLowerInvariant()).ToHashSet();
-        if (canales.Contains("correo"))
-            await email.SendAsync(destino, asunto, cuerpo, ct);
-        foreach (var canal in new[] { "sms", "interna" })
+        if (!canales.Contains("correo"))
         {
-            if (canales.Contains(canal))
-                await authLogs.LogAsync(actorId, actorId, LogAcciones.CorreoOmitido,
-                    $"Notificación {tipo} por {canal} sin proveedor (solo queda registrada)", ip, ct);
+            await authLogs.LogAsync(actorId, actorId, LogAcciones.CorreoOmitido,
+                $"Notificación {tipo} omitida (sin canal correo)", ip, ct);
+            return false;
         }
-        return canales.Contains("correo");
+        await email.SendAsync(destino, asunto, cuerpo, ct);
+        return true;
     }
 
     // Sustituye {nombre}, {codigo}, {fecha}, {motivo} (las que vengan en vars).

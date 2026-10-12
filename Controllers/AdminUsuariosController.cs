@@ -69,38 +69,6 @@ public class AdminUsuariosController(AdminService admin) : ControllerBase
         return Ok(r.Data);
     }
 
-    /// <summary>Edita datos básicos del usuario.</summary>
-    /// <remarks>
-    /// Respuestas:
-    /// - `200` — `{ "mensaje": "Cambios guardados correctamente." }`
-    /// - `400` — validación (nombre/correo/género).
-    /// - `403` — sin rol o es admin.
-    /// - `404` — no existe.
-    /// </remarks>
-    /// <response code="200">Actualizado.</response>
-    /// <response code="400">Validación.</response>
-    /// <response code="403">Solo administradores / no administrable.</response>
-    /// <response code="404">No existe.</response>
-    [HttpPut("{idUsuario:int}")]
-    [ProducesResponseType(typeof(MessageResult), StatusCodes.Status200OK)]
-    [ProducesResponseType(typeof(ErrorResult), StatusCodes.Status403Forbidden)]
-    [ProducesResponseType(typeof(ErrorResult), StatusCodes.Status404NotFound)]
-    public async Task<IActionResult> Actualizar(int idUsuario, [FromBody] ActualizarUsuarioVm vm, CancellationToken ct)
-    {
-        var (ok, adminId, reason) = await EnsureAdminAsync(ct);
-        if (!ok) return StatusCode(403, new { error = reason });
-
-        var ip = HttpContext.Connection.RemoteIpAddress?.ToString();
-        var r = await admin.ActualizarUsuarioAsync(adminId!.Value, idUsuario, vm, ip, ct);
-        if (!r.Success)
-            return r.Message == "Usuario no encontrado."
-                ? NotFound(new { error = r.Message })
-                : r.Message == "No puedes administrar usuarios administradores."
-                    ? StatusCode(StatusCodes.Status403Forbidden, new { error = r.Message })
-                    : BadRequest(new { error = r.Message });
-        return Ok(new { mensaje = r.Message });
-    }
-
     /// <summary>Cambia el estado de la cuenta (Activa/Suspendida/Inactiva...).</summary>
     /// <remarks>
     /// Respuestas:

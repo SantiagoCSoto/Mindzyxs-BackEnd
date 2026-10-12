@@ -372,41 +372,9 @@ public class AdminService(
         });
     }
 
-    // PB-25 HU1-PB25: edita datos básicos (fiel a v1 CU25).
-    public async Task<OperationResult<string>> ActualizarUsuarioAsync(int adminId, int idUsuario, ActualizarUsuarioVm vm, string? ip, CancellationToken ct = default)
-    {
-        if (string.IsNullOrWhiteSpace(vm.Nombres))
-            return OperationResult<string>.Fail("El nombre es obligatorio.");
-        if (string.IsNullOrWhiteSpace(vm.Correo))
-            return OperationResult<string>.Fail("El correo es obligatorio.");
-        var correo = ContactHelper.Normalize(vm.Correo);
-        if (!ContactHelper.IsEmail(correo))
-            return OperationResult<string>.Fail("Ingresa un correo válido.");
-
-        var u = await users.FindByIdAsync(idUsuario, ct);
-        if (u is null)
-            return OperationResult<string>.Fail("Usuario no encontrado.");
-        var rol = await users.GetRolNombreAsync(u.IdRol, ct) ?? "";
-        if (string.Equals(rol, AppRoles.Administrador, StringComparison.OrdinalIgnoreCase))
-            return OperationResult<string>.Fail("No puedes administrar usuarios administradores.");
-
-        var otro = await users.FindByCorreoAsync(correo, ct);
-        if (otro is not null && otro.IdUsuario != idUsuario)
-            return OperationResult<string>.Fail("El correo ya está registrado por otro usuario.");
-
-        if (vm.IdGenero.HasValue && !await catalogs.ExisteGeneroAsync(vm.IdGenero.Value, ct))
-            return OperationResult<string>.Fail("Género no válido.");
-
-        await users.ActualizarPerfilAsync(idUsuario, vm.Nombres.Trim(), (vm.Apellidos ?? "").Trim(), vm.FechaNacimiento, vm.IdGenero, ct);
-        if (!string.Equals(correo, u.Correo, StringComparison.OrdinalIgnoreCase))
-            await users.ActualizarCorreoAsync(idUsuario, correo, ct);
-
-        await authLogs.LogAsync(adminId, idUsuario, LogAcciones.UsuarioActualizado,
-            $"Admin:{adminId} editó al usuario:{idUsuario}", ip, ct);
-        return new OperationResult<string> { Success = true, Message = "Cambios guardados correctamente." };
-    }
-
     // PB-25 HU1-PB25: cambia el estado de la cuenta (fiel a v1 CU25).
+    // NOTA: el admin NO edita datos personales (nombres, correo, etc.);
+    // solo gestiona estados y restablecimientos. Método de edición eliminado.
     public async Task<OperationResult<string>> CambiarEstadoAsync(int adminId, int idUsuario, string nuevoEstado, string? ip, CancellationToken ct = default)
     {
         if (string.IsNullOrWhiteSpace(nuevoEstado))
@@ -491,7 +459,8 @@ public class AdminService(
     {
         if (!TiposNotificacion.Todos.Contains(tipo, StringComparer.OrdinalIgnoreCase))
             return OperationResult<string>.Fail("Evento no encontrado.");
-        var canales = (vm.Canales ?? []).Select(c => c.Trim().ToLowerInvariant()).Where(c => c is "correo" or "sms" or "interna").Distinct().ToList();
+        // Solo existe el canal correo (no se envía SMS ni interna).
+        var canales = (vm.Canales ?? []).Select(c => c.Trim().ToLowerInvariant()).Where(c => c is "correo").Distinct().ToList();
         if (vm.Activo && canales.Count == 0)
             return OperationResult<string>.Fail("Debes habilitar al menos un canal para este evento.");
         if (vm.Activo && string.IsNullOrWhiteSpace(vm.Cuerpo))
