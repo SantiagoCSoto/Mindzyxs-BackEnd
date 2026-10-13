@@ -33,18 +33,32 @@ public class EfUserRepository(MindzyxsDbContext db) : IUserRepository
     {
         // Sin OUTPUT: dbo.usuarios tiene INSTEAD OF INSERT (TR_usuarios_PasswordSeguro)
         // y SQL Server rechaza INSERT...OUTPUT con triggers (error 334).
-        var ids = await db.Database.SqlQueryRaw<int>(
-            "INSERT INTO dbo.usuarios (nombre, apellido, correo, password_hash, fecha_nacimiento, id_rol, id_estado_cuenta, id_estado_aprobacion, id_genero, fecha_registro) VALUES (@n, @a, @c, @p, @fn, @r, @ec, @ea, @g, SYSDATETIME()); SELECT CAST(SCOPE_IDENTITY() AS INT)",
-            new SqlParameter("@n", user.Nombre.Trim()),
-            new SqlParameter("@a", user.Apellido.Trim()),
-            new SqlParameter("@c", ContactHelper.Normalize(user.Correo)),
-            new SqlParameter("@p", user.PasswordHash),
-            new SqlParameter("@fn", (object?)user.FechaNacimiento ?? DBNull.Value),
-            new SqlParameter("@r", user.IdRol),
-            new SqlParameter("@ec", user.IdEstadoCuenta),
-            new SqlParameter("@ea", (object?)user.IdEstadoAprobacion ?? DBNull.Value),
-            new SqlParameter("@g", (object?)user.IdGenero ?? DBNull.Value)).ToListAsync(ct);
-        return ids.Single();
+        // Tampoco sirve SCOPE_IDENTITY: con INSTEAD OF devuelve NULL y revienta
+        // el mapeo ("Nullable object must have a value"). El correo es único:
+        // se inserta y se lee el id generado.
+        var correo = ContactHelper.Normalize(user.Correo);
+        await db.Database.ExecuteSqlRawAsync(
+            "INSERT INTO dbo.usuarios (nombre, apellido, correo, password_hash, fecha_nacimiento, id_rol, id_estado_cuenta, id_estado_aprobacion, id_genero, fecha_registro) VALUES (@n, @a, @c, @p, @fn, @r, @ec, @ea, @g, SYSDATETIME())",
+            new object[]
+            {
+                new SqlParameter("@n", user.Nombre.Trim()),
+                new SqlParameter("@a", user.Apellido.Trim()),
+                new SqlParameter("@c", correo),
+                new SqlParameter("@p", user.PasswordHash),
+                new SqlParameter("@fn", (object?)user.FechaNacimiento ?? DBNull.Value),
+                new SqlParameter("@r", user.IdRol),
+                new SqlParameter("@ec", user.IdEstadoCuenta),
+                new SqlParameter("@ea", (object?)user.IdEstadoAprobacion ?? DBNull.Value),
+                new SqlParameter("@g", (object?)user.IdGenero ?? DBNull.Value)
+            },
+            ct);
+        var id = await db.Usuarios.AsNoTracking()
+            .Where(x => x.Correo == correo)
+            .Select(x => x.IdUsuario)
+            .FirstOrDefaultAsync(ct);
+        if (id == 0)
+            throw new InvalidOperationException("No fue posible crear el usuario.");
+        return id;
     }
 
     public async Task SetFilePathAsync(int idUsuario, string path, CancellationToken ct = default)
