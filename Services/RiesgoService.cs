@@ -51,7 +51,7 @@ public class RiesgoService(
             Alerta = new AlertaRiesgoDto
             {
                 Mostrar = esAlto,
-                Mensaje = esAlto ? "Riesgo alto detectado. Busca ayuda profesional o comunícate con una línea de ayuda" : ""
+                Mensaje = esAlto ? "Por lo que nos has contado, sería importante buscar apoyo profesional pronto. Aquí tienes opciones de ayuda inmediata." : ""
             },
             MostrarLineasAyuda = true,
             MostrarRecomendaciones = true,
@@ -92,9 +92,9 @@ public class RiesgoService(
     // Breve explicación general por nivel (no diagnóstico clínico).
     private static string ExplicacionPorNivel(string nivel) => nivel switch
     {
-        "Medio" => "Se observan algunos síntomas emocionales que conviene vigilar. Te recomendamos mantener un monitoreo periódico y revisar las recomendaciones básicas para tu bienestar.",
-        "Alto" => "Se observan síntomas emocionales relevantes en tus respuestas. Es muy importante que busques ayuda profesional o te comuniques con una línea de ayuda de tu país.",
-        _ => "No se observan síntomas emocionales significativos en tus respuestas. Te invitamos a continuar con tu monitoreo habitual y registrar cómo te sientes periódicamente."
+        "Medio" => "Se observan algunos síntomas emocionales que conviene vigilar. Te recomendamos mantener un monitoreo periódico y revisar las recomendaciones básicas para tu bienestar. Si lo necesitas, también puedes buscar apoyo profesional.",
+        "Alto" => "Se observan síntomas emocionales relevantes en tus respuestas. Es muy importante que busques ayuda profesional o te comuniques con una línea de ayuda de tu país. Esto no es un diagnóstico clínico.",
+        _ => "Tus respuestas no muestran señales de alto riesgo en este momento. Te invitamos a continuar con tu monitoreo habitual y registrar cómo te sientes periódicamente. Si en algún momento te sientes mal, busca apoyo profesional."
     };
 
     // PB-16 HU1-PB16: registra en dbo.auth la alerta de riesgo alto del paciente.
