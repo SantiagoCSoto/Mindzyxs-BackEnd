@@ -11,6 +11,7 @@ public class FirebaseOptions
 {
     public string ProjectId { get; set; } = "";
     public string DatabaseUrl { get; set; } = "";
+    public string CredentialsPath { get; set; } = "";
 }
 
 /// <summary>
@@ -59,8 +60,10 @@ public class FirebaseService(
         };
         var client = httpFactory.CreateClient();
         using var content = JsonContent.Create(meta, options: JsonOpts);
-        var url = $"{dbUrl}/conversaciones/{conversacionId}/meta.json?access_token={Uri.EscapeDataString(accessToken)}";
-        using var resp = await client.PutAsync(url, content, ct);
+        var url = $"{dbUrl}/conversaciones/{conversacionId}/meta.json";
+        using var request = new HttpRequestMessage(HttpMethod.Put, url) { Content = content };
+        request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", accessToken);
+        using var resp = await client.SendAsync(request, ct);
         resp.EnsureSuccessStatusCode();
         logger.LogInformation("RTDB meta escrita para conversación {Id} (estado {Estado})", conversacionId, estado);
     }
@@ -75,13 +78,27 @@ public class FirebaseService(
             var opt = options.Value;
             if (string.IsNullOrWhiteSpace(opt.DatabaseUrl))
                 throw new InvalidOperationException("Firebase:DatabaseUrl no configurada en appsettings.");
-            var keyPath = Environment.GetEnvironmentVariable("GOOGLE_APPLICATION_CREDENTIALS");
-            if (string.IsNullOrWhiteSpace(keyPath))
-                throw new InvalidOperationException("GOOGLE_APPLICATION_CREDENTIALS no definida (ruta al serviceAccountKey.json).");
-            dbUrl = opt.DatabaseUrl.Trim().TrimEnd('/');
-#pragma warning disable CS0618 // FromFile obsoleto pero funcional; alternativa: CredentialFactory
-            credential = GoogleCredential.FromFile(keyPath);
+            var credentialSource = !string.IsNullOrWhiteSpace(opt.CredentialsPath)
+                ? opt.CredentialsPath
+                : Environment.GetEnvironmentVariable("GOOGLE_APPLICATION_CREDENTIALS");
+            if (string.IsNullOrWhiteSpace(credentialSource))
+                throw new InvalidOperationException("Firebase:CredentialsPath o GOOGLE_APPLICATION_CREDENTIALS no definida (ruta o JSON de la cuenta de servicio).");
+
+            var trimmed = credentialSource.Trim();
+            if (trimmed.StartsWith("{", StringComparison.Ordinal))
+            {
+#pragma warning disable CS0618
+                credential = GoogleCredential.FromJson(trimmed);
 #pragma warning restore CS0618
+            }
+            else
+            {
+                if (!File.Exists(trimmed))
+                    throw new InvalidOperationException($"No se encontró el archivo de credenciales de Firebase: {trimmed}");
+#pragma warning disable CS0618 // FromFile obsoleto pero funcional; alternativa: CredentialFactory
+                credential = GoogleCredential.FromFile(trimmed);
+#pragma warning restore CS0618
+            }
             FirebaseApp.Create(new AppOptions
             {
                 Credential = credential,

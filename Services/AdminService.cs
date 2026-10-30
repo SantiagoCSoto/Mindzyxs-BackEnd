@@ -10,6 +10,7 @@ public class AdminOptions
     public string BackupsPath { get; set; } = @"C:\uploads\mindzyxs\backups";
     public int RetencionLogDias { get; set; } = 90;
     public string BackupConnectionString { get; set; } = string.Empty;
+    public bool EnableNativeSqlBackup { get; set; } = true;
 }
 
 // PB-27 HU1-PB27: administrar BD. Crear respaldo local (.bak nativo de SQL Server o
@@ -24,6 +25,7 @@ public class AdminService(
     LoginService login,
     PasswordRecoveryService recovery,
     IEmailSender email,
+    ITarjetaStorage tarjetas,
     IOptions<AdminOptions> options,
     ILogger<AdminService> logger)
 {
@@ -38,17 +40,31 @@ public class AdminService(
             var nombre = string.Empty;
             var tipo = "bak";
 
-            // 1) Respaldo nativo de SQL Server (.bak) con la credencial dedicada.
-            try
+            // 1) Respaldo nativo de SQL Server (.bak) solo si está habilitado y configurado.
+            // En Azure SQL no se soporta BACKUP DATABASE ... TO DISK.
+            if (options.Value.EnableNativeSqlBackup && !string.IsNullOrWhiteSpace(options.Value.BackupConnectionString))
             {
-                nombre = $"mindzyx_full_{now:yyyy-MM-dd_HH-mm-ss}.bak";
-                full = Path.Combine(root, nombre);
-                await admin.CreateSqlBackupAsync(full, ct);
+                try
+                {
+                    nombre = $"mindzyx_full_{now:yyyy-MM-dd_HH-mm-ss}.bak";
+                    full = Path.Combine(root, nombre);
+                    await admin.CreateSqlBackupAsync(full, ct);
+                }
+                catch (Exception ex)
+                {
+                    // 2) Contingencia: snapshot JSON si el .bak nativo falla (permisos/carpeta).
+                    logger.LogWarning(ex, "BACKUP DATABASE fallido por {AdminId}; usando snapshot JSON", adminId);
+                    tipo = "json";
+                    nombre = $"mindzyx_backup_{now:yyyy-MM-dd_HH-mm-ss}.backup";
+                    full = Path.Combine(root, nombre);
+                    var snapshot = await admin.ExportSnapshotJsonAsync(ct);
+                    await File.WriteAllTextAsync(full, snapshot, ct);
+                }
             }
-            catch (Exception ex)
+            else
             {
-                // 2) Contingencia: snapshot JSON si el .bak nativo falla (permisos/carpeta).
-                logger.LogWarning(ex, "BACKUP DATABASE fallido por {AdminId}; usando snapshot JSON", adminId);
+                // En Azure SQL (o si está deshabilitado) se usa solo el snapshot JSON de contingencia.
+                logger.LogInformation("Respaldo nativo deshabilitado; usando snapshot JSON para {AdminId}", adminId);
                 tipo = "json";
                 nombre = $"mindzyx_backup_{now:yyyy-MM-dd_HH-mm-ss}.backup";
                 full = Path.Combine(root, nombre);
@@ -277,13 +293,30 @@ public class AdminService(
         });
     }
 
-    // PB-26 HU1-PB26: ruta del PDF de la tarjeta (null si no hay archivo).
+    // PB-26 HU1-PB26: identificador de almacenamiento de la tarjeta (ruta legacy o nombre de blob).
     public async Task<OperationResult<string>> TarjetaPathAsync(int idPsicologo, CancellationToken ct = default)
     {
         var perfil = await users.FindPerfilProfesionalAsync(idPsicologo, ct);
-        if (perfil is null || string.IsNullOrWhiteSpace(perfil.FilePath) || !File.Exists(perfil.FilePath))
+        if (perfil is null || string.IsNullOrWhiteSpace(perfil.FilePath))
             return OperationResult<string>.Fail("No se ha adjuntado tarjeta profesional.");
         return OperationResult<string>.Ok(perfil.FilePath);
+    }
+
+    // PB-26 HU1-PB26: abre el stream de la tarjeta desde el proveedor de almacenamiento.
+    public async Task<OperationResult<Stream>> TarjetaStreamAsync(int idPsicologo, CancellationToken ct = default)
+    {
+        var perfil = await users.FindPerfilProfesionalAsync(idPsicologo, ct);
+        if (perfil is null || string.IsNullOrWhiteSpace(perfil.FilePath))
+            return OperationResult<Stream>.Fail("No se ha adjuntado tarjeta profesional.");
+        try
+        {
+            var stream = await tarjetas.OpenReadAsync(perfil.FilePath, ct);
+            return OperationResult<Stream>.Ok(stream);
+        }
+        catch (FileNotFoundException)
+        {
+            return OperationResult<Stream>.Fail("No se ha adjuntado tarjeta profesional.");
+        }
     }
 
     // PB-26 HU1-PB26: rechaza (Rechazado/Inactiva, bloquea login). Motivo opcional.
