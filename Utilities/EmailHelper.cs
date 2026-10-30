@@ -1,5 +1,6 @@
 using System.Net;
 using System.Net.Mail;
+using System.Text;
 using Microsoft.Extensions.Options;
 
 namespace Mindzyxs_API.Utilities;
@@ -31,9 +32,19 @@ public class SmtpEmailSender(IOptions<SmtpOptions> options, ILogger<SmtpEmailSen
             return;
         }
 
-        using var client = new SmtpClient(o.Host, o.Port) { EnableSsl = o.EnableSsl };
-        client.Credentials = new NetworkCredential(o.User, o.Pass);
-        using var mail = new MailMessage(o.From, to, subject, htmlBody) { IsBodyHtml = true };
+        using var client = new SmtpClient(o.Host, o.Port)
+        {
+            EnableSsl = o.EnableSsl,
+            Timeout = 30000,
+            Credentials = new NetworkCredential(o.User, o.Pass)
+        };
+        using var mail = new MailMessage(o.From, to, subject, htmlBody)
+        {
+            IsBodyHtml = true,
+            BodyEncoding = Encoding.UTF8,
+            SubjectEncoding = Encoding.UTF8,
+            HeadersEncoding = Encoding.UTF8
+        };
         await client.SendMailAsync(mail, ct);
     }
 }

@@ -8,9 +8,11 @@ using Mindzyxs_API.Services;
 using Mindzyxs_API.Utilities;
 using System.Threading.RateLimiting;
 
-var builder = WebApplication.CreateBuilder(args);
-
+// Cargar .env ANTES de crear el builder para que las variables (p.ej.
+// GOOGLE_APPLICATION_CREDENTIALS) estén disponibles cuando IConfiguration se construya.
 LoadDotEnv();
+
+var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddControllers()
     .ConfigureApiBehaviorOptions(o =>
@@ -23,8 +25,12 @@ builder.Services.AddControllers()
         };
     });
 builder.Services.AddProblemDetails();
+var corsOriginsRaw = builder.Configuration["Cors:AllowedOrigins"];
+var corsOrigins = string.IsNullOrWhiteSpace(corsOriginsRaw)
+    ? new[] { "http://localhost:3000", "http://127.0.0.1:3000", "http://localhost:5500", "http://127.0.0.1:5500" }
+    : corsOriginsRaw.Split(new[] { ',', ';' }, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
 builder.Services.AddCors(o => o.AddDefaultPolicy(p => p
-    .WithOrigins("http://localhost:3000", "http://127.0.0.1:3000", "http://localhost:5500", "http://127.0.0.1:5500")
+    .WithOrigins(corsOrigins)
     .AllowAnyHeader().AllowAnyMethod()));
 
 // Rate limiting: frena fuerza bruta en login/registro/recuperación y spam de códigos.
@@ -72,7 +78,11 @@ builder.Services.AddScoped<IChatRepository, EfChatRepository>();
 builder.Services.AddScoped<IAdminRepository, EfAdminRepository>();
 builder.Services.AddScoped<INotificacionRepository, EfNotificacionRepository>();
 builder.Services.AddScoped<NotificationService>();
-builder.Services.AddScoped<ITarjetaStorage, FileSystemTarjetaStorage>();
+var storageProvider = builder.Configuration["Storage:Provider"] ?? "FileSystem";
+if (string.Equals(storageProvider, "AzureBlob", StringComparison.OrdinalIgnoreCase))
+    builder.Services.AddScoped<ITarjetaStorage, AzureBlobTarjetaStorage>();
+else
+    builder.Services.AddScoped<ITarjetaStorage, FileSystemTarjetaStorage>();
 builder.Services.AddScoped<IEmailSender, SmtpEmailSender>();
 builder.Services.AddScoped<CatalogService>();
 builder.Services.AddScoped<AuthService>();
@@ -210,7 +220,7 @@ static void LoadDotEnv()
         if (idx <= 0) continue;
         var key = line[..idx].Trim();
         var val = line[(idx + 1)..].Trim().Trim('"').Trim('\'');
-        if (key == "GOOGLE_APPLICATION_CREDENTIALS" && !Path.IsPathRooted(val))
+        if (key == "GOOGLE_APPLICATION_CREDENTIALS" && !Path.IsPathRooted(val) && !val.TrimStart().StartsWith("{"))
             val = Path.GetFullPath(Path.Combine(dir, val));
         if (string.IsNullOrEmpty(Environment.GetEnvironmentVariable(key)))
             Environment.SetEnvironmentVariable(key, val);

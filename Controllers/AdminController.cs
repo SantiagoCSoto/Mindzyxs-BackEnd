@@ -253,9 +253,9 @@ public class AdminController(AdminService admin) : ControllerBase
         var (ok, _, reason) = await EnsureAdminAsync(ct);
         if (!ok) return StatusCode(403, new { error = reason });
 
-        var r = await admin.TarjetaPathAsync(idPsicologo, ct);
-        if (!r.Success) return NotFound(new { error = r.Message });
-        return PhysicalFile(r.Data!, "application/pdf", $"tarjeta_{idPsicologo}.pdf");
+        var r = await admin.TarjetaStreamAsync(idPsicologo, ct);
+        if (!r.Success || r.Data is null) return NotFound(new { error = r.Message });
+        return File(r.Data, "application/pdf", $"tarjeta_{idPsicologo}.pdf");
     }
 
     /// <summary>Aprueba al psicólogo (Aprobado/Activa).</summary>

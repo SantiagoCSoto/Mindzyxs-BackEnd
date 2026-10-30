@@ -2,10 +2,10 @@
   "rules": {
     "conversaciones": {
       "$convId": {
-        "meta": {
-          ".read": "auth != null",
-          ".write": false
-        },
+          "meta": {
+            ".read": "auth != null && (root.child('conversaciones/' + $convId + '/meta/pacienteUid').val() == auth.uid || root.child('conversaciones/' + $convId + '/meta/psicologoUid').val() == auth.uid)",
+            ".write": false
+          },
         "mensajes": {
           ".read": "auth != null && (root.child('conversaciones/' + $convId + '/meta/pacienteUid').val() == auth.uid || root.child('conversaciones/' + $convId + '/meta/psicologoUid').val() == auth.uid)",
           "$msgId": {

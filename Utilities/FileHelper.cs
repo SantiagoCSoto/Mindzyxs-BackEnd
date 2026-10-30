@@ -4,7 +4,10 @@ namespace Mindzyxs_API.Utilities;
 
 public class StorageOptions
 {
+    public string Provider { get; set; } = "FileSystem";
     public string TarjetasPath { get; set; } = @"C:\uploads\mindzyxs\tarjetas";
+    public string ConnectionString { get; set; } = string.Empty;
+    public string ContainerName { get; set; } = "tarjetas-profesionales";
 }
 
 // HU3-PB1: solo PDF, máximo 5MB. Se guarda en disco y en dbo.usuarios.file_path va la ruta.
@@ -12,6 +15,9 @@ public interface ITarjetaStorage
 {
     string? Validate(IFormFile? file, bool required, out string? error);
     Task<string> SaveAsync(IFormFile file, int userId, CancellationToken ct = default);
+    Task<Stream> OpenReadAsync(string storageId, CancellationToken ct = default);
+    Task DeleteAsync(string storageId, CancellationToken ct = default);
+    bool IsLegacyPath(string storageId);
 }
 
 public class FileSystemTarjetaStorage(IOptions<StorageOptions> options) : ITarjetaStorage
@@ -56,4 +62,27 @@ public class FileSystemTarjetaStorage(IOptions<StorageOptions> options) : ITarje
         }
         return full;
     }
+
+    public Task<Stream> OpenReadAsync(string storageId, CancellationToken ct = default)
+    {
+        if (!File.Exists(storageId))
+            throw new FileNotFoundException("No se ha adjuntado tarjeta profesional.", storageId);
+        return Task.FromResult<Stream>(new FileStream(storageId, FileMode.Open, FileAccess.Read, FileShare.Read));
+    }
+
+    public Task DeleteAsync(string storageId, CancellationToken ct = default)
+    {
+        try
+        {
+            if (File.Exists(storageId)) File.Delete(storageId);
+        }
+        catch
+        {
+            // Best-effort: no bloquear el reemplazo por fallos de limpieza.
+        }
+        return Task.CompletedTask;
+    }
+
+    public bool IsLegacyPath(string storageId)
+        => !string.IsNullOrWhiteSpace(storageId) && (storageId.Contains('\\') || storageId.Contains('/') || Path.IsPathRooted(storageId));
 }

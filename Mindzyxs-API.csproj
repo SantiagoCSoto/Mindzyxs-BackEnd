@@ -5,6 +5,7 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <RootNamespace>Mindzyxs_API</RootNamespace>
+    <UserSecretsId>16528efc-8f84-4bba-84ef-6d303fa16f4f</UserSecretsId>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <NoWarn>$(NoWarn);1591</NoWarn>
   </PropertyGroup>
@@ -17,10 +18,13 @@
     </PackageReference>
     <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="9.0.9" />
     <PackageReference Include="FirebaseAdmin" Version="3.6.0" />
+    <PackageReference Include="Azure.Storage.Blobs" Version="12.22.2" />
     <PackageReference Include="Swashbuckle.AspNetCore" Version="9.0.4" />
   </ItemGroup>
 
   <ItemGroup>
+    <Content Remove="Repositories\RealTime\*.json" />
+    <None Remove="Repositories\RealTime\*.json" />
     <Folder Include="Dtos\" />
     <Folder Include="Repositories\" />
     <Folder Include="Utilities\" />

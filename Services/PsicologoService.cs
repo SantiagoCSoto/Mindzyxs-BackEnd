@@ -117,9 +117,12 @@ public class PsicologoService(
         var yo = await RequirePsicologoResubmitAsync(tokenRaw, ct);
         if (tarjetas.Validate(tarjeta, true, out var error) is not null)
             throw new InvalidOperationException(error!);
+        var oldPath = yo.FilePath;
         var path = await tarjetas.SaveAsync(tarjeta!, yo.IdUsuario, ct);
         await users.SetFilePathAsync(yo.IdUsuario, path, ct);
         await users.SetTarjetaVerificadaAsync(yo.IdUsuario, false, ct);
+        if (!string.IsNullOrWhiteSpace(oldPath) && !string.Equals(oldPath, path, StringComparison.Ordinal))
+            await tarjetas.DeleteAsync(oldPath, ct);
         await authLogs.LogAsync(yo.IdUsuario, yo.IdUsuario, LogAcciones.TarjetaSubida,
             $"Psicólogo:{yo.IdUsuario} subió una nueva tarjeta profesional (pendiente de verificación)", ip, ct);
         // PB-26: si estaba rechazado, reabre la solicitud a PendienteAprobacion (fiel a v1).
