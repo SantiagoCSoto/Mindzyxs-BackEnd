@@ -8,9 +8,11 @@ using Mindzyxs_API.Services;
 using Mindzyxs_API.Utilities;
 using System.Threading.RateLimiting;
 
-var builder = WebApplication.CreateBuilder(args);
-
+// Cargar .env ANTES de crear el builder para que las variables (p.ej.
+// GOOGLE_APPLICATION_CREDENTIALS) estén disponibles cuando IConfiguration se construya.
 LoadDotEnv();
+
+var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddControllers()
     .ConfigureApiBehaviorOptions(o =>
