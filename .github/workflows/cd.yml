@@ -2,7 +2,7 @@ name: CD - Deploy API to Azure App Service
 
 on:
   push:
-    branches: [develop]
+    branches: [develop, main]
   workflow_dispatch:
 
 jobs:
@@ -30,7 +30,7 @@ jobs:
           package: ./publish
 
 # Required secrets:
-#   AZURE_WEBAPP_NAME            -> nombre del App Service (ej. mindzyxs-api)
+#   AZURE_WEBAPP_NAME            -> nombre del App Service
 #   AZURE_WEBAPP_PUBLISH_PROFILE -> contenido del publish profile de Azure
 # Application settings (Azure Portal -> App Service -> Configuration):
 #   ConnectionStrings__Mindzyxs, Smtp__*, Storage__Path, Firebase__*, Admin__*, ASPNETCORE_ENVIRONMENT
