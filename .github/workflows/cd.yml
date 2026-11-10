@@ -1,0 +1,36 @@
+name: CD - Deploy API to Azure App Service
+
+on:
+  push:
+    branches: [develop, main]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET 9
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '9.0.x'
+
+      - name: Restore and publish
+        run: |
+          dotnet restore Mindzyxs-API.csproj
+          dotnet publish Mindzyxs-API.csproj --configuration Release --output ./publish
+
+      - name: Deploy to Azure Web App
+        uses: azure/webapps-deploy@v3
+        with:
+          app-name: ${{ secrets.AZURE_WEBAPP_NAME }}
+          publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
+          package: ./publish
+
+# Required secrets:
+#   AZURE_WEBAPP_NAME            -> nombre del App Service
+#   AZURE_WEBAPP_PUBLISH_PROFILE -> contenido del publish profile de Azure
+# Application settings (Azure Portal -> App Service -> Configuration):
+#   ConnectionStrings__Mindzyxs, Smtp__*, Storage__Path, Firebase__*, Admin__*, ASPNETCORE_ENVIRONMENT

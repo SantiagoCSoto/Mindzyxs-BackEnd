@@ -15,7 +15,7 @@ public class AuthService(
     ICatalogRepository catalogs,
     ICodigoRepository codes,
     ITarjetaStorage tarjetas,
-    IEmailSender email,
+    NotificationService notificaciones,
     IOptions<RegistroOptions> registroOptions,
     ILogger<AuthService> logger)
 {
@@ -44,6 +44,16 @@ public class AuthService(
 
         if (vm.IdGenero is null || !await catalogs.ExisteGeneroAsync(vm.IdGenero.Value, ct))
             return OperationResult<int>.Fail("Este campo es obligatorio");
+
+        // PB-especialidades: checklist solo para psicólogo (una, varias o ninguna).
+        var especialidades = (vm.Especialidades ?? []).Distinct().ToList();
+        if (!esPsicologo && especialidades.Count > 0)
+            return OperationResult<int>.Fail("Las especialidades son solo para psicólogos");
+        foreach (var idEsp in especialidades)
+        {
+            if (!await catalogs.ExisteEspecialidadAsync(idEsp, ct))
+                return OperationResult<int>.Fail("Selecciona especialidades válidas");
+        }
 
         var correo = ContactHelper.Normalize(vm.Correo);
         if (string.IsNullOrWhiteSpace(correo))
@@ -79,6 +89,9 @@ public class AuthService(
             IdGenero = vm.IdGenero
         }, ct);
 
+        if (esPsicologo && especialidades.Count > 0)
+            await users.GuardarEspecialidadesAsync(id, especialidades, ct);
+
         if (esPsicologo && vm.TarjetaProfesional is not null)
         {
             try
@@ -98,8 +111,11 @@ public class AuthService(
 
         try
         {
-            await email.SendAsync(correo, "Mindzyxs - Código de verificación",
-                EmailTemplates.VerificationCode(vm.Nombre.Trim(), codigo), ct);
+            // PB-30: respeta la config del admin (CODE_SENT).
+            await notificaciones.EnviarCorreoAsync(TiposNotificacion.CodeSent, correo,
+                new Dictionary<string, string> { ["nombre"] = vm.Nombre.Trim(), ["codigo"] = codigo },
+                "Mindzyxs - Código de verificación",
+                v => EmailTemplates.VerificationCode(v["nombre"], v["codigo"]), id, null, ct);
         }
         catch (Exception ex)
         {

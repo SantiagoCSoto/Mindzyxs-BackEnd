@@ -9,6 +9,7 @@ public class CatalogService(ICatalogRepository catalogs)
     public async Task<RegistroCatalogosDto> GetRegistroAsync(CancellationToken ct = default) => new()
     {
         TiposCuenta = await catalogs.GetTiposCuentaAsync(ct),
-        Generos = await catalogs.GetGenerosAsync(ct)
+        Generos = await catalogs.GetGenerosAsync(ct),
+        Especialidades = await catalogs.GetEspecialidadesAsync(ct)
     };
 }

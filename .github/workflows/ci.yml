@@ -1,0 +1,55 @@
+name: CI - Build and PR to main
+
+on:
+  push:
+    branches: [develop]
+  pull_request:
+    branches: [develop]
+
+jobs:
+  build-and-pr:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET 9
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '9.0.x'
+
+      - name: Restore dependencies
+        run: dotnet restore Mindzyxs-API.csproj
+
+      - name: Build
+        run: dotnet build Mindzyxs-API.csproj --configuration Release --no-restore
+
+      - name: Publish
+        run: dotnet publish Mindzyxs-API.csproj --configuration Release --no-build --output ./publish
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: api-publish
+          path: ./publish
+          retention-days: 7
+
+      - name: Create PR develop -> main (if not exists)
+        if: github.event_name == 'push' && github.ref == 'refs/heads/develop'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set +e
+          PR_COUNT=$(gh pr list --base main --head develop --state open --json number --jq 'length' 2>/dev/null)
+          set -e
+          echo "Open PRs develop->main: ${PR_COUNT:-0}"
+          if [ "${PR_COUNT:-0}" = "0" ]; then
+            gh pr create --base main --head develop \
+              --title "Merge develop into main" \
+              --body "PR automatico generado por CI tras build exitoso. Revisar conflictos antes de mergear."
+          else
+            echo "Ya existe un PR abierto de develop a main."
+          fi
