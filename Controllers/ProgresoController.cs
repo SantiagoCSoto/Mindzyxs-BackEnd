@@ -11,7 +11,7 @@ namespace Mindzyxs_API.Controllers;
 /// </summary>
 [ApiController]
 [Route("api/[controller]")]
-public class ProgresoController(ProgresoService progreso) : ControllerBase
+public class ProgresoController(ProgresoService progreso, ReporteService reporte) : ControllerBase
 {
     /// <summary>Devuelve mis pacientes autorizados.</summary>
     /// <remarks>
@@ -74,6 +74,26 @@ public class ProgresoController(ProgresoService progreso) : ControllerBase
     }
 
     /// <summary>Lee el token de sesión del header.</summary>
+    /// <summary>Descarga el reporte PDF del paciente (solo psicologo autorizado).</summary>
+    [HttpGet("{idPaciente:int}/reporte")]
+    public async Task<IActionResult> Reporte([FromRoute] int idPaciente, CancellationToken ct)
+    {
+        try
+        {
+            var ip = HttpContext.Connection.RemoteIpAddress?.ToString();
+            var pdf = await reporte.GenerarReportePacienteAsync(ReadOptionalBearerToken(), idPaciente, ct);
+            return File(pdf, "application/pdf", $"reporte_paciente_{idPaciente}.pdf");
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            return Unauthorized(new { error = ex.Message });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return StatusCode(StatusCodes.Status403Forbidden, new { error = ex.Message });
+        }
+    }
+
     private string? ReadOptionalBearerToken()
     {
         if (!Request.Headers.TryGetValue("Authorization", out var v)) return null;
