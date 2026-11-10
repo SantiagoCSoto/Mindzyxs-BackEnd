@@ -97,6 +97,7 @@ builder.Services.AddScoped<RiesgoService>();
 builder.Services.AddScoped<RecomendacionService>();
 builder.Services.AddScoped<HistorialService>();
 builder.Services.AddScoped<ProgresoService>();
+builder.Services.AddScoped<ReporteService>();
 builder.Services.AddScoped<RecordatorioService>();
 builder.Services.AddScoped<PerfilService>();
 builder.Services.AddScoped<ChatService>();
