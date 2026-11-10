@@ -42,13 +42,14 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          if gh pr list --base main --head develop --state open --json number --jq 'length' | grep -q '^0$'; then
+          set +e
+          PR_COUNT=$(gh pr list --base main --head develop --state open --json number --jq 'length' 2>/dev/null)
+          set -e
+          echo "Open PRs develop->main: ${PR_COUNT:-0}"
+          if [ "${PR_COUNT:-0}" = "0" ]; then
             gh pr create --base main --head develop \
               --title "Merge develop into main" \
               --body "PR automatico generado por CI tras build exitoso. Revisar conflictos antes de mergear."
           else
             echo "Ya existe un PR abierto de develop a main."
           fi
-# Nota: la fusion automatica de main en develop se omitio porque main y develop
-# tienen historiales divergentes con conflictos de archivos. Los conflictos se
-# resuelven manualmente en el PR antes de mergear.
