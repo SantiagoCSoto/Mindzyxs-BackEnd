@@ -56,8 +56,17 @@ public class ReporteService(
                     col.Item().Text($"Total de registros: {eventos.Count}");
                     if (puntajes.Count > 0)
                     {
-                        col.Item().Text($"Promedio: {Math.Round(puntajes.Average(), 2)}");
+                        var promedio = Math.Round(puntajes.Average(), 2);
+                        col.Item().Text($"Promedio: {promedio}");
                         col.Item().Text($"Puntaje mínimo: {puntajes.Min()} | Máximo: {puntajes.Max()}");
+                        if (puntajes.Count >= 2)
+                        {
+                            var mitad = puntajes.Count / 2;
+                            var antes = puntajes.Take(mitad).Average();
+                            var despues = puntajes.Skip(mitad).Average();
+                            var tendencia = despues - antes > 0.5 ? "Sube" : antes - despues > 0.5 ? "Baja" : "Estable";
+                            col.Item().Text($"Tendencia: {tendencia}");
+                        }
                     }
 
                     col.Item().Text("Historial de registros").Bold().FontSize(12);
