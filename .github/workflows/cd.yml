@@ -2,13 +2,12 @@ name: CD - Deploy API to Azure App Service
 
 on:
   push:
-    branches: [main]
+    branches: [develop]
   workflow_dispatch:
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    needs: []
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -30,8 +29,8 @@ jobs:
           publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
           package: ./publish
 
-# Required secrets (Settings -> Secrets and variables -> Actions):
+# Required secrets:
 #   AZURE_WEBAPP_NAME            -> nombre del App Service (ej. mindzyxs-api)
-#   AZURE_WEBAPP_PUBLISH_PROFILE -> contenido del publish profile descargado de Azure
-# Configurar en Azure App Service -> Configuration -> Application settings:
-#   ConnectionStrings__Mindzyxs, Smtp__*, Storage__Path, Firebase__*, Admin__*, ASPNETCORE_ENVIRONMENT=Production
+#   AZURE_WEBAPP_PUBLISH_PROFILE -> contenido del publish profile de Azure
+# Application settings (Azure Portal -> App Service -> Configuration):
+#   ConnectionStrings__Mindzyxs, Smtp__*, Storage__Path, Firebase__*, Admin__*, ASPNETCORE_ENVIRONMENT
