@@ -141,20 +141,45 @@ public class ReporteService(
                         col.Item().Background(ColorFondo).Border(1).BorderColor(ColorBorde).CornerRadius(8).Padding(12).Column(cc =>
                         {
                             cc.Item().Text("Distribución por nivel de riesgo").Bold().FontSize(12).FontColor(ColorPrimarioFuerte);
-                            cc.Item().PaddingTop(6).Table(t =>
+                            cc.Item().PaddingTop(6);
+                            var maxDist = distribucion.Values.Max();
+                            foreach (var kv in distribucion.OrderByDescending(x => x.Value))
                             {
-                                t.ColumnsDefinition(c => { c.RelativeColumn(2); c.RelativeColumn(1); });
-                                t.Header(h =>
+                                var pct = maxDist > 0 ? (double)kv.Value / maxDist : 0;
+                                var barWidth = (int)(pct * 220);
+                                cc.Item().PaddingVertical(2).Row(r =>
                                 {
-                                    h.Cell().Background(ColorPrimarioFuerte).Padding(4).Text("Nivel").Bold().FontColor(Colors.White).FontSize(9);
-                                    h.Cell().Background(ColorPrimarioFuerte).Padding(4).Text("Cantidad").Bold().FontColor(Colors.White).FontSize(9);
+                                    r.ConstantItem(90).Text(kv.Key).FontSize(9);
+                                    r.ConstantItem(barWidth > 0 ? barWidth : 2).Height(14).Background(ColorPrimarioFuerte);
+                                    r.RelativeItem().Height(14).Background(ColorBorde);
+                                    r.ConstantItem(30).AlignRight().Text(kv.Value.ToString()).FontSize(9).Bold();
                                 });
-                                foreach (var kv in distribucion.OrderByDescending(x => x.Value))
+                            }
+                        });
+                    }
+
+                    // ===== SERIE TEMPORAL (barras de puntaje) =====
+                    if (eventos.Count > 0)
+                    {
+                        col.Item().Background(ColorFondo).Border(1).BorderColor(ColorBorde).CornerRadius(8).Padding(12).Column(cc =>
+                        {
+                            cc.Item().Text("Serie de puntajes emocionales").Bold().FontSize(12).FontColor(ColorPrimarioFuerte);
+                            cc.Item().PaddingTop(6);
+                            foreach (var e in eventos.OrderBy(x => x.FechaEvento))
+                            {
+                                var puntaje = e.PuntajeTotal ?? 0;
+                                var barWidth = puntaje * 30;
+                                var nivel = e.IdNivelRiesgo.HasValue && niveles.TryGetValue(e.IdNivelRiesgo.Value, out var n) ? n : "—";
+                                cc.Item().PaddingVertical(1).Row(r =>
                                 {
-                                    t.Cell().Padding(4).Text(kv.Key).FontSize(9);
-                                    t.Cell().Padding(4).Text(kv.Value.ToString()).FontSize(9);
-                                }
-                            });
+                                    r.ConstantItem(70).Text(e.FechaEvento.ToString("dd/MM")).FontSize(8);
+                                    r.ConstantItem(barWidth > 0 ? barWidth : 2).Height(10).Background(ColorApoyo);
+                                    r.RelativeItem().Height(10).Background(ColorBorde);
+                                    r.ConstantItem(25).AlignRight().Text(puntaje.ToString()).FontSize(8);
+                                    r.ConstantItem(50).AlignRight().Text(nivel).FontSize(8).FontColor(ColorMudo);
+                                });
+                            }
+                            cc.Item().PaddingTop(4).Text("Escala: 1 (muy bajo) a 5 (excelente).").FontSize(8).Italic().FontColor(ColorMudo);
                         });
                     }
 
