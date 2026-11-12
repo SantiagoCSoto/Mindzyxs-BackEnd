@@ -65,7 +65,7 @@ public class ReporteService(
             {
                 page.Size(PageSizes.A4);
                 page.Margin(1.5f, Unit.Centimetre);
-                page.DefaultTextStyle(t => t.FontFamily("Arial").FontSize(10).FontColor(ColorTexto));
+                page.DefaultTextStyle(t => t.FontSize(10).FontColor(ColorTexto));
 
                 // ===== HEADER (estilo tarjeta email) =====
                 page.Header().Column(c =>
