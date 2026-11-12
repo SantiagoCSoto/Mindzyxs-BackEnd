@@ -12,6 +12,16 @@ public class ReporteService(
     IUserRepository usuarios,
     ISesionRepository sesiones)
 {
+    private string _ultimoNombreArchivo = "reporte_paciente.pdf";
+
+    public string NombreArchivo(int idPaciente) => _ultimoNombreArchivo;
+
+    private static string SanitizarNombreArchivo(string nombre)
+    {
+        foreach (var c in Path.GetInvalidFileNameChars())
+            nombre = nombre.Replace(c.ToString(), "");
+        return nombre.Replace(" ", "_");
+    }
     private static readonly string ColorPrimario = "#6ECFD4";
     private static readonly string ColorPrimarioFuerte = "#0E7490";
     private static readonly string ColorApoyo = "#6B5BCE";
@@ -36,6 +46,9 @@ public class ReporteService(
 
         var paciente = await usuarios.FindByIdAsync(idPaciente, ct)
             ?? throw new InvalidOperationException("Paciente no encontrado.");
+
+        // Guardar nombre para el filename
+        _ultimoNombreArchivo = SanitizarNombreArchivo($"reporte_paciente_{paciente.Nombre}_{paciente.Apellido}.pdf");
         var eventos = await historial.GetEventosAsync(idPaciente, null, null, ct);
         var niveles = await historial.GetNivelesAsync(ct);
 

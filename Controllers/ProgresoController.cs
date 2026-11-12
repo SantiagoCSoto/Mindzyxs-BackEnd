@@ -82,7 +82,8 @@ public class ProgresoController(ProgresoService progreso, ReporteService reporte
         {
             var ip = HttpContext.Connection.RemoteIpAddress?.ToString();
             var pdf = await reporte.GenerarReportePacienteAsync(ReadOptionalBearerToken(), idPaciente, ct);
-            return File(pdf, "application/pdf", $"reporte_paciente_{idPaciente}.pdf");
+            var nombreArchivo = reporte.NombreArchivo(idPaciente);
+            return File(pdf, "application/pdf", nombreArchivo);
         }
         catch (UnauthorizedAccessException ex)
         {
