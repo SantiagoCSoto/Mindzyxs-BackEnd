@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.OpenApi.Models;
@@ -28,7 +28,7 @@ builder.Services.AddProblemDetails();
 var corsOriginsRaw = builder.Configuration["Cors:AllowedOrigins"];
 var corsOrigins = string.IsNullOrWhiteSpace(corsOriginsRaw)
     ? new[] { "http://localhost:3000", "http://127.0.0.1:3000", "http://localhost:5500", "http://127.0.0.1:5500" }
-    : corsOriginsRaw.Split(new[] { ',', ';' }, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+    : corsOriginsRaw.Split(CorsSeparators, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
 builder.Services.AddCors(o => o.AddDefaultPolicy(p => p
     .WithOrigins(corsOrigins)
     .AllowAnyHeader().AllowAnyMethod()));
@@ -229,11 +229,11 @@ static void LoadDotEnv()
         if (idx <= 0) continue;
         var key = line[..idx].Trim();
         var val = line[(idx + 1)..].Trim().Trim('"').Trim('\'');
-        if (key == "GOOGLE_APPLICATION_CREDENTIALS" && !Path.IsPathRooted(val) && !val.TrimStart().StartsWith("{"))
+        if (key == "GOOGLE_APPLICATION_CREDENTIALS" && !Path.IsPathRooted(val) && !val.TrimStart().StartsWith('{'))
             val = Path.GetFullPath(Path.Combine(dir, val));
         if (string.IsNullOrEmpty(Environment.GetEnvironmentVariable(key)))
             Environment.SetEnvironmentVariable(key, val);
     }
 }
 
-public partial class Program { }
+public partial class Program { private static readonly char[] CorsSeparators = new[] { ',', ';' }; }
