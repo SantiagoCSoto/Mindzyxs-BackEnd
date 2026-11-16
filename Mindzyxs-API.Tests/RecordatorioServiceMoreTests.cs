@@ -1,4 +1,4 @@
-using FluentAssertions;
+﻿using FluentAssertions;
 using Mindzyxs_API.Dtos;
 using Mindzyxs_API.Repositories;
 using Mindzyxs_API.Repositories.Models;
@@ -101,7 +101,7 @@ public class RecordatorioServiceMoreTests
     public async Task Hoy_ConAvisos_RetornaLista()
     {
         SetupSesion();
-        var row = new RecordatorioRow { IdRecordatorio = 1, IdPaciente = 1, Titulo = "Test", Hora = new TimeSpan(7, 0, 0), Activo = true, Frecuencia = "Diaria", Mensaje = "Msg" };
+        var row = new RecordatorioRow { IdRecordatorio = 1, IdPaciente = 1, Titulo = "Test", Hora = new TimeSpan(0, 0, 0), Activo = true, Frecuencia = "Diaria", Mensaje = "Msg" };
         _recordatorios.Setup(r => r.GetDePacienteAsync(1, It.IsAny<CancellationToken>())).ReturnsAsync(row);
 
         var sut = CreateSut();
