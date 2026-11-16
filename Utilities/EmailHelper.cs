@@ -1,4 +1,4 @@
-using System.Net;
+﻿using System.Net;
 using System.Net.Mail;
 using System.Text;
 using Microsoft.Extensions.Options;
@@ -34,7 +34,7 @@ public class SmtpEmailSender(IOptions<SmtpOptions> options, ILogger<SmtpEmailSen
 
         using var client = new SmtpClient(o.Host, o.Port)
         {
-            EnableSsl = o.EnableSsl,
+            EnableSsl = true,
             Timeout = 30000,
             Credentials = new NetworkCredential(o.User, o.Pass)
         };

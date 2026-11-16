@@ -251,7 +251,7 @@ public class AdminService(
         {
             var nombre = $"{psi.Nombre} {psi.Apellido}".Trim();
             await email.SendAsync(psi.Correo, "Mindzyxs - Credenciales aprobadas",
-                $"Hola {nombre}, sus credenciales profesionales han sido validadas. Su cuenta ha sido aprobada y ya puede iniciar sesión.");
+                $"Hola {nombre}, sus credenciales profesionales han sido validadas. Su cuenta ha sido aprobada y ya puede iniciar sesión.", ct);
         }
         catch { /* el correo no invalida la aprobación (fiel a v1) */ }
 
@@ -340,7 +340,7 @@ public class AdminService(
             var nombre = $"{psi.Nombre} {psi.Apellido}".Trim();
             var detalleMotivo = string.IsNullOrWhiteSpace(motivo) ? "No se proporcionó un motivo específico." : motivo.Trim();
             await email.SendAsync(psi.Correo, "Mindzyxs - Credenciales no aprobadas",
-                $"Hola {nombre}, sus credenciales profesionales no fueron aprobadas. Motivo: {detalleMotivo} Puede subir una nueva tarjeta profesional para ser evaluado nuevamente.");
+                $"Hola {nombre}, sus credenciales profesionales no fueron aprobadas. Motivo: {detalleMotivo} Puede subir una nueva tarjeta profesional para ser evaluado nuevamente.", ct);
         }
         catch { /* el correo no invalida el rechazo (fiel a v1) */ }
 
