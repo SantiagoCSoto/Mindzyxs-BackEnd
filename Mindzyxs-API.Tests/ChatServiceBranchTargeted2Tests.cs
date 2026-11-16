@@ -129,6 +129,7 @@ public class ChatServiceBranchTargeted2Tests
         // Should not throw (allowed: bloqueado por mi)
         _authLogs.Setup(a => a.LogAsync(It.IsAny<int>(), It.IsAny<int>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string?>(), It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
         await sut.AvisarMensajeAsync("token", 1, "127.0.0.1", CancellationToken.None);
+        _chats.Verify(c => c.FindAsync(1, It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Fact]

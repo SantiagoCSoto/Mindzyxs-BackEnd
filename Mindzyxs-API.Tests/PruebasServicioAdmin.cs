@@ -1,4 +1,4 @@
-﻿using FluentAssertions;
+using FluentAssertions;
 using Mindzyxs_API.Dtos;
 using Mindzyxs_API.Repositories;
 using Mindzyxs_API.Services;
@@ -15,7 +15,6 @@ public class PruebasServicioAdmin
     private readonly Mock<ICatalogRepository> _catalogs = new();
     private readonly Mock<INotificacionRepository> _notificaciones = new();
     private readonly Mock<IAuthLogRepository> _authLogs = new();
-    private readonly LoginService _login;
     private readonly Mock<IEmailSender> _email = new();
     private readonly Mock<ITarjetaStorage> _tarjetas = new();
     private readonly Mock<Microsoft.Extensions.Options.IOptions<AdminOptions>> _adminOptions = new();

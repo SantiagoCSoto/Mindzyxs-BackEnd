@@ -36,7 +36,7 @@ public class AdminNotificacionesControllerTests
     private static void SetHttpContext(AdminNotificacionesController sut, string? authHeader = null, string? ip = null)
     {
         var httpContext = new Microsoft.AspNetCore.Http.DefaultHttpContext();
-        if (authHeader != null) httpContext.Request.Headers["Authorization"] = authHeader;
+        if (authHeader != null) httpContext.Request.Headers.Authorization = authHeader;
         if (ip != null) httpContext.Connection.RemoteIpAddress = IPAddress.Parse(ip);
         sut.ControllerContext = new ControllerContext { HttpContext = httpContext };
     }

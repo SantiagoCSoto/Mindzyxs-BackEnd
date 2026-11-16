@@ -31,6 +31,7 @@ public class PruebasIntegracionSqlFlujoCompleto : IClassFixture<FabricaAplicacio
         var result = SqlTestCleanup.DryRun(db, _scope);
         // Log dry run result for verification
         System.Diagnostics.Debug.WriteLine($"DryRun: Safe={result.Safe}, Users={result.UserIds.Count}, Sessions={result.SesionIds.Count}");
+        GC.SuppressFinalize(this);
     }
 
     [Fact]
@@ -56,8 +57,8 @@ public class PruebasIntegracionSqlFlujoCompleto : IClassFixture<FabricaAplicacio
             var db = scope.ServiceProvider.GetRequiredService<MindzyxsDbContext>();
             var row = db.Codigos.OrderByDescending(c => c.IdCodigo).FirstOrDefault(c => c.Tipo == "Registro");
             // find by user email
-            var user = db.Usuarios.FirstOrDefault(u => u.Correo == email);
-            var c = db.Codigos.FirstOrDefault(x => x.IdUsuario == user.IdUsuario && x.Tipo == "Registro");
+            var user = db.Usuarios.FirstOrDefault(u => u.Correo == email) ?? throw new InvalidOperationException("user not found");
+            var c = db.Codigos.FirstOrDefault(x => x.IdUsuario == user.IdUsuario && x.Tipo == "Registro") ?? throw new InvalidOperationException("code not found");
             code = c.Codigo;
             _scope.UserIds.Add(user.IdUsuario);
             _scope.CodigoIds.Add(c.IdCodigo);

@@ -1,4 +1,4 @@
-﻿using FluentAssertions;
+using FluentAssertions;
 using Mindzyxs_API.Dtos;
 using Mindzyxs_API.Repositories;
 using Mindzyxs_API.Repositories.Models;
@@ -52,7 +52,7 @@ public class PruebasServicioRiesgo
     {
         SetupSesion();
         var sut = CreateSut();
-        var vm = new RegistrarAlertaRiesgoVm { Accion = accion };
+        var vm = new RegistrarAlertaRiesgoVm { Accion = accion ?? string.Empty };
         var act = () => sut.RegistrarAlertaAsync("token", vm, "127.0.0.1", CancellationToken.None);
 
         await act.Should().ThrowAsync<InvalidOperationException>().WithMessage("*opci* de la alerta*");
@@ -66,7 +66,7 @@ public class PruebasServicioRiesgo
     {
         SetupSesion();
         var sut = CreateSut();
-        var vm = new RegistrarAlertaRiesgoVm { Accion = accion };
+        var vm = new RegistrarAlertaRiesgoVm { Accion = accion ?? string.Empty };
         var act = () => sut.RegistrarAlertaAsync("token", vm, "127.0.0.1", CancellationToken.None);
 
         await act.Should().ThrowAsync<InvalidOperationException>().WithMessage("*Acci*n de la alerta no v*");
