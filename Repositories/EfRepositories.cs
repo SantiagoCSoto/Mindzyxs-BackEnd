@@ -62,35 +62,45 @@ public class EfUserRepository(MindzyxsDbContext db) : IUserRepository
     }
 
     public async Task SetFilePathAsync(int idUsuario, string path, CancellationToken ct = default)
-        => await db.Usuarios.Where(x => x.IdUsuario == idUsuario)
-            .ExecuteUpdateAsync(s => s.SetProperty(x => x.FilePath, path), ct);
+        => await db.Database.ExecuteSqlRawAsync(
+            "UPDATE dbo.usuarios SET file_path = @p0 WHERE id_usuario = @p1",
+            new Microsoft.Data.SqlClient.SqlParameter("@p0", (object?)path ?? DBNull.Value),
+            new Microsoft.Data.SqlClient.SqlParameter("@p1", idUsuario));
 
     public async Task SetEstadoCuentaAsync(int idUsuario, int idEstado, CancellationToken ct = default)
-        => await db.Usuarios.Where(x => x.IdUsuario == idUsuario)
-            .ExecuteUpdateAsync(s => s.SetProperty(x => x.IdEstadoCuenta, idEstado), ct);
+        => await db.Database.ExecuteSqlRawAsync(
+            "UPDATE dbo.usuarios SET id_estado_cuenta = @p0 WHERE id_usuario = @p1",
+            new Microsoft.Data.SqlClient.SqlParameter("@p0", idEstado),
+            new Microsoft.Data.SqlClient.SqlParameter("@p1", idUsuario));
 
     // PB-05 HU2-PB5: actualiza password_hash al restablecer la contraseña.
     public async Task SetPasswordAsync(int idUsuario, string passwordHash, CancellationToken ct = default)
-        => await db.Usuarios.Where(x => x.IdUsuario == idUsuario)
-            .ExecuteUpdateAsync(s => s.SetProperty(x => x.PasswordHash, passwordHash), ct);
+        => await db.Database.ExecuteSqlRawAsync(
+            "UPDATE dbo.usuarios SET password_hash = @p0 WHERE id_usuario = @p1",
+            new Microsoft.Data.SqlClient.SqlParameter("@p0", passwordHash),
+            new Microsoft.Data.SqlClient.SqlParameter("@p1", idUsuario));
 
     public async Task UpdateUltimoAccesoAsync(int idUsuario, CancellationToken ct = default)
-        => await db.Usuarios.Where(x => x.IdUsuario == idUsuario)
-            .ExecuteUpdateAsync(s => s.SetProperty(x => x.UltimoAcceso, DateTime.UtcNow), ct);
+        => await db.Database.ExecuteSqlRawAsync(
+            "UPDATE dbo.usuarios SET ultimo_acceso = SYSUTCDATETIME() WHERE id_usuario = @p0",
+            new Microsoft.Data.SqlClient.SqlParameter("@p0", idUsuario));
 
     // PB-10 HU1-PB10: actualiza nombres, apellidos, fecha de nacimiento y género.
     public async Task ActualizarPerfilAsync(int idUsuario, string nombres, string apellidos, DateTime? fechaNacimiento, int? idGenero, CancellationToken ct = default)
-        => await db.Usuarios.Where(x => x.IdUsuario == idUsuario)
-            .ExecuteUpdateAsync(s => s
-                .SetProperty(x => x.Nombre, nombres)
-                .SetProperty(x => x.Apellido, apellidos)
-                .SetProperty(x => x.FechaNacimiento, fechaNacimiento)
-                .SetProperty(x => x.IdGenero, idGenero), ct);
+        => await db.Database.ExecuteSqlRawAsync(
+            "UPDATE dbo.usuarios SET nombre = @p0, apellido = @p1, fecha_nacimiento = @p2, id_genero = @p3 WHERE id_usuario = @p4",
+            new Microsoft.Data.SqlClient.SqlParameter("@p0", nombres),
+            new Microsoft.Data.SqlClient.SqlParameter("@p1", apellidos),
+            new Microsoft.Data.SqlClient.SqlParameter("@p2", (object?)fechaNacimiento ?? DBNull.Value),
+            new Microsoft.Data.SqlClient.SqlParameter("@p3", (object?)idGenero ?? DBNull.Value),
+            new Microsoft.Data.SqlClient.SqlParameter("@p4", idUsuario));
 
     // PB-10 HU1-PB10: cambia el correo (ya verificado por código).
     public async Task ActualizarCorreoAsync(int idUsuario, string nuevoCorreo, CancellationToken ct = default)
-        => await db.Usuarios.Where(x => x.IdUsuario == idUsuario)
-            .ExecuteUpdateAsync(s => s.SetProperty(x => x.Correo, nuevoCorreo), ct);
+        => await db.Database.ExecuteSqlRawAsync(
+            "UPDATE dbo.usuarios SET correo = @p0 WHERE id_usuario = @p1",
+            new Microsoft.Data.SqlClient.SqlParameter("@p0", nuevoCorreo),
+            new Microsoft.Data.SqlClient.SqlParameter("@p1", idUsuario));
 
     // PB-25 HU1-PB25: gestión de usuarios (excluye admins; filtros q/rol/estado).
     public async Task<List<UsuarioAdminRow>> GetUsuariosAsync(int idRolAdmin, string? q, int? idRol, int? idEstadoCuenta, CancellationToken ct = default)
@@ -147,8 +157,10 @@ public class EfUserRepository(MindzyxsDbContext db) : IUserRepository
     }
 
     public async Task SetTarjetaVerificadaAsync(int idPsicologo, bool verificada, CancellationToken ct = default)
-        => await db.Usuarios.Where(x => x.IdUsuario == idPsicologo)
-            .ExecuteUpdateAsync(s => s.SetProperty(x => x.TarjetaProfesionalVerificada, verificada), ct);
+        => await db.Database.ExecuteSqlRawAsync(
+            "UPDATE dbo.usuarios SET tarjeta_profesional_verificada = @p0 WHERE id_usuario = @p1",
+            new Microsoft.Data.SqlClient.SqlParameter("@p0", verificada),
+            new Microsoft.Data.SqlClient.SqlParameter("@p1", idPsicologo));
 
     public async Task<List<string>> GetEspecialidadesPendientesAsync(int idPsicologo, CancellationToken ct = default)
         => await (from pe in db.PsicologoEspecialidades.AsNoTracking()
@@ -173,23 +185,33 @@ public class EfUserRepository(MindzyxsDbContext db) : IUserRepository
 
     // Aprueba solo si sigue pendiente (concurrencia: 0 filas = ya procesada).
     public async Task<bool> AprobarPsicologoAsync(int idPsicologo, int idEstadoPendiente, int idEstadoAprobado, int idEstadoActiva, CancellationToken ct = default)
-        => await db.Usuarios
-            .Where(u => u.IdUsuario == idPsicologo && u.IdEstadoAprobacion == idEstadoPendiente)
-            .ExecuteUpdateAsync(s => s
-                .SetProperty(u => u.IdEstadoAprobacion, idEstadoAprobado)
-                .SetProperty(u => u.IdEstadoCuenta, idEstadoActiva), ct) > 0;
+    {
+        var rows = await db.Database.ExecuteSqlRawAsync(
+            "UPDATE dbo.usuarios SET id_estado_aprobacion = @p0, id_estado_cuenta = @p1 WHERE id_usuario = @p2 AND id_estado_aprobacion = @p3",
+            new Microsoft.Data.SqlClient.SqlParameter("@p0", idEstadoAprobado),
+            new Microsoft.Data.SqlClient.SqlParameter("@p1", idEstadoActiva),
+            new Microsoft.Data.SqlClient.SqlParameter("@p2", idPsicologo),
+            new Microsoft.Data.SqlClient.SqlParameter("@p3", idEstadoPendiente));
+        return rows > 0;
+    }
 
     // Rechaza solo si sigue pendiente. La cuenta pasa a Inactiva (bloquea login).
     public async Task<bool> RechazarPsicologoAsync(int idPsicologo, int idEstadoPendiente, int idEstadoRechazado, int idEstadoInactiva, CancellationToken ct = default)
-        => await db.Usuarios
-            .Where(u => u.IdUsuario == idPsicologo && u.IdEstadoAprobacion == idEstadoPendiente)
-            .ExecuteUpdateAsync(s => s
-                .SetProperty(u => u.IdEstadoAprobacion, idEstadoRechazado)
-                .SetProperty(u => u.IdEstadoCuenta, idEstadoInactiva), ct) > 0;
+    {
+        var rows = await db.Database.ExecuteSqlRawAsync(
+            "UPDATE dbo.usuarios SET id_estado_aprobacion = @p0, id_estado_cuenta = @p1 WHERE id_usuario = @p2 AND id_estado_aprobacion = @p3",
+            new Microsoft.Data.SqlClient.SqlParameter("@p0", idEstadoRechazado),
+            new Microsoft.Data.SqlClient.SqlParameter("@p1", idEstadoInactiva),
+            new Microsoft.Data.SqlClient.SqlParameter("@p2", idPsicologo),
+            new Microsoft.Data.SqlClient.SqlParameter("@p3", idEstadoPendiente));
+        return rows > 0;
+    }
 
     public async Task SetEstadoAprobacionAsync(int idPsicologo, int idEstadoAprobacion, CancellationToken ct = default)
-        => await db.Usuarios.Where(u => u.IdUsuario == idPsicologo)
-            .ExecuteUpdateAsync(s => s.SetProperty(u => u.IdEstadoAprobacion, idEstadoAprobacion), ct);
+        => await db.Database.ExecuteSqlRawAsync(
+            "UPDATE dbo.usuarios SET id_estado_aprobacion = @p0 WHERE id_usuario = @p1",
+            new Microsoft.Data.SqlClient.SqlParameter("@p0", idEstadoAprobacion),
+            new Microsoft.Data.SqlClient.SqlParameter("@p1", idPsicologo));
 
     // PB-25: psicólogos con tarjeta sin verificar o especialidades pendientes (cola del admin).
     public async Task<List<PsicologoTarjetaPendienteRow>> GetPsicologosTarjetaPendienteAsync(int idRolPsicologo, CancellationToken ct = default)
@@ -310,11 +332,12 @@ public class EfUserRepository(MindzyxsDbContext db) : IUserRepository
     // La verificación en true solo la pone el admin (VerificarEspecialidadesAsync).
     public async Task<bool> ActualizarPerfilProfesionalAsync(int idUsuario, int? añosExperiencia, string? descripcionProfesional, string? datosContacto, List<int> idsEspecialidad, CancellationToken ct = default)
     {
-        await db.Usuarios.Where(x => x.IdUsuario == idUsuario)
-            .ExecuteUpdateAsync(s => s
-                .SetProperty(x => x.AñosExperiencia, añosExperiencia)
-                .SetProperty(x => x.DescripcionProfesional, descripcionProfesional)
-                .SetProperty(x => x.DatosContacto, datosContacto), ct);
+        await db.Database.ExecuteSqlRawAsync(
+            "UPDATE dbo.usuarios SET años_experiencia = @p0, descripcion_profesional = @p1, datos_contacto = @p2 WHERE id_usuario = @p3",
+            new Microsoft.Data.SqlClient.SqlParameter("@p0", (object?)añosExperiencia ?? DBNull.Value),
+            new Microsoft.Data.SqlClient.SqlParameter("@p1", (object?)descripcionProfesional ?? DBNull.Value),
+            new Microsoft.Data.SqlClient.SqlParameter("@p2", (object?)datosContacto ?? DBNull.Value),
+            new Microsoft.Data.SqlClient.SqlParameter("@p3", idUsuario));
 
         var huboCambios = await ActualizarEspecialidadesAsync(idUsuario, idsEspecialidad, ct);
         if (huboCambios)

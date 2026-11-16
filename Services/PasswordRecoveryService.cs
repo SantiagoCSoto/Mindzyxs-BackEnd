@@ -19,7 +19,7 @@ public class PasswordRecoveryService(
 {
     // HU1-PB5: solicitar código. Si el correo existe genera código "Recuperar" y lo envía.
     // Si NO existe devuelve un mensaje genérico de seguridad (no confirma si la cuenta existe).
-    public async Task<OperationResult> ForgotAsync(string? correoRaw, CancellationToken ct = default)
+    public virtual async Task<OperationResult> ForgotAsync(string? correoRaw, CancellationToken ct = default)
     {
         var correo = ContactHelper.Normalize(correoRaw);
         if (string.IsNullOrWhiteSpace(correo))
@@ -53,7 +53,7 @@ public class PasswordRecoveryService(
     }
 
     // HU2-PB5: validar el código antes de mostrar la pantalla Nueva contraseña.
-    public async Task<OperationResult> VerifyCodeAsync(string? correoRaw, string? codigo, CancellationToken ct = default)
+    public virtual async Task<OperationResult> VerifyCodeAsync(string? correoRaw, string? codigo, CancellationToken ct = default)
     {
         var correo = ContactHelper.Normalize(correoRaw);
         var user = await users.FindByCorreoAsync(correo, ct);
@@ -73,7 +73,7 @@ public class PasswordRecoveryService(
 
     // HU2-PB5: revalida el código, valida la política, actualiza password_hash,
     // consume el código y registra PASSWORD_RESET en dbo.auth.
-    public async Task<OperationResult> ResetPasswordAsync(string? correoRaw, string? codigo, string? password, string? ip, CancellationToken ct = default)
+    public virtual async Task<OperationResult> ResetPasswordAsync(string? correoRaw, string? codigo, string? password, string? ip, CancellationToken ct = default)
     {
         var correo = ContactHelper.Normalize(correoRaw);
         var user = await users.FindByCorreoAsync(correo, ct);
@@ -118,7 +118,7 @@ public class PasswordRecoveryService(
     }
 
     // HU2-PB5: Reenviar código. Genérico si el correo no existe para no revelar cuentas.
-    public async Task<OperationResult> ResendAsync(string? correoRaw, CancellationToken ct = default)
+    public virtual async Task<OperationResult> ResendAsync(string? correoRaw, CancellationToken ct = default)
     {
         var correo = ContactHelper.Normalize(correoRaw);
         var user = await users.FindByCorreoAsync(correo, ct);

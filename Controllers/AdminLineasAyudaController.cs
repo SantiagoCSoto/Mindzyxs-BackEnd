@@ -300,7 +300,7 @@ public class AdminLineasAyudaController(AdminLineasAyudaService lineas) : Contro
     {
         if (!Request.Headers.TryGetValue("Authorization", out var v)) return null;
         var parts = v.ToString().Trim().Split(' ', StringSplitOptions.RemoveEmptyEntries);
-        var token = parts.Length == 1 ? parts[0] : parts[^1];
+        var token = parts.Length > 0 ? parts[^1] : string.Empty; // encabezado vacio o solo espacios: token en blanco, el servicio responde 401
         return token.Trim().Trim('"').Trim('\'');
     }
 }

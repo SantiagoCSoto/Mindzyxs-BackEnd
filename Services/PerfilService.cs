@@ -17,7 +17,7 @@ public class PerfilService(
 {
     // PB-10 HU1-PB10: devuelve el perfil del usuario autenticado (nombres,
     // apellidos, fecha de nacimiento, género y correo) desde dbo.usuarios.
-    public async Task<PerfilVm> ObtenerAsync(string? tokenRaw, CancellationToken ct = default)
+    public virtual async Task<PerfilVm> ObtenerAsync(string? tokenRaw, CancellationToken ct = default)
     {
         var yo = await RequireSesionAsync(tokenRaw, ct);
         string? genero = null;
@@ -40,7 +40,7 @@ public class PerfilService(
     // PB-10 HU1-PB10: actualiza nombres, apellidos, fecha de nacimiento y género.
     // Valida obligatorios, fecha válida (no futura, mayor de 14) y género existente.
     // Lanza InvalidOperationException con el mensaje exacto para el 400.
-    public async Task<string> ActualizarAsync(string? tokenRaw, ActualizarPerfilVm vm, string? ip, CancellationToken ct = default)
+    public virtual async Task<string> ActualizarAsync(string? tokenRaw, ActualizarPerfilVm vm, string? ip, CancellationToken ct = default)
     {
         var yo = await RequireSesionAsync(tokenRaw, ct);
         var nombres = (vm.Nombres ?? "").Trim();
@@ -66,7 +66,7 @@ public class PerfilService(
 
     // PB-10 HU1-PB10: envía código de verificación al nuevo correo.
     // Si ya está registrado -> 409 "El correo ya se encuentra registrado".
-    public async Task<string> SolicitarCambioAsync(string? tokenRaw, string nuevoCorreoRaw, string? ip, CancellationToken ct = default)
+    public virtual async Task<string> SolicitarCambioAsync(string? tokenRaw, string nuevoCorreoRaw, string? ip, CancellationToken ct = default)
     {
         var yo = await RequireSesionAsync(tokenRaw, ct);
         var nuevo = ContactHelper.Normalize(nuevoCorreoRaw);
@@ -89,7 +89,7 @@ public class PerfilService(
     }
 
     // PB-10 HU1-PB10: valida el código y aplica el cambio de correo.
-    public async Task<string> ConfirmarCambioAsync(string? tokenRaw, string nuevoCorreoRaw, string codigoRaw, string? ip, CancellationToken ct = default)
+    public virtual async Task<string> ConfirmarCambioAsync(string? tokenRaw, string nuevoCorreoRaw, string codigoRaw, string? ip, CancellationToken ct = default)
     {
         var yo = await RequireSesionAsync(tokenRaw, ct);
         var nuevo = ContactHelper.Normalize(nuevoCorreoRaw);
@@ -115,7 +115,7 @@ public class PerfilService(
 
     // Registro incompleto (cerró/recargó sin verificar): si sigue pendiente,
     // reenvía código y avisa para continuar; si no, mensaje genérico (sin filtrar).
-    public async Task<(bool Requiere, string Mensaje)> ReanudarAsync(string? correoRaw, CancellationToken ct = default)
+    public virtual async Task<(bool Requiere, string Mensaje)> ReanudarAsync(string? correoRaw, CancellationToken ct = default)
     {
         const string generico = "Si el correo está registrado y pendiente, recibirás un código.";
         var c = ContactHelper.Normalize(correoRaw);

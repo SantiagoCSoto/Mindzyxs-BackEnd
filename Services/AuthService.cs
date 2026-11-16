@@ -20,7 +20,7 @@ public class AuthService(
     ILogger<AuthService> logger)
 {
     // PB-01 HU1+ HU2 + HU3: valida, crea en PendienteVerificacion y genera código HU4.
-    public async Task<OperationResult<int>> RegisterAsync(RegisterVm vm, CancellationToken ct = default)
+    public virtual async Task<OperationResult<int>> RegisterAsync(RegisterVm vm, CancellationToken ct = default)
     {
         if (vm is null) return OperationResult<int>.Fail("Solicitud inválida.");
 

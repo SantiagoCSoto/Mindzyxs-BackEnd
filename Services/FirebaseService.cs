@@ -34,7 +34,7 @@ public class FirebaseService(
     private GoogleCredential? credential;
 
     // Emite el token con el que el front hace signInWithCustomToken (expira en 1h).
-    public async Task<string> CreateCustomTokenAsync(string uid, string rol, CancellationToken ct = default)
+    public virtual async Task<string> CreateCustomTokenAsync(string uid, string rol, CancellationToken ct = default)
     {
         await EnsureStartedAsync(ct);
         var claims = new Dictionary<string, object> { ["rol"] = rol };
@@ -42,7 +42,7 @@ public class FirebaseService(
     }
 
     // Escribe meta de la conversación por REST (OAuth2 de la service account). Solo back.
-    public async Task WriteMetaAsync(int conversacionId, int idPaciente, int idPsicologo, string estado, int? bloqueador, CancellationToken ct = default)
+    public virtual async Task WriteMetaAsync(int conversacionId, int idPaciente, int idPsicologo, string estado, int? bloqueador, CancellationToken ct = default)
     {
         await EnsureStartedAsync(ct);
         var sa = credential!.CreateScoped(

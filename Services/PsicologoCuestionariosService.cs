@@ -15,7 +15,7 @@ public class PsicologoCuestionariosService(
 {
     // PB-20 HU1-PB20: crea el cuestionario Personalizado (Borrador o Publicado)
     // con preguntas, opciones con valor e intervalos de riesgo configurables.
-    public async Task<CuestionarioCreadoDto> CrearAsync(string? tokenRaw, CuestionarioCrearDto dto, string? ip, CancellationToken ct = default)
+    public virtual async Task<CuestionarioCreadoDto> CrearAsync(string? tokenRaw, CuestionarioCrearDto dto, string? ip, CancellationToken ct = default)
     {
         var yo = await RequirePsicologoAsync(tokenRaw, ct);
 
@@ -49,7 +49,7 @@ public class PsicologoCuestionariosService(
     }
 
     // PB-21 HU1-PB21: lista "Mis cuestionarios" (Borrador/Publicado) con búsqueda en orden.
-    public async Task<List<CuestionarioPsicologoListaDto>> ListarAsync(string? tokenRaw, string? q, CancellationToken ct = default)
+    public virtual async Task<List<CuestionarioPsicologoListaDto>> ListarAsync(string? tokenRaw, string? q, CancellationToken ct = default)
     {
         var yo = await RequirePsicologoAsync(tokenRaw, ct);
         var busqueda = string.IsNullOrWhiteSpace(q) ? null : q.Trim();
@@ -58,7 +58,7 @@ public class PsicologoCuestionariosService(
 
     // PB-21: detalle del cuestionario propio (título, descripción, estado, umbrales,
     // preguntas y opciones con sus ids para prellenar la edición).
-    public async Task<CuestionarioPsicologoDetalleDto> ObtenerDetalleAsync(string? tokenRaw, int id, CancellationToken ct = default)
+    public virtual async Task<CuestionarioPsicologoDetalleDto> ObtenerDetalleAsync(string? tokenRaw, int id, CancellationToken ct = default)
     {
         var yo = await RequirePsicologoAsync(tokenRaw, ct);
         var c = await cuestionarios.FindDePsicologoAsync(id, yo.IdUsuario, ct)
@@ -91,7 +91,7 @@ public class PsicologoCuestionariosService(
     }
 
     // PB-21: confirmación de editar un cuestionario Publicado -> pasa a Borrador (log).
-    public async Task<string> DespublicarAsync(string? tokenRaw, int id, string? ip, CancellationToken ct = default)
+    public virtual async Task<string> DespublicarAsync(string? tokenRaw, int id, string? ip, CancellationToken ct = default)
     {
         var yo = await RequirePsicologoAsync(tokenRaw, ct);
         var c = await cuestionarios.FindDePsicologoAsync(id, yo.IdUsuario, ct)
@@ -106,7 +106,7 @@ public class PsicologoCuestionariosService(
 
     // PB-21: guarda la edición del cuestionario (Borrador o Publicado) con sus preguntas
     // y opciones. Un publicado primero debe pasar a Borrador (flujo con confirmación).
-    public async Task<CuestionarioCreadoDto> ActualizarAsync(string? tokenRaw, int id, CuestionarioCrearDto dto, string? ip, CancellationToken ct = default)
+    public virtual async Task<CuestionarioCreadoDto> ActualizarAsync(string? tokenRaw, int id, CuestionarioCrearDto dto, string? ip, CancellationToken ct = default)
     {
         var yo = await RequirePsicologoAsync(tokenRaw, ct);
         var anterior = await cuestionarios.FindDePsicologoAsync(id, yo.IdUsuario, ct)
@@ -137,7 +137,7 @@ public class PsicologoCuestionariosService(
 
     // PB-21: elimina el cuestionario con confirmación extra: baja lógica (Eliminado,
     // fuera de los análisis) + borrado de las observaciones asociadas + log.
-    public async Task<string> EliminarAsync(string? tokenRaw, int id, bool confirmar, string? ip, CancellationToken ct = default)
+    public virtual async Task<string> EliminarAsync(string? tokenRaw, int id, bool confirmar, string? ip, CancellationToken ct = default)
     {
         var yo = await RequirePsicologoAsync(tokenRaw, ct);
         var c = await cuestionarios.FindDePsicologoAsync(id, yo.IdUsuario, ct)
@@ -156,7 +156,7 @@ public class PsicologoCuestionariosService(
     // con casillas; los que ya tienen el cuestionario asignado salen deshabilitados).
     // Solo cuestionarios propios. No bloquea si es Borrador: la asignación misma
     // (POST) valida que esté Publicado.
-    public async Task<AsignarCuestionarioPantallaDto> ObtenerPantallaAsignarAsync(string? tokenRaw, int id, CancellationToken ct = default)
+    public virtual async Task<AsignarCuestionarioPantallaDto> ObtenerPantallaAsignarAsync(string? tokenRaw, int id, CancellationToken ct = default)
     {
         var yo = await RequirePsicologoAsync(tokenRaw, ct);
         var c = await cuestionarios.FindDePsicologoAsync(id, yo.IdUsuario, ct)
@@ -184,7 +184,7 @@ public class PsicologoCuestionariosService(
     // autorizados. Restringe la asignación a cuestionarios Publicado, valida al menos
     // un paciente ("Debes seleccionar al menos un paciente") y guarda CUESTIONARIO_ASIGNADO
     // en dbo.auth. El cuestionario queda disponible de inmediato para el paciente.
-    public async Task<int> AsignarAsync(string? tokenRaw, int id, AsignarCuestionarioRequest request, string? ip, CancellationToken ct = default)
+    public virtual async Task<int> AsignarAsync(string? tokenRaw, int id, AsignarCuestionarioRequest request, string? ip, CancellationToken ct = default)
     {
         var yo = await RequirePsicologoAsync(tokenRaw, ct);
         var c = await cuestionarios.FindDePsicologoAsync(id, yo.IdUsuario, ct)

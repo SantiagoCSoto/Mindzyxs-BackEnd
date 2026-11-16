@@ -110,7 +110,7 @@ public class AdminNotificacionesController(AdminService admin) : ControllerBase
     {
         if (!Request.Headers.TryGetValue("Authorization", out var v)) return (false, null, "Tu sesión ha expirado. Inicia sesión nuevamente");
         var parts = v.ToString().Trim().Split(' ', StringSplitOptions.RemoveEmptyEntries);
-        var token = parts.Length == 1 ? parts[0] : parts[^1];
+        var token = parts.Length > 0 ? parts[^1] : string.Empty; // encabezado vacio o solo espacios: token en blanco, sin sesion
         var ip = HttpContext.Connection.RemoteIpAddress?.ToString();
         var adminId = await admin.GetAdminIdAsync(token.Trim().Trim('"').Trim('\''), ip, ct);
         if (adminId is null)

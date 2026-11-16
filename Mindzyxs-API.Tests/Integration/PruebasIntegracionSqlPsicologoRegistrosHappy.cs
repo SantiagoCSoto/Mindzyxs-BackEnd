@@ -1,0 +1,75 @@
+using System.Net;
+using System.Net.Http;
+using System.Net.Http.Json;
+using FluentAssertions;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
+using Mindzyxs_API.Repositories.Models;
+using Mindzyxs_API.Tests.Integration;
+using Xunit;
+
+namespace Mindzyxs_API.Tests.Integration;
+
+public class PruebasIntegracionSqlPsicologoRegistrosHappy : IClassFixture<FabricaAplicacionWebApiSql>
+{
+    private readonly FabricaAplicacionWebApiSql _factory;
+    private readonly HttpClient _client;
+
+    public PruebasIntegracionSqlPsicologoRegistrosHappy(FabricaAplicacionWebApiSql factory)
+    {
+        _factory = factory;
+        _client = factory.CreateClient();
+    }
+
+    [Fact]
+    public async Task Pacientes_Autenticado_ReturnsOk()
+    {
+        var email = $"psi{Guid.NewGuid():N}@test.com";
+        var content = new MultipartFormDataContent();
+        content.Add(new StringContent("Psicologo"), "TipoUsuario");
+        content.Add(new StringContent("Psi"), "Nombre");
+        content.Add(new StringContent("Test"), "Apellido");
+        content.Add(new StringContent(email), "Correo");
+        content.Add(new StringContent("Abc12345"), "Password");
+        content.Add(new StringContent("1990-01-01"), "FechaNacimiento");
+        content.Add(new StringContent("2"), "IdGenero");
+        var pdfBytes = new byte[] { 0x25, 0x50, 0x44, 0x46, 0x2D, 0x31, 0x2E, 0x34 };
+        var fileContent = new ByteArrayContent(pdfBytes);
+        fileContent.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("application/pdf");
+        content.Add(fileContent, "TarjetaProfesional", "tarjeta.pdf");
+
+        var reg = await _client.PostAsync("/api/account/register", content);
+        reg.EnsureSuccessStatusCode();
+
+        int userId;
+        string code;
+        using (var scope = _factory.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<MindzyxsDbContext>();
+            var user = db.Usuarios.First(u => u.Correo == email);
+            userId = user.IdUsuario;
+            code = db.Codigos.First(c => c.IdUsuario == userId && c.Tipo == "Registro").Codigo;
+            db.Database.ExecuteSqlRaw($"UPDATE dbo.usuarios SET id_estado_cuenta=1, id_estado_aprobacion=6 WHERE id_usuario={userId}");
+        }
+
+        var verify = await _client.PostAsJsonAsync("/api/account/verify", new { correo = email, codigo = code });
+        verify.EnsureSuccessStatusCode();
+
+        // Re-ensure active/approved
+        using (var scope = _factory.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<MindzyxsDbContext>();
+            db.Database.ExecuteSqlRaw($"UPDATE dbo.usuarios SET id_estado_cuenta=1, id_estado_aprobacion=6 WHERE id_usuario={userId}");
+        }
+
+        var login = await _client.PostAsJsonAsync("/api/account/login", new { correo = email, password = "Abc12345" });
+        login.EnsureSuccessStatusCode();
+        var body = await login.Content.ReadAsStringAsync();
+        using var doc = System.Text.Json.JsonDocument.Parse(body);
+        var token = doc.RootElement.GetProperty("token").GetString()!;
+        _client.ConToken(token);
+
+        var response = await _client.GetAsync("/api/psicologo/pacientes");
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+    }
+}

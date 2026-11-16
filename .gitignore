@@ -26,6 +26,7 @@
 # Test results
 TestResults/
 *.trx
+CoverageReport/
 
 # Logs
 *.log

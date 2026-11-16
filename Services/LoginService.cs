@@ -18,7 +18,7 @@ public class LoginService(
     IOptions<SesionOptions> sesionOptions,
     ILogger<LoginService> logger)
 {
-    public async Task<OperationResult<LoginResponseDto>> LoginAsync(string? correoRaw, string? passwordRaw, string? ip, CancellationToken ct = default)
+    public virtual async Task<OperationResult<LoginResponseDto>> LoginAsync(string? correoRaw, string? passwordRaw, string? ip, CancellationToken ct = default)
     {
         var correo = ContactHelper.Normalize(correoRaw);
         var password = passwordRaw ?? string.Empty;
@@ -138,7 +138,7 @@ public class LoginService(
         return OperationResult<LoginResponseDto>.Ok(resp, "Inicio de sesión exitoso");
     }
 
-    public async Task<OperationResult<UsuarioDto>> ValidateSessionAsync(string? tokenRaw, string? ip, CancellationToken ct = default)
+    public virtual async Task<OperationResult<UsuarioDto>> ValidateSessionAsync(string? tokenRaw, string? ip, CancellationToken ct = default)
     {
         if (string.IsNullOrWhiteSpace(tokenRaw))
             return OperationResult<UsuarioDto>.Fail("Tu sesión ha expirado. Inicia sesión nuevamente");
@@ -178,7 +178,7 @@ public class LoginService(
     // Idempotente: sin token o sesión inexistente devuelve éxito para que el
     // front limpie el token local y redirija. Ante error interno devuelve el
     // mensaje exacto "No fue posible cerrar sesión. Intenta nuevamente".
-    public async Task<OperationResult> LogoutAsync(string? tokenRaw, string? ip, CancellationToken ct = default)
+    public virtual async Task<OperationResult> LogoutAsync(string? tokenRaw, string? ip, CancellationToken ct = default)
     {
         try
         {

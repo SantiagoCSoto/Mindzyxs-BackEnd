@@ -13,7 +13,7 @@ public class VerificationService(
     NotificationService notificaciones,
     IOptions<RegistroOptions> registroOptions)
 {
-    public async Task<OperationResult<string>> VerifyAsync(string? correo, string? codigo, CancellationToken ct = default)
+    public virtual async Task<OperationResult<string>> VerifyAsync(string? correo, string? codigo, CancellationToken ct = default)
     {
         var c = ContactHelper.Normalize(correo);
         var user = await users.FindByCorreoAsync(c, ct);
@@ -41,7 +41,7 @@ public class VerificationService(
         return OperationResult<string>.Ok("Activa", "Registro exitoso. Ya puedes iniciar sesión");
     }
 
-    public async Task<OperationResult> ResendAsync(string? correo, CancellationToken ct = default)
+    public virtual async Task<OperationResult> ResendAsync(string? correo, CancellationToken ct = default)
     {
         var c = ContactHelper.Normalize(correo);
         var user = await users.FindByCorreoAsync(c, ct);

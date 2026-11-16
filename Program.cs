@@ -52,8 +52,16 @@ builder.Services.AddRateLimiter(o =>
 });
 
 // BD (todo el acceso vive en Repositories/Models + Ef*).
-builder.Services.AddDbContext<MindzyxsDbContext>(o =>
-    o.UseSqlServer(builder.Configuration.GetConnectionString("Mindzyxs")));
+if (builder.Environment.IsEnvironment("Testing"))
+{
+    builder.Services.AddDbContext<MindzyxsDbContext>(o =>
+        o.UseInMemoryDatabase("Testing"));
+}
+else
+{
+    builder.Services.AddDbContext<MindzyxsDbContext>(o =>
+        o.UseSqlServer(builder.Configuration.GetConnectionString("Mindzyxs")));
+}
 
 builder.Services.Configure<SmtpOptions>(builder.Configuration.GetSection("Smtp"));
 builder.Services.Configure<StorageOptions>(builder.Configuration.GetSection("Storage"));
@@ -227,3 +235,5 @@ static void LoadDotEnv()
             Environment.SetEnvironmentVariable(key, val);
     }
 }
+
+public partial class Program { }
