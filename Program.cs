@@ -1,4 +1,4 @@
-using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.OpenApi.Models;
@@ -206,7 +206,7 @@ if (!app.Environment.IsDevelopment())
 }
 app.UseAuthorization();
 app.MapControllers();
-app.Run();
+await app.RunAsync();
 
 // Carga .env local (desarrollo): GOOGLE_APPLICATION_CREDENTIALS, etc.
 // No pisa variables de entorno reales ya definidas. Las rutas relativas

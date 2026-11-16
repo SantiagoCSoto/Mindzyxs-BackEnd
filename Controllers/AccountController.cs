@@ -1,4 +1,4 @@
-using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 using Mindzyxs_API.Dtos;
 using Mindzyxs_API.Services;
@@ -442,7 +442,7 @@ public class AccountController(
         try
         {
             var ip = HttpContext.Connection.RemoteIpAddress?.ToString();
-            var mensaje = await perfil.SolicitarCambioAsync(ReadBearerToken(), vm.NuevoCorreo, ip, ct);
+            var mensaje = await perfil.SolicitarCambioAsync(ReadBearerToken(), vm.NuevoCorreo ?? string.Empty, ip, ct);
             return Ok(new { mensaje });
         }
         catch (UnauthorizedAccessException ex)
@@ -488,7 +488,7 @@ public class AccountController(
         try
         {
             var ip = HttpContext.Connection.RemoteIpAddress?.ToString();
-            var mensaje = await perfil.ConfirmarCambioAsync(ReadBearerToken(), vm.NuevoCorreo, vm.Codigo, ip, ct);
+            var mensaje = await perfil.ConfirmarCambioAsync(ReadBearerToken(), vm.NuevoCorreo ?? string.Empty, vm.Codigo ?? string.Empty, ip, ct);
             return Ok(new { mensaje });
         }
         catch (UnauthorizedAccessException ex)
