@@ -7,9 +7,9 @@ using Mindzyxs_API.Services;
 using Mindzyxs_API.Utilities;
 
 namespace Mindzyxs_API.Repositories;
-
 public class EfUserRepository(MindzyxsDbContext db) : IUserRepository
 {
+    private static readonly System.Text.Json.JsonSerializerOptions JsonOpts = new() { WriteIndented = true };
     public async Task<UsuarioDto?> FindByCorreoAsync(string correo, CancellationToken ct = default)
     {
         var c = ContactHelper.Normalize(correo).ToLower();
@@ -1376,6 +1376,7 @@ public class EfChatRepository(MindzyxsDbContext db) : IChatRepository
 
 public class EfAdminRepository(MindzyxsDbContext db, IOptions<AdminOptions> adminOptions) : IAdminRepository
 {
+    private static readonly System.Text.Json.JsonSerializerOptions JsonOpts = new() { WriteIndented = true };
     public async Task<List<RespaldoDto>> ListRespaldosAsync(CancellationToken ct = default)
         => await db.Respaldos.AsNoTracking()
             .OrderByDescending(r => r.FechaHora)
@@ -1437,7 +1438,7 @@ public class EfAdminRepository(MindzyxsDbContext db, IOptions<AdminOptions> admi
                 usuarios
             }
         };
-        return System.Text.Json.JsonSerializer.Serialize(snapshot, new System.Text.Json.JsonSerializerOptions { WriteIndented = true });
+        return System.Text.Json.JsonSerializer.Serialize(snapshot, JsonOpts);
     }
 
     // BACKUP DATABASE nativo de SQL Server usando la credencial dedicada (db_backupoperator).

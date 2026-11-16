@@ -1,4 +1,4 @@
-﻿using Mindzyxs_API.Dtos;
+using Mindzyxs_API.Dtos;
 using Mindzyxs_API.Repositories;
 using Mindzyxs_API.Repositories.Models;
 using Mindzyxs_API.Utilities;
@@ -132,7 +132,7 @@ public class AdminLineasAyudaService(
             dto.Poblacion?.Trim(),
             dto.Fuente?.Trim(),
             dto.FechaVerificacion,
-            default);
+            ct);
 
         await authLogs.LogAsync(adminId, adminId, LogAcciones.LineaAyudaEditada,
             $"Admin editó la línea de ayuda {id} \"{dto.Nombre.Trim()}\"", ip, ct);
