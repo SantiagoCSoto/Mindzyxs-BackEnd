@@ -32,10 +32,10 @@ public class AdminControllerPilotTests
 
     private AdminController CreateSut() => new(_admin.Object);
 
-    private void SetHttpContext(AdminController sut, string? authHeader = null)
+    private static void SetHttpContext(AdminController sut, string? authHeader = null)
     {
         var httpContext = new Microsoft.AspNetCore.Http.DefaultHttpContext();
-        if (authHeader != null) httpContext.Request.Headers["Authorization"] = authHeader;
+        if (authHeader != null) httpContext.Request.Headers.Authorization = authHeader;
         sut.ControllerContext = new ControllerContext { HttpContext = httpContext };
     }
 

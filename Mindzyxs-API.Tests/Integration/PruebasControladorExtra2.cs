@@ -15,7 +15,7 @@ public class PruebasControladorCuestionarioExtra : IClassFixture<FabricaAplicaci
     [Fact] public async Task PacienteAsignados_SinToken_ReturnsUnauthorized() { var r = await _client.GetAsync("/api/cuestionario/paciente/asignados"); r.StatusCode.Should().Be(HttpStatusCode.Unauthorized); }
     [Fact] public async Task PacienteAsignadoDetalle_SinToken_ReturnsUnauthorized() { var r = await _client.GetAsync("/api/cuestionario/paciente/asignados/1"); r.StatusCode.Should().Be(HttpStatusCode.Unauthorized); }
     [Fact] public async Task PacienteInicio_SinToken_ReturnsUnauthorized() { var r = await _client.PostAsJsonAsync("/api/cuestionario/paciente/inicio", new { cuestionarioId = 1 }); r.StatusCode.Should().Be(HttpStatusCode.Unauthorized); }
-    [Fact] public async Task PacienteFinalizar_SinToken_ReturnsUnauthorized() { var r = await _client.PostAsJsonAsync("/api/cuestionario/paciente/finalizar", new { cuestionarioId = 1, respuestas = new object[] { } }); r.StatusCode.Should().Be(HttpStatusCode.Unauthorized); }
+    [Fact] public async Task PacienteFinalizar_SinToken_ReturnsUnauthorized() { var r = await _client.PostAsJsonAsync("/api/cuestionario/paciente/finalizar", new { cuestionarioId = 1, respuestas = Array.Empty<object>() }); r.StatusCode.Should().Be(HttpStatusCode.Unauthorized); }
 }
 
 public class PruebasControladorAdminExtra : IClassFixture<FabricaAplicacionWebApiConDatos>

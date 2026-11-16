@@ -35,10 +35,10 @@ public class ChatControllerAuthTests
 
     private ChatController CreateSut() => new(_firebase.Object, _chats.Object, _sesiones.Object, _usuarios.Object);
 
-    private void SetHttpContext(ChatController sut, string? authHeader = null)
+    private static void SetHttpContext(ChatController sut, string? authHeader = null)
     {
         var httpContext = new Microsoft.AspNetCore.Http.DefaultHttpContext();
-        if (authHeader != null) httpContext.Request.Headers["Authorization"] = authHeader;
+        if (authHeader != null) httpContext.Request.Headers.Authorization = authHeader;
         sut.ControllerContext = new ControllerContext { HttpContext = httpContext };
     }
 

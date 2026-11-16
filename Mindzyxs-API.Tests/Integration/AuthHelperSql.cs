@@ -10,7 +10,7 @@ namespace Mindzyxs_API.Tests.Integration;
 
 public static class AuthHelperSql
 {
-    public static async Task<string> RegistrarYVerificarYLoginAsync(FabricaAplicacionWebApiSql factory, HttpClient client, string email, string password = "Abc12345", string tipo = "Paciente", SqlTestCleanup.TestScope scope = null)
+    public static async Task<string> RegistrarYVerificarYLoginAsync(FabricaAplicacionWebApiSql factory, HttpClient client, string email, string password = "Abc12345", string tipo = "Paciente", SqlTestCleanup.TestScope? scope = null)
     {
         var content = new MultipartFormDataContent();
         content.Add(new StringContent(tipo), "TipoUsuario");
@@ -91,7 +91,7 @@ public static class AuthHelperSql
             var user = db.Usuarios.First(u => u.Correo == email);
             userId = user.IdUsuario;
             code = db.Codigos.First(c => c.IdUsuario == userId && c.Tipo == "Registro").Codigo;
-            db.Database.ExecuteSqlRaw($"UPDATE dbo.usuarios SET id_estado_cuenta=1, id_estado_aprobacion=6 WHERE id_usuario={userId}");
+            db.Database.ExecuteSqlRaw("UPDATE dbo.usuarios SET id_estado_cuenta=1, id_estado_aprobacion=6 WHERE id_usuario = @p0", new Microsoft.Data.SqlClient.SqlParameter("@p0", userId));
         }
 
         var verify = await client.PostAsJsonAsync("/api/account/verify", new { correo = email, codigo = code });
@@ -100,7 +100,7 @@ public static class AuthHelperSql
         using (var scopeDb = factory.Services.CreateScope())
         {
             var db = scopeDb.ServiceProvider.GetRequiredService<MindzyxsDbContext>();
-            db.Database.ExecuteSqlRaw($"UPDATE dbo.usuarios SET id_estado_cuenta=1, id_estado_aprobacion=6 WHERE id_usuario={userId}");
+            db.Database.ExecuteSqlRaw("UPDATE dbo.usuarios SET id_estado_cuenta=1, id_estado_aprobacion=6 WHERE id_usuario = @p0", new Microsoft.Data.SqlClient.SqlParameter("@p0", userId));
         }
 
         var login = await client.PostAsJsonAsync("/api/account/login", new { correo = email, password });

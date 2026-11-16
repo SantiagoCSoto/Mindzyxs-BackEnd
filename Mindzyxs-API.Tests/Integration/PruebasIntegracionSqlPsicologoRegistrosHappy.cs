@@ -49,7 +49,7 @@ public class PruebasIntegracionSqlPsicologoRegistrosHappy : IClassFixture<Fabric
             var user = db.Usuarios.First(u => u.Correo == email);
             userId = user.IdUsuario;
             code = db.Codigos.First(c => c.IdUsuario == userId && c.Tipo == "Registro").Codigo;
-            db.Database.ExecuteSqlRaw($"UPDATE dbo.usuarios SET id_estado_cuenta=1, id_estado_aprobacion=6 WHERE id_usuario={userId}");
+            db.Database.ExecuteSqlRaw("UPDATE dbo.usuarios SET id_estado_cuenta=1, id_estado_aprobacion=6 WHERE id_usuario = @p0", new Microsoft.Data.SqlClient.SqlParameter("@p0", userId));
         }
 
         var verify = await _client.PostAsJsonAsync("/api/account/verify", new { correo = email, codigo = code });
@@ -59,7 +59,7 @@ public class PruebasIntegracionSqlPsicologoRegistrosHappy : IClassFixture<Fabric
         using (var scope = _factory.Services.CreateScope())
         {
             var db = scope.ServiceProvider.GetRequiredService<MindzyxsDbContext>();
-            db.Database.ExecuteSqlRaw($"UPDATE dbo.usuarios SET id_estado_cuenta=1, id_estado_aprobacion=6 WHERE id_usuario={userId}");
+            db.Database.ExecuteSqlRaw("UPDATE dbo.usuarios SET id_estado_cuenta=1, id_estado_aprobacion=6 WHERE id_usuario = @p0", new Microsoft.Data.SqlClient.SqlParameter("@p0", userId));
         }
 
         var login = await _client.PostAsJsonAsync("/api/account/login", new { correo = email, password = "Abc12345" });

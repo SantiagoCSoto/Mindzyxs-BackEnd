@@ -37,7 +37,7 @@ public class AdminControllerTests
     private static void SetHttpContext(AdminController sut, string? authHeader = null, string? ip = null)
     {
         var httpContext = new DefaultHttpContext();
-        if (authHeader != null) httpContext.Request.Headers["Authorization"] = authHeader;
+        if (authHeader != null) httpContext.Request.Headers.Authorization = authHeader;
         if (ip != null) httpContext.Connection.RemoteIpAddress = IPAddress.Parse(ip);
         sut.ControllerContext = new ControllerContext { HttpContext = httpContext };
     }

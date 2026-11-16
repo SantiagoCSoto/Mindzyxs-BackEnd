@@ -17,7 +17,7 @@ public static class SqlTestCleanup
         public List<int> EventoIds { get; } = new();
         public List<int> CodigoIds { get; } = new();
 
-        public void Dispose() { }
+        public void Dispose() { GC.SuppressFinalize(this); }
     }
 
     public static bool IsSafeContext(MindzyxsDbContext db)
@@ -67,29 +67,31 @@ public static class SqlTestCleanup
 
         if (scope.EventoIds.Count > 0)
         {
-            var ids = string.Join(",", scope.EventoIds);
-            db.Database.ExecuteSqlRaw($"DELETE FROM dbo.respuestas WHERE id_evento IN ({ids})");
-            db.Database.ExecuteSqlRaw($"DELETE FROM dbo.eventos_bienestar WHERE id_evento IN ({ids})");
+            foreach (var __id in scope.EventoIds)
+            {
+                db.Database.ExecuteSqlRaw("DELETE FROM dbo.respuestas WHERE id_evento = @p0", new Microsoft.Data.SqlClient.SqlParameter("@p0", __id));
+                db.Database.ExecuteSqlRaw("DELETE FROM dbo.eventos_bienestar WHERE id_evento = @p0", new Microsoft.Data.SqlClient.SqlParameter("@p0", __id));
+            }
         }
         if (scope.AutorizacionIds.Count > 0)
         {
-            var ids = string.Join(",", scope.AutorizacionIds);
-            db.Database.ExecuteSqlRaw($"DELETE FROM dbo.autorizaciones WHERE id_autorizacion IN ({ids})");
+            foreach (var __id in scope.AutorizacionIds)
+                db.Database.ExecuteSqlRaw("DELETE FROM dbo.autorizaciones WHERE id_autorizacion = @p0", new Microsoft.Data.SqlClient.SqlParameter("@p0", __id));
         }
         if (scope.SesionIds.Count > 0)
         {
-            var ids = string.Join(",", scope.SesionIds);
-            db.Database.ExecuteSqlRaw($"DELETE FROM dbo.sesiones WHERE id_sesion IN ({ids})");
+            foreach (var __id in scope.SesionIds)
+                db.Database.ExecuteSqlRaw("DELETE FROM dbo.sesiones WHERE id_sesion = @p0", new Microsoft.Data.SqlClient.SqlParameter("@p0", __id));
         }
         if (scope.CodigoIds.Count > 0)
         {
-            var ids = string.Join(",", scope.CodigoIds);
-            db.Database.ExecuteSqlRaw($"DELETE FROM dbo.codigos_verificacion WHERE id_codigo IN ({ids})");
+            foreach (var __id in scope.CodigoIds)
+                db.Database.ExecuteSqlRaw("DELETE FROM dbo.codigos_verificacion WHERE id_codigo = @p0", new Microsoft.Data.SqlClient.SqlParameter("@p0", __id));
         }
         if (scope.UserIds.Count > 0)
         {
-            var ids = string.Join(",", scope.UserIds);
-            db.Database.ExecuteSqlRaw($"DELETE FROM dbo.usuarios WHERE id_usuario IN ({ids})");
+            foreach (var __id in scope.UserIds)
+                db.Database.ExecuteSqlRaw("DELETE FROM dbo.usuarios WHERE id_usuario = @p0", new Microsoft.Data.SqlClient.SqlParameter("@p0", __id));
         }
     }
 
