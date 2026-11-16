@@ -13,7 +13,7 @@ public class AdminLineasAyudaService(
 {
     // PB-29 HU1-PB29: lista todas las líneas de ayuda (admin, con búsqueda).
     // Solo administrador activo.
-    public async Task<List<LineaAyudaAdminListaDto>> ListarAsync(string? tokenRaw, string? q, CancellationToken ct = default)
+    public virtual async Task<List<LineaAyudaAdminListaDto>> ListarAsync(string? tokenRaw, string? q, CancellationToken ct = default)
     {
         var adminId = await RequireAdminAsync(tokenRaw, ct);
         var busqueda = string.IsNullOrWhiteSpace(q) ? null : q.Trim();
@@ -30,7 +30,7 @@ public class AdminLineasAyudaService(
     }
 
     // PB-29: detalle de una línea de ayuda para editar.
-    public async Task<LineaAyudaAdminDetalleDto> ObtenerDetalleAsync(string? tokenRaw, int id, CancellationToken ct = default)
+    public virtual async Task<LineaAyudaAdminDetalleDto> ObtenerDetalleAsync(string? tokenRaw, int id, CancellationToken ct = default)
     {
         var adminId = await RequireAdminAsync(tokenRaw, ct);
         var l = await lineas.FindByIdAsync(id, ct)
@@ -62,7 +62,7 @@ public class AdminLineasAyudaService(
 
     // PB-29 HU1-PB29: crea una nueva línea de ayuda (valida nombre y al menos un contacto).
     // Estado inicial: Activa. Log LINEA_AYUDA_CREADA.
-    public async Task<LineaAyudaAdminResultadoDto> CrearAsync(string? tokenRaw, LineaAyudaAdminCrearDto dto, string? ip, CancellationToken ct = default)
+    public virtual async Task<LineaAyudaAdminResultadoDto> CrearAsync(string? tokenRaw, LineaAyudaAdminCrearDto dto, string? ip, CancellationToken ct = default)
     {
         var adminId = await RequireAdminAsync(tokenRaw, ct);
 
@@ -102,7 +102,7 @@ public class AdminLineasAyudaService(
 
     // PB-29: edita una línea existente.
     // Valida nombre y al menos un contacto. Log LINEA_AYUDA_EDITADA.
-    public async Task<LineaAyudaAdminResultadoDto> ActualizarAsync(string? tokenRaw, int id, LineaAyudaAdminCrearDto dto, string? ip, CancellationToken ct = default)
+    public virtual async Task<LineaAyudaAdminResultadoDto> ActualizarAsync(string? tokenRaw, int id, LineaAyudaAdminCrearDto dto, string? ip, CancellationToken ct = default)
     {
         var adminId = await RequireAdminAsync(tokenRaw, ct);
         var l = await lineas.FindByIdAsync(id, ct)
@@ -141,7 +141,7 @@ public class AdminLineasAyudaService(
     }
 
     // PB-29: activa una línea (estado = Activa). Log LINEA_AYUDA_ACTIVADA.
-    public async Task<string> ActivarAsync(string? tokenRaw, int id, string? ip, CancellationToken ct = default)
+    public virtual async Task<string> ActivarAsync(string? tokenRaw, int id, string? ip, CancellationToken ct = default)
     {
         var adminId = await RequireAdminAsync(tokenRaw, ct);
         var l = await lineas.FindByIdAsync(id, ct)
@@ -154,7 +154,7 @@ public class AdminLineasAyudaService(
     }
 
     // PB-29: inactiva una línea (estado = Inactiva). Log LINEA_AYUDA_INACTIVADA.
-    public async Task<string> InactivarAsync(string? tokenRaw, int id, string? ip, CancellationToken ct = default)
+    public virtual async Task<string> InactivarAsync(string? tokenRaw, int id, string? ip, CancellationToken ct = default)
     {
         var adminId = await RequireAdminAsync(tokenRaw, ct);
         var l = await lineas.FindByIdAsync(id, ct)
@@ -167,7 +167,7 @@ public class AdminLineasAyudaService(
     }
 
     // PB-29: elimina (borrado lógico -> estado Eliminada). Log LINEA_AYUDA_ELIMINADA.
-    public async Task<string> EliminarAsync(string? tokenRaw, int id, string? ip, CancellationToken ct = default)
+    public virtual async Task<string> EliminarAsync(string? tokenRaw, int id, string? ip, CancellationToken ct = default)
     {
         var adminId = await RequireAdminAsync(tokenRaw, ct);
         var l = await lineas.FindByIdAsync(id, ct)

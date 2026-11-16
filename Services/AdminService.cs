@@ -29,7 +29,7 @@ public class AdminService(
     IOptions<AdminOptions> options,
     ILogger<AdminService> logger)
 {
-    public async Task<OperationResult<BackupResultDto>> CreateBackupAsync(int adminId, string? ip, CancellationToken ct = default)
+    public virtual async Task<OperationResult<BackupResultDto>> CreateBackupAsync(int adminId, string? ip, CancellationToken ct = default)
     {
         try
         {
@@ -96,7 +96,7 @@ public class AdminService(
         }
     }
 
-    public async Task<OperationResult<List<BackupListItemDto>>> ListBackupsAsync(int adminId, string? ip, CancellationToken ct = default)
+    public virtual async Task<OperationResult<List<BackupListItemDto>>> ListBackupsAsync(int adminId, string? ip, CancellationToken ct = default)
     {
         try
         {
@@ -121,7 +121,7 @@ public class AdminService(
         }
     }
 
-    public async Task<OperationResult<MaintenanceResultDto>> RunMaintenanceAsync(int adminId, string? ip, CancellationToken ct = default)
+    public virtual async Task<OperationResult<MaintenanceResultDto>> RunMaintenanceAsync(int adminId, string? ip, CancellationToken ct = default)
     {
         try
         {
@@ -149,7 +149,7 @@ public class AdminService(
     }
 
     // Devuelve la ruta física de un respaldo por id, o null si no existe.
-    public async Task<string?> GetBackupFilePath(int idRespaldo, CancellationToken ct = default)
+    public virtual async Task<string?> GetBackupFilePath(int idRespaldo, CancellationToken ct = default)
     {
         var r = await admin.FindRespaldoByIdAsync(idRespaldo, ct);
         if (r is null) return null;
@@ -157,7 +157,7 @@ public class AdminService(
     }
 
     // Devuelve el id_usuario del administrador autenticado o null si no es admin.
-    public async Task<int?> GetAdminIdAsync(string? tokenRaw, string? ip, CancellationToken ct = default)
+    public virtual async Task<int?> GetAdminIdAsync(string? tokenRaw, string? ip, CancellationToken ct = default)
     {
         var sesion = await login.ValidateSessionAsync(tokenRaw, ip, ct);
         if (!sesion.Success || sesion.Data is null)
@@ -184,7 +184,7 @@ public class AdminService(
 
     // PB-25: cola de tarjetas/especialidades pendientes de verificación.
     // El psicólogo NO pierde acceso: solo se ocultan hasta que el admin verifique.
-    public async Task<OperationResult<List<PsicologoTarjetaPendienteDto>>> PendientesTarjetaAsync(CancellationToken ct = default)
+    public virtual async Task<OperationResult<List<PsicologoTarjetaPendienteDto>>> PendientesTarjetaAsync(CancellationToken ct = default)
     {
         var idRolPsi = await catalogs.GetRolIdAsync(AppRoles.Psicologo, ct);
         var filas = await users.GetPsicologosTarjetaPendienteAsync(idRolPsi, ct);
@@ -204,7 +204,7 @@ public class AdminService(
     }
 
     // PB-25 tarjeta: verifica la tarjeta del psicólogo (las pendientes se hacen visibles).
-    public async Task<OperationResult<string>> VerificarTarjetaAsync(int adminId, int idPsicologo, string? ip, CancellationToken ct = default)
+    public virtual async Task<OperationResult<string>> VerificarTarjetaAsync(int adminId, int idPsicologo, string? ip, CancellationToken ct = default)
     {
         var psi = await users.FindByIdAsync(idPsicologo, ct);
         if (psi is null)
@@ -221,7 +221,7 @@ public class AdminService(
     }
 
     // PB-26 HU1-PB26: solicitudes pendientes de validación (fiel a v1 CU26).
-    public async Task<OperationResult<List<PsicologoPendienteDto>>> PendientesValidacionAsync(CancellationToken ct = default)
+    public virtual async Task<OperationResult<List<PsicologoPendienteDto>>> PendientesValidacionAsync(CancellationToken ct = default)
     {
         var idRolPsi = await catalogs.GetRolIdAsync(AppRoles.Psicologo, ct);
         var idPend = await catalogs.GetEstadoIdAsync(AccountStates.PendienteAprobacion, ct);
@@ -232,7 +232,7 @@ public class AdminService(
     }
 
     // PB-26 HU1-PB26: aprueba (Aprobado/Activa). Solo si sigue pendiente.
-    public async Task<OperationResult<string>> AprobarPsicologoAsync(int adminId, int idPsicologo, string? ip, CancellationToken ct = default)
+    public virtual async Task<OperationResult<string>> AprobarPsicologoAsync(int adminId, int idPsicologo, string? ip, CancellationToken ct = default)
     {
         var psi = await users.FindByIdAsync(idPsicologo, ct);
         if (psi is null)
@@ -261,7 +261,7 @@ public class AdminService(
     }
 
     // PB-26 HU1-PB26: detalle de la solicitud (perfil + tarjeta + estado).
-    public async Task<OperationResult<ValidacionDetalleDto>> DetalleValidacionAsync(int idPsicologo, CancellationToken ct = default)
+    public virtual async Task<OperationResult<ValidacionDetalleDto>> DetalleValidacionAsync(int idPsicologo, CancellationToken ct = default)
     {
         var psi = await users.FindByIdAsync(idPsicologo, ct);
         if (psi is null)
@@ -294,7 +294,7 @@ public class AdminService(
     }
 
     // PB-26 HU1-PB26: identificador de almacenamiento de la tarjeta (ruta legacy o nombre de blob).
-    public async Task<OperationResult<string>> TarjetaPathAsync(int idPsicologo, CancellationToken ct = default)
+    public virtual async Task<OperationResult<string>> TarjetaPathAsync(int idPsicologo, CancellationToken ct = default)
     {
         var perfil = await users.FindPerfilProfesionalAsync(idPsicologo, ct);
         if (perfil is null || string.IsNullOrWhiteSpace(perfil.FilePath))
@@ -303,7 +303,7 @@ public class AdminService(
     }
 
     // PB-26 HU1-PB26: abre el stream de la tarjeta desde el proveedor de almacenamiento.
-    public async Task<OperationResult<Stream>> TarjetaStreamAsync(int idPsicologo, CancellationToken ct = default)
+    public virtual async Task<OperationResult<Stream>> TarjetaStreamAsync(int idPsicologo, CancellationToken ct = default)
     {
         var perfil = await users.FindPerfilProfesionalAsync(idPsicologo, ct);
         if (perfil is null || string.IsNullOrWhiteSpace(perfil.FilePath))
@@ -320,7 +320,7 @@ public class AdminService(
     }
 
     // PB-26 HU1-PB26: rechaza (Rechazado/Inactiva, bloquea login). Motivo opcional.
-    public async Task<OperationResult<string>> RechazarPsicologoAsync(int adminId, int idPsicologo, string? motivo, string? ip, CancellationToken ct = default)
+    public virtual async Task<OperationResult<string>> RechazarPsicologoAsync(int adminId, int idPsicologo, string? motivo, string? ip, CancellationToken ct = default)
     {
         var psi = await users.FindByIdAsync(idPsicologo, ct);
         if (psi is null)
@@ -350,7 +350,7 @@ public class AdminService(
     }
 
     // PB-25 HU1-PB25: lista de usuarios con filtros (fiel a v1 CU25, sin admins).
-    public async Task<OperationResult<List<UsuarioAdminDto>>> UsuariosAsync(string? q, string? rol, string? estado, CancellationToken ct = default)
+    public virtual async Task<OperationResult<List<UsuarioAdminDto>>> UsuariosAsync(string? q, string? rol, string? estado, CancellationToken ct = default)
     {
         var idRolAdmin = await catalogs.GetRolIdAsync(AppRoles.Administrador, ct);
         int? idRol = null;
@@ -379,7 +379,7 @@ public class AdminService(
     }
 
     // PB-25 HU1-PB25: detalle del usuario (fiel a v1, sin password).
-    public async Task<OperationResult<UsuarioDetalleDto>> DetalleUsuarioAsync(int idUsuario, CancellationToken ct = default)
+    public virtual async Task<OperationResult<UsuarioDetalleDto>> DetalleUsuarioAsync(int idUsuario, CancellationToken ct = default)
     {
         var u = await users.FindByIdAsync(idUsuario, ct);
         if (u is null)
@@ -408,7 +408,7 @@ public class AdminService(
     // PB-25 HU1-PB25: cambia el estado de la cuenta (fiel a v1 CU25).
     // NOTA: el admin NO edita datos personales (nombres, correo, etc.);
     // solo gestiona estados y restablecimientos. Método de edición eliminado.
-    public async Task<OperationResult<string>> CambiarEstadoAsync(int adminId, int idUsuario, string nuevoEstado, string? ip, CancellationToken ct = default)
+    public virtual async Task<OperationResult<string>> CambiarEstadoAsync(int adminId, int idUsuario, string nuevoEstado, string? ip, CancellationToken ct = default)
     {
         if (string.IsNullOrWhiteSpace(nuevoEstado))
             return OperationResult<string>.Fail("Debes seleccionar un estado.");
@@ -436,7 +436,7 @@ public class AdminService(
     }
 
     // PB-25 HU1-PB25: fuerza restablecimiento (código + correo, sin exponer nada).
-    public async Task<OperationResult<string>> ForzarResetAsync(int adminId, int idUsuario, string? ip, CancellationToken ct = default)
+    public virtual async Task<OperationResult<string>> ForzarResetAsync(int adminId, int idUsuario, string? ip, CancellationToken ct = default)
     {
         var u = await users.FindByIdAsync(idUsuario, ct);
         if (u is null)
@@ -454,7 +454,7 @@ public class AdminService(
     }
 
     // PB-30: catálogo de notificaciones (6 eventos v1).
-    public async Task<OperationResult<List<NotificacionDto>>> NotificacionesAsync(CancellationToken ct = default)
+    public virtual async Task<OperationResult<List<NotificacionDto>>> NotificacionesAsync(CancellationToken ct = default)
     {
         var filas = await notificaciones.GetAllAsync(ct);
         return OperationResult<List<NotificacionDto>>.Ok(filas.Select(f => new NotificacionDto
@@ -469,7 +469,7 @@ public class AdminService(
     }
 
     // PB-30: detalle de un evento del catálogo.
-    public async Task<OperationResult<NotificacionDto>> DetalleNotificacionAsync(string tipo, CancellationToken ct = default)
+    public virtual async Task<OperationResult<NotificacionDto>> DetalleNotificacionAsync(string tipo, CancellationToken ct = default)
     {
         if (!TiposNotificacion.Todos.Contains(tipo, StringComparer.OrdinalIgnoreCase))
             return OperationResult<NotificacionDto>.Fail("Evento no encontrado.");
@@ -488,7 +488,7 @@ public class AdminService(
     }
 
     // PB-30: actualiza la config del evento (validaciones fieles a v1 CU31).
-    public async Task<OperationResult<string>> ActualizarNotificacionAsync(int adminId, string tipo, ActualizarNotificacionVm vm, string? ip, CancellationToken ct = default)
+    public virtual async Task<OperationResult<string>> ActualizarNotificacionAsync(int adminId, string tipo, ActualizarNotificacionVm vm, string? ip, CancellationToken ct = default)
     {
         if (!TiposNotificacion.Todos.Contains(tipo, StringComparer.OrdinalIgnoreCase))
             return OperationResult<string>.Fail("Evento no encontrado.");
@@ -510,7 +510,7 @@ public class AdminService(
     }
 
     // PB-30: preview con variables de ejemplo (no envía nada).
-    public async Task<OperationResult<NotificacionDto>> PreviewNotificacionAsync(string tipo, PreviewNotificacionVm vm, CancellationToken ct = default)
+    public virtual async Task<OperationResult<NotificacionDto>> PreviewNotificacionAsync(string tipo, PreviewNotificacionVm vm, CancellationToken ct = default)
     {
         if (!TiposNotificacion.Todos.Contains(tipo, StringComparer.OrdinalIgnoreCase))
             return OperationResult<NotificacionDto>.Fail("Evento no encontrado.");

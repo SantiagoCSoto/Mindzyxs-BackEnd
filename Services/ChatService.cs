@@ -15,7 +15,7 @@ public class ChatService(
     FirebaseService firebase)
 {
     // PB-31: mis conversaciones (paciente ve las suyas, psicólogo las suyas).
-    public async Task<List<ConversacionDto>> MisConversacionesAsync(string? tokenRaw, string? ip, CancellationToken ct = default)
+    public virtual async Task<List<ConversacionDto>> MisConversacionesAsync(string? tokenRaw, string? ip, CancellationToken ct = default)
     {
         var yo = await RequireSesionAsync(tokenRaw, ct);
         var rows = await chats.GetDeUsuarioAsync(yo.IdUsuario, ct);
@@ -45,7 +45,7 @@ public class ChatService(
 
     // PB-31: el psicólogo (aprobado y activo) ofrece chat a un paciente activo.
     // Si hubo Rechazada/Cerrada se reactiva a Pendiente. Lanza InvalidOperationException.
-    public async Task<ConversacionDto> CrearSolicitudAsync(string? tokenRaw, int idPaciente, string? ip, CancellationToken ct = default)
+    public virtual async Task<ConversacionDto> CrearSolicitudAsync(string? tokenRaw, int idPaciente, string? ip, CancellationToken ct = default)
     {
         var yo = await RequireSesionAsync(tokenRaw, ct);
         await RequireRolAsync(yo.IdUsuario, AppRoles.Psicologo, ct);
@@ -80,7 +80,7 @@ public class ChatService(
     // PB-31: el paciente acepta/rechaza su solicitud pendiente. Al aceptar se escribe el meta en RTDB
     // y se otorga autorización al psicólogo (aceptar el chat cuenta como autorizarlo).
     // Solo vale para solicitudes hechas por el psicólogo.
-    public async Task<ConversacionDto> ResponderAsync(string? tokenRaw, int idConversacion, bool aceptar, string? ip, CancellationToken ct = default)
+    public virtual async Task<ConversacionDto> ResponderAsync(string? tokenRaw, int idConversacion, bool aceptar, string? ip, CancellationToken ct = default)
     {
         var yo = await RequireSesionAsync(tokenRaw, ct);
         var c = await chats.FindAsync(idConversacion, ct)
@@ -113,7 +113,7 @@ public class ChatService(
 
     // PB-31 doble vía: el paciente solicita chat a un psicólogo desde el directorio.
     // El psicólogo la acepta/rechaza; al aceptar se otorga autorización (simétrico).
-    public async Task<ConversacionDto> SolicitarPacienteAsync(string? tokenRaw, int idPsicologo, string? ip, CancellationToken ct = default)
+    public virtual async Task<ConversacionDto> SolicitarPacienteAsync(string? tokenRaw, int idPsicologo, string? ip, CancellationToken ct = default)
     {
         var yo = await RequireSesionAsync(tokenRaw, ct);
         await RequireRolAsync(yo.IdUsuario, AppRoles.Paciente, ct);
@@ -147,7 +147,7 @@ public class ChatService(
 
     // PB-31 doble vía: el psicólogo acepta/rechaza la solicitud que le hizo el paciente.
     // Al aceptar se otorga autorización (simétrico al aceptar del paciente).
-    public async Task<ConversacionDto> ResponderPsicologoAsync(string? tokenRaw, int idConversacion, bool aceptar, string? ip, CancellationToken ct = default)
+    public virtual async Task<ConversacionDto> ResponderPsicologoAsync(string? tokenRaw, int idConversacion, bool aceptar, string? ip, CancellationToken ct = default)
     {
         var yo = await RequireSesionAsync(tokenRaw, ct);
         var c = await chats.FindAsync(idConversacion, ct)
@@ -180,7 +180,7 @@ public class ChatService(
 
     // PB-31: el paciente ya no bloquea de un botón: solicita bloqueo con motivo.
     // Queda BloqueoPendiente (mensajes congelados) hasta que el psicólogo o admin lo resuelva.
-    public async Task<ConversacionDto> SolicitarBloqueoAsync(string? tokenRaw, int idConversacion, string? motivoRaw, string? ip, CancellationToken ct = default)
+    public virtual async Task<ConversacionDto> SolicitarBloqueoAsync(string? tokenRaw, int idConversacion, string? motivoRaw, string? ip, CancellationToken ct = default)
     {
         var yo = await RequireSesionAsync(tokenRaw, ct);
         var c = await chats.FindAsync(idConversacion, ct)
@@ -204,7 +204,7 @@ public class ChatService(
 
     // PB-31: el psicólogo (o admin) resuelve la solicitud: confirma el bloqueo o lo rechaza.
     // El paciente puede cancelar su propia solicitud (aceptar=false).
-    public async Task<ConversacionDto> ResolverBloqueoAsync(string? tokenRaw, int idConversacion, bool aceptar, string? ip, CancellationToken ct = default)
+    public virtual async Task<ConversacionDto> ResolverBloqueoAsync(string? tokenRaw, int idConversacion, bool aceptar, string? ip, CancellationToken ct = default)
     {
         var yo = await RequireSesionAsync(tokenRaw, ct);
         var c = await chats.FindAsync(idConversacion, ct)
@@ -239,7 +239,7 @@ public class ChatService(
     }
 
     // PB-31: el paciente desbloquea (vuelve a Aceptada).
-    public async Task<ConversacionDto> DesbloquearAsync(string? tokenRaw, int idConversacion, string? ip, CancellationToken ct = default)
+    public virtual async Task<ConversacionDto> DesbloquearAsync(string? tokenRaw, int idConversacion, string? ip, CancellationToken ct = default)
     {
         var yo = await RequireSesionAsync(tokenRaw, ct);
         var c = await chats.FindAsync(idConversacion, ct)
@@ -255,7 +255,7 @@ public class ChatService(
     }
 
     // PB-31: aviso best-effort de envío (el mensaje viaja por RTDB; esto deja auditoría en SQL).
-    public async Task AvisarMensajeAsync(string? tokenRaw, int idConversacion, string? ip, CancellationToken ct = default)
+    public virtual async Task AvisarMensajeAsync(string? tokenRaw, int idConversacion, string? ip, CancellationToken ct = default)
     {
         var yo = await RequireSesionAsync(tokenRaw, ct);
         var c = await chats.FindAsync(idConversacion, ct)
@@ -275,7 +275,7 @@ public class ChatService(
 
     // PB-31: buscador multifiltro (nombre opcional; exige al menos un filtro).
     // Solo psicólogo aprobado y activo.
-    public async Task<List<PacienteChatDto>> BuscarPacientesAsync(string? tokenRaw, string? q, string? nivel, int? minCuestionarios, bool? tienePsicologo, CancellationToken ct = default)
+    public virtual async Task<List<PacienteChatDto>> BuscarPacientesAsync(string? tokenRaw, string? q, string? nivel, int? minCuestionarios, bool? tienePsicologo, CancellationToken ct = default)
     {
         var yo = await RequireSesionAsync(tokenRaw, ct);
         await RequireRolAsync(yo.IdUsuario, AppRoles.Psicologo, ct);

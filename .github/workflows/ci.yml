@@ -1,4 +1,4 @@
-name: CI - Build API
+﻿name: CI - Build and Test API
 
 on:
   push:
@@ -6,16 +6,34 @@ on:
   pull_request:
     branches: [develop, main]
 
+permissions:
+  contents: read
+
 jobs:
-  build:
+  build-and-test:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '9.0.x'
-      - run: dotnet restore Mindzyxs-API.csproj
-      - run: dotnet build Mindzyxs-API.csproj --configuration Release --no-restore
+      - run: dotnet restore Mindzyxs-API.slnx
+      - run: dotnet build Mindzyxs-API.slnx --configuration Release --no-restore
+      - name: Run unit tests with coverage
+        run: |
+          dotnet test Mindzyxs-API.Tests/Mindzyxs-API.Tests.csproj \
+            --configuration Release \
+            --no-build \
+            --filter "FullyQualifiedName!~PruebasIntegracionSql" \
+            --collect:"XPlat Code Coverage" \
+            --results-directory ./TestResults \
+            -- DataCollectionRunSettings.DataCollectors.DataCollector.Configuration.Format=opencover
+      - name: Upload coverage
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: ./TestResults/**/coverage.opencover.xml
+          retention-days: 7
       - run: dotnet publish Mindzyxs-API.csproj --configuration Release --no-build --output ./publish
       - uses: actions/upload-artifact@v4
         with:

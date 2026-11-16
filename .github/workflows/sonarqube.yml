@@ -1,0 +1,52 @@
+name: SonarQube Cloud Analysis
+
+on:
+  push:
+    branches: [develop, main]
+  pull_request:
+    branches: [develop, main]
+
+permissions:
+  contents: read
+
+jobs:
+  sonarcloud:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '9.0.x'
+      - name: Install SonarScanner
+        run: dotnet tool install --global dotnet-sonarscanner
+      - name: Restore
+        run: dotnet restore Mindzyxs-API.slnx
+      - name: Begin SonarQube Cloud analysis
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        run: |
+          dotnet sonarscanner begin \
+            /k:"SantiagoCSoto_Mindzyxs-BackEnd" \
+            /o:"santiagocsoto" \
+            /d:sonar.host.url="https://sonarcloud.io" \
+            /d:sonar.token="$SONAR_TOKEN" \
+            /d:sonar.cs.opencover.reportsPaths="**/coverage.opencover.xml" \
+            /d:sonar.exclusions="**/bin/**,**/obj/**,**/TestResults/**,**/CoverageReport/**" \
+            /d:sonar.coverage.exclusions="**/Migrations/**,**/*.Designer.cs"
+      - name: Build
+        run: dotnet build Mindzyxs-API.slnx --configuration Release --no-restore
+      - name: Test with coverage
+        run: |
+          dotnet test Mindzyxs-API.Tests/Mindzyxs-API.Tests.csproj \
+            --configuration Release \
+            --no-build \
+            --filter "FullyQualifiedName!~PruebasIntegracionSql" \
+            --collect:"XPlat Code Coverage" \
+            --results-directory ./TestResults \
+            -- DataCollectionRunSettings.DataCollectors.DataCollector.Configuration.Format=opencover
+      - name: End SonarQube Cloud analysis
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        run: dotnet sonarscanner end /d:sonar.token="$SONAR_TOKEN"

@@ -16,6 +16,7 @@
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
       <PrivateAssets>all</PrivateAssets>
     </PackageReference>
+    <PackageReference Include="Microsoft.EntityFrameworkCore.InMemory" Version="9.0.9" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="9.0.9" />
     <PackageReference Include="FirebaseAdmin" Version="3.6.0" />
     <PackageReference Include="Azure.Storage.Blobs" Version="12.22.2" />
@@ -32,4 +33,10 @@
     <Folder Include="Services\" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Compile Remove="Mindzyxs-API.Tests\**\*.cs" />
+    <None Remove="Mindzyxs-API.Tests\**\*" />
+    <Content Remove="Mindzyxs-API.Tests\**\*" />
+  </ItemGroup>
 </Project>
+
